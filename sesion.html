@@ -7,14 +7,17 @@
     <link rel="stylesheet" href="css/sesion.css">
 </head>
 <body>
-    <header>
+    <header class="topbar">
         <h1 id="tituloSesion">Cargando datos...</h1>
         <p class="session-info" id="subtituloSesion"></p>
     </header>
 
-    <div class="grid" id="contenedorEjercicios"></div>
+    <main class="contenido">
+        <div class="grid" id="contenedorEjercicios"></div>
 
-    <button type="button" id="exitBtn" class="btn btn-primary btn-large" onclick="window.location.href='index.html'">Salir</button>
+        <button type="button" id="exitBtn" class="btn btn-primary btn-large"
+                onclick="window.location.href='index.html'">Salir</button>
+    </main>
 
     <script type="module">
         import { dbAll, hoy } from './js/database.js';

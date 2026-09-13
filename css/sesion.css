@@ -5,9 +5,16 @@
     --primary-color: #007bff;
     --primary-hover: #0056b3;
     --muted-color: #666;
+
+    /* Barra superior (mismos valores que styles.css) */
+    --topbar-bg: #18202a;
+    --topbar-text: #fff;
+    --topbar-muted: #aab4bf;
+
     --radius: 12px;
     --gap: 20px;
     --max-width: 900px;
+    --pad-x: clamp(12px, 4vw, 24px);
 }
 
 *,
@@ -26,34 +33,57 @@ body {
     color: var(--text-color);
     margin: 0;
     min-height: 100dvh;
-    padding: clamp(12px, 4vw, 24px);
-    padding-left: max(clamp(12px, 4vw, 24px), env(safe-area-inset-left));
-    padding-right: max(clamp(12px, 4vw, 24px), env(safe-area-inset-right));
-    padding-bottom: max(clamp(12px, 4vw, 24px), env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ---------- Barra superior ---------- */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    background: var(--topbar-bg);
+    color: var(--topbar-text);
+    box-shadow: 0 2px 8px #0002;
+}
+
+.topbar h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.session-info {
+    margin: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+    color: var(--topbar-muted);
+}
+
+/* ---------- Contenido ---------- */
+.contenido {
+    flex: 1;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: clamp(16px, 4vw, 30px);
-}
-
-/* ---------- Cabecera ---------- */
-header {
-    width: 100%;
-    max-width: var(--max-width);
-    text-align: center;
-    margin: 0;
-}
-
-h1 {
-    margin: 0;
-    font-size: clamp(1.5rem, 6vw, 2rem);
-    letter-spacing: 0.5px;
-}
-
-.session-info {
-    font-size: clamp(0.95rem, 3.5vw, 1.1rem);
-    color: var(--muted-color);
-    margin-top: 6px;
+    padding: var(--pad-x);
+    padding-left: max(var(--pad-x), env(safe-area-inset-left));
+    padding-right: max(var(--pad-x), env(safe-area-inset-right));
+    padding-bottom: max(var(--pad-x), env(safe-area-inset-bottom));
 }
 
 /* ---------- Rejilla de ejercicios ---------- */
@@ -189,6 +219,14 @@ h1 {
         min-width: 220px;
         align-self: center;
         margin-top: 10px;
+    }
+}
+
+/* Alinea el texto de la barra con los bordes de la rejilla en pantallas anchas */
+@media (min-width: 948px) {
+    .topbar {
+        padding-left: calc((100% - var(--max-width)) / 2);
+        padding-right: calc((100% - var(--max-width)) / 2);
     }
 }
 
