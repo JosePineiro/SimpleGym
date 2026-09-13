@@ -1,4 +1,4 @@
-import { dbAll, dbAdd, hoy } from './js/database.js';
+import { dbAll, dbAdd, hoy } from './database.js';
 
 let exercise, historialEjercicios = [], seriesDone = 0, timerInterval = null;
 const $ = id => document.getElementById(id);
@@ -62,7 +62,6 @@ function loadTargets(){
 function startRest(){
   let remaining=exercise.segundos_descanso;
   document.getElementById("timer").classList.remove("hidden");
-  // document.getElementById("seriesBtn").disabled=true;
   document.getElementById("seriesBtn").classList.add("hidden");
   const paint=()=>{$("timer").textContent=`${String(Math.floor(remaining/60)).padStart(2,"0")}:${String(remaining%60).padStart(2,"0")}`};
   paint();
@@ -73,8 +72,7 @@ function startRest(){
     if(remaining<=0){
       clearInterval(timerInterval);
       document.getElementById("timer").classList.add("hidden");
-        document.getElementById("seriesBtn").classList.remove("hidden");
-      // document.getElementById("seriesBtn").disabled=false;
+      document.getElementById("seriesBtn").classList.remove("hidden");
       document.getElementById("seriesBtn").textContent=`Terminé la serie ${seriesDone+1}`;
     }
   }, 1000);
@@ -82,7 +80,6 @@ function startRest(){
 
 function seriesFinished(){
   seriesDone++;
-  // document.getElementById("series-"+(seriesDone-1)).classList.add("done");
   if(seriesDone>=exercise.numero_series){
     document.getElementById("seriesBtn").classList.add("hidden");
     document.getElementById("finishForm").classList.remove("hidden");
@@ -105,7 +102,6 @@ async function saveWorkout(){
 
 document.getElementById("seriesBtn").onclick=seriesFinished;
 document.getElementById("saveBtn").onclick=saveWorkout;
-document.getElementById("chartBtn").onclick=()=>{ window.location.href = `chart.html?id={exerciseId}`;};
 document.getElementById("exitBtn").onclick=()=>{ if (document.referrer) { window.history.back(); } else { window.location.href = "/sesion.html"; }};
 
 (async()=>{

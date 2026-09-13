@@ -5,9 +5,15 @@
     --primary-color: #007bff;
     --primary-hover: #0056b3;
     --muted-color: #666;
+
+    /* Barra superior (mismos valores que styles.css) */
+    --topbar-bg: #18202a;
+    --topbar-text: #fff;
+
     --radius: 12px;
     --gap: 20px;
     --max-width: 900px;
+    --pad-x: clamp(12px, 4vw, 24px);
 }
 
 /* Evita desbordes por padding/bordes */
@@ -27,27 +33,49 @@ body {
     color: var(--text-color);
     margin: 0;
     min-height: 100dvh;
-    padding: clamp(12px, 4vw, 24px);
-    /* Respeta el notch / barra inferior en móviles */
-    padding-left: max(clamp(12px, 4vw, 24px), env(safe-area-inset-left));
-    padding-right: max(clamp(12px, 4vw, 24px), env(safe-area-inset-right));
-    padding-bottom: max(clamp(12px, 4vw, 24px), env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-header {
+/* ---------- Barra superior ---------- */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     width: 100%;
-    max-width: var(--max-width);
-    text-align: center;
-    margin-bottom: clamp(16px, 4vw, 30px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    background: var(--topbar-bg);
+    color: var(--topbar-text);
+    box-shadow: 0 2px 8px #0002;
 }
 
-h1 {
-    margin: 0 0 10px 0;
-    font-size: clamp(1.5rem, 6vw, 2rem);
+.topbar h1 {
+    font-size: 1.05rem;
+    margin: 0;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------- Contenido ---------- */
+.contenido {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--pad-x);
+    padding-left: max(var(--pad-x), env(safe-area-inset-left));
+    padding-right: max(var(--pad-x), env(safe-area-inset-right));
+    padding-bottom: max(var(--pad-x), env(safe-area-inset-bottom));
 }
 
 /* ---------- Móvil primero: una sola columna ---------- */
@@ -186,6 +214,14 @@ input[type="file"] {
     /* En escritorio los botones no necesitan ocupar todo el ancho */
     .csv-actions .btn {
         flex: 0 1 220px;
+    }
+}
+
+/* Alinea el texto de la barra con los bordes de la rejilla en pantallas anchas */
+@media (min-width: 948px) {
+    .topbar {
+        padding-left: calc((100% - var(--max-width)) / 2);
+        padding-right: calc((100% - var(--max-width)) / 2);
     }
 }
 

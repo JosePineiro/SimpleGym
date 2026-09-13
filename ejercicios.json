@@ -72,7 +72,7 @@
   {
     "id": 6,
     "orden": 6,
-    "imagen": "images/Abductor.jpg",
+    "imagen": "images/abductor.jpg",
     "nombre": "Abductor",
     "descripcion": "Músculos principales: glúteo medio, glúteo menor y tensor de la fascia lata. Sinergistas: piriforme, glúteo mayor y sartorio",
     "incremento_peso": 5,

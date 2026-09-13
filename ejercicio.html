@@ -2,15 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="description" content="Registro de ejercicios y progresión de entrenamiento">
   <title>Entrenamiento</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/ejercicio.css">
 </head>
 <body>
 <header class="topbar">
   <h1 id="exerciseTitle">Entrenamiento</h1>
-  <button type="button" id="exitBtn" class="btn btn-secondary">Salir</button>
 </header>
 
 <main class="container">
@@ -23,21 +22,17 @@
         <div><span>Repeticiones</span><strong id="exerciseRepeticiones">—</strong></div>
         <div><span>RIR</span><strong id="exerciseRIR">—</strong></div>
         <div><span>Descanso</span><strong id="exerciseDescanso">—</strong></div>
+        <div><span>Repeticiones objetivo</span><strong id="targetReps">—</strong></div>
+        <div><span>Peso objetivo</span><strong id="targetWeight">—</strong></div>
       </div>
     </div>
   </section>
 
-  <section class="card workout-card">
-    <div class="targets">
-      <div><span>Repeticiones objetivo</span><strong id="targetReps">—</strong></div>
-      <div><span>Peso objetivo</span><strong id="targetWeight">—</strong></div>
-    </div>
-    <!-- <div id="seriesArea" class="series-area"></div> -->
+  <section class="hero card">
     <div id="timer" class="timer hidden">—</div>
     <button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
 
     <div id="finishForm" class="finish-form hidden">
-      <h2>Finalizado</h2>
       <label>Último peso utilizado
         <input id="finalWeight" type="number" min="5" step="0.5" inputmode="decimal" required>
       </label>
@@ -48,11 +43,9 @@
     </div>
   </section>
 
-  <nav class="actions">
-    <button type="button" id="chartBtn" class="btn btn-secondary">Ver progresión</button>
-  </nav>
+  <button type="button" id="exitBtn" class="btn btn-primary btn-large" onclick="window.location.href='sesion.html'">Salir</button>
 </main>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="js/ejercicio.js"></script>
 </body>
 </html>
