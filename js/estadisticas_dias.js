@@ -1,9 +1,11 @@
 /* =========================================================
    estadisticas_dias.js — Calendario de días de entreno
-   CSV esperado: id;sesion;fecha;peso;repeticiones
+   Fuente de datos: IndexedDB (store "historico") vía database.js
+   Registros: { id, sesion, fecha, peso, repeticiones }
    ========================================================= */
 
-const STORAGE_KEY = 'simplegym_historial';
+import { dbAll } from './database.js';
+
 const EJERCICIOS_URL = 'ejercicios.json';
 
 let ejercicios = [];
@@ -55,11 +57,15 @@ function normalizarFila(r) {
     return {
         fecha: normalizarFecha(r.fecha ?? r.Fecha ?? r.date ?? r.Date ?? ''),
         ejercicio: resolverEjercicio(
-            r.ejercicio ?? r.Ejercicio ?? r.nombre ?? r.Nombre ??
-            r.id ?? r.ID ?? r.Id ?? ''
+            r.id_ejercicio  ?? r.idEjercicio  ??
+            r.id            ?? r.ID           ?? r.Id ??
+            r.ejercicio     ?? r.Ejercicio    ??
+            r.nombre        ?? r.Nombre       ?? ''
         ),
         peso: Number(r.peso ?? r.Peso ?? r.weight ?? 0) || 0,
-        repeticiones: Number(r.repeticiones ?? r.reps ?? r.Repeticiones ?? 0) || 0,
+        repeticiones: Number(
+            r.repeticiones ?? r.reps ?? r.Repeticiones ?? r.Reps ?? 0
+        ) || 0,
         sesion: (() => {
             const s = r.sesion ?? r.Sesion ?? r['sesión'] ?? r.session ?? '';
             return s === '' ? null : (Number(s) || null);
@@ -80,41 +86,18 @@ async function cargarEjercicios() {
     }
 }
 
-function cargarHistorial() {
+/* Carga el historial desde IndexedDB */
+async function cargarHistorial() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return [];
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr)
-            ? arr.map(normalizarFila).filter(r => r.fecha && r.ejercicio)
-            : [];
-    } catch {
+        const arr = await dbAll();
+        if (!Array.isArray(arr)) return [];
+        return arr
+            .map(normalizarFila)
+            .filter(r => r.fecha && r.ejercicio);
+    } catch (err) {
+        console.error('Error leyendo IndexedDB:', err);
         return [];
     }
-}
-
-function guardarHistorial() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(historial));
-}
-
-/* ---------- CSV ---------- */
-function parseCSV(text) {
-    text = text.replace(/^\uFEFF/, '').replace(/\r/g, '');
-    const lineas = text.split('\n').filter(l => l.trim());
-    if (!lineas.length) return [];
-
-    const sep = lineas[0].includes(';') ? ';' : ',';
-    const cabeceras = lineas[0].split(sep)
-        .map(h => h.trim().replace(/^["']|["']$/g, ''));
-
-    return lineas.slice(1).map(linea => {
-        const celdas = linea.split(sep);
-        const row = {};
-        cabeceras.forEach((h, i) => {
-            row[h] = (celdas[i] ?? '').trim().replace(/^["']|["']$/g, '');
-        });
-        return normalizarFila(row);
-    }).filter(r => r.fecha && r.ejercicio);
 }
 
 /* ---------- Cálculo de días ---------- */
@@ -138,17 +121,17 @@ function construirCache() {
     }
 
     // 3) Recorrer fechas en orden manteniendo el último registro de cada ejercicio
-    const ultimoPorEj = new Map();   // ejercicio -> { peso, repeticiones }
+    const ultimoPorEj = new Map();
     const fechas = [...regsPorFecha.keys()].sort();
 
     for (const iso of fechas) {
         const regs = regsPorFecha.get(iso);
 
-        // --- Progreso: peso mayor O repeticiones mayores que la última vez ---
+        // --- Progreso ---
         const detalles = [];
         for (const r of regs) {
             const ant = ultimoPorEj.get(r.ejercicio);
-            if (!ant) continue;   // primera vez que se hace: no cuenta como progreso
+            if (!ant) continue;
             const masPeso = r.peso > ant.peso;
             const masReps = r.repeticiones > ant.repeticiones;
             if (masPeso || masReps) {
@@ -196,7 +179,7 @@ function construirCache() {
 
         cacheDias.set(iso, { estado, regs, sesion: sesionDetectada, detalles });
 
-        // Actualizar el "último registro" por ejercicio
+        // Actualizar último registro por ejercicio
         for (const r of regs) {
             ultimoPorEj.set(r.ejercicio, {
                 peso: r.peso,
@@ -352,48 +335,6 @@ function renderDetalle(iso) {
     `;
 }
 
-/* ---------- Origen / import ---------- */
-function actualizarOrigen() {
-    const el = document.getElementById('origenDatos');
-    el.textContent = historial.length
-        ? `${historial.length} registros cargados.`
-        : 'No hay registros. Importa un CSV para empezar.';
-}
-
-function importarCSV(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-        try {
-            const nuevas = parseCSV(e.target.result);
-            if (!nuevas.length) {
-                alert('No se han podido leer filas del CSV. ' +
-                      'Comprueba que tiene columnas id/sesion/fecha/peso/repeticiones.');
-                return;
-            }
-            const map = new Map();
-            historial.forEach(r => map.set(`${r.fecha}|${r.ejercicio}`, r));
-            nuevas.forEach(r => map.set(`${r.fecha}|${r.ejercicio}`, r));
-            historial = [...map.values()];
-            guardarHistorial();
-            cacheDias = new Map();
-            construirCache();
-            actualizarOrigen();
-
-            const ultima = historial.map(r => r.fecha).sort().pop();
-            if (ultima) {
-                mesActual = parseISO(ultima);
-                diaSeleccionado = ultima;
-            }
-
-            renderTodo();
-            alert(`Importados ${nuevas.length} registros.`);
-        } catch (err) {
-            alert('Error al importar el CSV: ' + err.message);
-        }
-    };
-    reader.readAsText(file);
-}
-
 /* ---------- Render general ---------- */
 function renderTodo() {
     renderCalendario();
@@ -406,15 +347,14 @@ async function init() {
     try {
         await cargarEjercicios();
     } catch (err) {
-        document.getElementById('origenDatos').textContent =
-            'Error cargando ejercicios.json: ' + err.message;
+        // document.getElementById('origenDatos').textContent =
+        //     'Error cargando ejercicios.json: ' + err.message;
         return;
     }
 
-    historial = cargarHistorial();
+    historial = await cargarHistorial();
     cacheDias = new Map();
     construirCache();
-    actualizarOrigen();
 
     const fechas = historial.map(r => r.fecha).sort();
     if (fechas.length) {
@@ -440,19 +380,6 @@ async function init() {
     document.getElementById('btnHoy').addEventListener('click', () => {
         mesActual = new Date();
         diaSeleccionado = toISO(new Date());
-        renderTodo();
-    });
-
-    document.getElementById('importFile').addEventListener('change', e => {
-        const f = e.target.files[0];
-        if (f) importarCSV(f);
-        e.target.value = '';
-    });
-    document.getElementById('btnRecargar').addEventListener('click', () => {
-        historial = cargarHistorial();
-        cacheDias = new Map();
-        construirCache();
-        actualizarOrigen();
         renderTodo();
     });
 }

@@ -59,9 +59,9 @@ export function hoy() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-// const ahora = new Date();
-// export const hoy = [
-//   ahora.getFullYear(),
-//   String(ahora.getMonth() + 1).padStart(2, '0'),
-//   String(ahora.getDate()).padStart(2, '0')
-// ].join('-');
+
+export async function loadExercises() {
+    const response = await fetch("ejercicios.json");
+    const list = await response.json();
+    return list;
+}
