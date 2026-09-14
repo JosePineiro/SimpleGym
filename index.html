@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIMPLEGYM - Panel Principal</title>
-    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <header class="topbar">
@@ -16,15 +16,15 @@
             <div class="card">
                 <h2>Entrenamiento</h2>
                 <p class="card-text" id="infoSesion">Calculando...</p>
-                <a id="btnIrSesion" href="#" class="btn">Comenzar Sesión</a>
+                <a id="btnIrSesion" href="#" class="btn btn-primary">Comenzar Sesión</a>
             </div>
 
             <div class="card">
                 <h2>Estadísticas</h2>
                 <p class="card-text">Revisa tus marcas y evolución histórica.</p>
                 <div class="csv-actions">
-                    <a href="estadisticas_dias.html" class="btn">Días de entreno</a>
-                    <a href="estadisticas_lista.html" class="btn">Peso por máquina</a>
+                    <a href="estadisticas_dias.html" class="btn btn-primary">Días de entreno</a>
+                    <a href="estadisticas_lista.html" class="btn btn-primary">Peso por máquina</a>
                 </div>
             </div>
 
@@ -32,11 +32,11 @@
                 <h2>Gestión de Historial (CSV)</h2>
                 <p class="card-text">Gestiona tu historial de ejercicios.</p>
                 <div class="csv-actions">
-                    <label class="btn file-label">
+                    <label class="btn btn-primary file-label">
                         Importar
                         <input type="file" id="importFile" accept=".csv">
                     </label>
-                    <button type="button" class="btn" id="btnExportar">Exportar</button>
+                    <button type="button" class="btn btn-primary" id="btnExportar">Exportar</button>
                 </div>
             </div>
         </div>

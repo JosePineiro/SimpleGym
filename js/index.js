@@ -13,121 +13,45 @@ async function loadExercises(){
 
 function parseCSV(text) {
     const lines = text.replace(/^\uFEFF/, '').replaceAll(`\r`, '').replaceAll('/', '-').replaceAll(',', '.').trim().split(/\n/);
-
+    
     if (lines[0]?.toLowerCase().includes('id')) lines.shift(); // saltar cabecera
     const rows = [];
     let skipped = 0;
 
     for (const line of lines) {
         const parts = line.split(';').map(p => p.trim());
-        if (parts.length < 4) { skipped++; continue; }
+        if (parts.length < 5) { skipped++; continue; }
 
-        const [idStr, fecha, pesoStr, repStr] = parts;
+        const [idStr, sesionStr, fecha, pesoStr, repeticionesStr] = parts;
         const id = Number(idStr);
         const peso = Number(pesoStr);
-        const rep = Number(repStr);
-
-        if (!idStr || isNaN(id) || !pesoStr || isNaN(peso) || !repStr || isNaN(rep) || !/^2\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(fecha)) {
+        const repeticiones = Number(repeticionesStr);
+        const sesion = Number(sesionStr);
+        
+        if (!idStr || isNaN(id) || !pesoStr || isNaN(peso) || !repeticionesStr || isNaN(repeticiones) ||
+            !sesionStr || isNaN(sesion) || !/^2\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(fecha)) {
         skipped++;
         continue;
         }
 
-        rows.push({ id_ejercicio: id, fecha, peso, repeticiones: rep });
+        rows.push({ id_ejercicio: id, sesion, fecha, peso, repeticiones});
     }
     return { rows, skipped };
 }
 
 
-function getSesionActual(ejerciciosDB, historialEjercicios) {
-    try {
-        // Total de sesiones existentes
-        const todasLasSesiones = ejerciciosDB.flatMap(e => e.sesion);
-        if (!todasLasSesiones.length) throw new Error("ejercicios.json sin sesiones");
-        const totalSesiones = Math.max(...todasLasSesiones);
+function getSesionActual(totalSesiones, historialEjercicios) {
+    if (!historialEjercicios.length) return 1;
 
-        // Devuelve el array de sesiones de un ejercicio del DB
-        const getSesiones = id => ejerciciosDB.find(e => e.id === id)?.sesion ?? [];
+    // Registro con la fecha más reciente (si hay empate da igual, misma sesión)
+    const ultimo = historialEjercicios.reduce((a, b) => (a.fecha >= b.fecha ? a : b));
+    const sesionUltima = Number(ultimo.sesion);
 
-        // Agrupamos el historial por fecha
-        const porFecha = {};
-        for (const h of historialEjercicios) {
-            (porFecha[h.fecha] = porFecha[h.fecha] || []).push(h);
-        }
+    // Si el último entrenamiento fue hoy, esa es la sesión actual
+    if (ultimo.fecha === hoy()) return sesionUltima;
 
-        // Fechas ordenadas de más antigua a más reciente
-        const fechas = Object.keys(porFecha).sort();
-
-        // Para cada fecha, calculamos el conjunto de sesiones posibles
-        // (intersección de las sesiones de todos los ejercicios de esa fecha)
-        const posiblesPorFecha = fechas.map(fecha => {
-            const ejerciciosFecha = porFecha[fecha];
-            let interseccion = null;
-            for (const h of ejerciciosFecha) {
-                const sesiones = getSesiones(h.id_ejercicio);
-                if (!sesiones) continue;
-                if (interseccion === null) {
-                    interseccion = new Set(sesiones);
-                } else {
-                    interseccion = new Set([...interseccion].filter(s => sesiones.includes(s)));
-                }
-            }
-            return interseccion ? Array.from(interseccion).sort((a, b) => a - b) : [];
-        });
-
-        // Buscamos la primera fecha que tenga una única sesión posible (unívoca)
-        let indiceInicio = -1;
-        let sesionActual = null;
-        for (let i = 0; i < posiblesPorFecha.length; i++) {
-            if (posiblesPorFecha[i].length === 1) {
-                indiceInicio = i;
-                sesionActual = posiblesPorFecha[i][0];
-                break;
-            }
-        }
-
-        // Si no hay ninguna fecha unívoca, no podemos determinar la secuencia
-        if (indiceInicio === -1) {
-            return 1; // fallback
-        }
-
-        // Propagamos hacia adelante resolviendo las ambigüedades
-        for (let i = indiceInicio + 1; i < posiblesPorFecha.length; i++) {
-            const posibles = posiblesPorFecha[i];
-            if (posibles.length === 0) continue;
-
-            // Buscamos la siguiente sesión después de sesionActual que esté en posibles
-            let siguiente = null;
-            for (let offset = 1; offset <= totalSesiones; offset++) {
-                const candidata = ((sesionActual - 1 + offset) % totalSesiones) + 1;
-                if (posibles.includes(candidata)) {
-                    siguiente = candidata;
-                    break;
-                }
-            }
-            if (siguiente === null) {
-                // Sin consistencia: tomamos la primera posible
-                siguiente = posibles[0];
-            }
-            sesionActual = siguiente;
-        }
-
-        // La última sesión registrada es sesionActual
-        const ultimaSesion = sesionActual;
-        const ultimaFecha = fechas[fechas.length - 1];
-
-        // Si la última fecha es hoy, la sesión actual es la de hoy.
-        // Si no, la sesión actual es la siguiente a la última registrada.
-        const fechaHoy = hoy();
-        if (ultimaFecha === fechaHoy) {
-            return ultimaSesion;
-        } else {
-            return (ultimaSesion % totalSesiones) + 1;
-        }
-
-    } catch (error) {
-        console.error("Error calculando la sesión:", error);
-        return 1;
-    }
+    // Si fue antes de hoy, avanzamos una sesión (con wrap-around)
+    return (sesionUltima % totalSesiones) + 1;
 }
 
 function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion) {
@@ -177,9 +101,9 @@ async function exportarCSV() {
     }
 
     const filas = [
-        "id;fecha;peso;repeticiones",
+        "id;sesion;fecha;peso;repeticiones",
         ...historialEjercicios.map(row =>
-            `${row.id_ejercicio};${row.fecha};${row.peso};${row.repeticiones}`
+            `${row.id_ejercicio};${row.sesion};${row.fecha};${row.peso};${row.repeticiones}`
         )
     ];
 
@@ -220,7 +144,8 @@ async function inicializarIndex() {
             btnSesion.textContent = '¡Bienvenido! Empieza tu primera sesión.';
             sesionActual = 1;
         } else {
-            sesionActual = getSesionActual(ejerciciosDB, historialEjercicios);
+            const totalSesiones = Math.max(...ejerciciosDB.flatMap(e => e.sesion)); // Sesión más alta definida en ejercicios.json
+            sesionActual = getSesionActual(totalSesiones, historialEjercicios);
             btnSesion.textContent = `Comenzar Sesión ${sesionActual}`;
         }
 

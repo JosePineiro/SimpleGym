@@ -6,9 +6,9 @@ async function loadExercises() {
     return list;
 }
 
-function crearCard(ejercicio, completado) {
+function crearCard(ejercicio, sesionActual, completado) {
     const a = document.createElement('a');
-    a.href = `ejercicio.html?id=${encodeURIComponent(ejercicio.id)}`;
+    a.href = `ejercicio.html?sesion=${encodeURIComponent(sesionActual)}&ejercicio=${encodeURIComponent(ejercicio.id)}`;
     a.className = `card${completado ? ' completado' : ''}`;
     a.setAttribute('aria-label', `${ejercicio.nombre}${completado ? ' (completado)' : ''}`);
 
@@ -73,7 +73,7 @@ async function inicializarPantalla() {
         const fragment = document.createDocumentFragment();
         for (const ejercicio of ejerciciosDeHoy) {
             const completado = hechosHoy.has(Number(ejercicio.id));
-            fragment.appendChild(crearCard(ejercicio, completado));
+            fragment.appendChild(crearCard(ejercicio, sesionActual, completado));
         }
         contenedor.appendChild(fragment);
     } catch (error) {

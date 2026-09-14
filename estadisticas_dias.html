@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMPLEGYM - Días de entreno</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <h1>SIMPLEGYM · Días de entreno</h1>
+        <a class="topbar-link" href="index.html">Inicio</a>
+    </header>
+
+    <main class="contenido">
+
+        <!-- ---------- Calendario ---------- -->
+        <section class="card">
+            <div class="cal-toolbar">
+                <button type="button" class="btn btn-secondary cal-nav" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
+                <h2 class="cal-title" id="calTitulo">—</h2>
+                <button type="button" class="btn btn-secondary cal-nav" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
+            </div>
+
+            <div class="cal-weekdays" aria-hidden="true">
+                <span>L</span><span>M</span><span>X</span><span>J</span>
+                <span>V</span><span>S</span><span>D</span>
+            </div>
+
+            <div class="cal-grid" id="calGrid" aria-label="Calendario de entrenamientos"></div>
+
+            <button type="button" class="btn btn-secondary btn-large" id="btnHoy">Ir al mes actual</button>
+        </section>
+
+        <!-- ---------- Leyenda ---------- -->
+        <section class="card">
+            <h2>Leyenda</h2>
+            <ul class="cal-leyenda">
+                <li><span class="cal-swatch cal-day--none" aria-hidden="true"></span> Sin entrenamiento</li>
+                <li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Algo de ejercicio (sesión incompleta)</li>
+                <li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
+                <li><span class="cal-swatch cal-day--best" aria-hidden="true"></span> Sesión completa + progreso (★)</li>
+            </ul>
+        </section>
+
+        <!-- ---------- Resumen mensual ---------- -->
+        <section class="card">
+            <h2>Resumen del mes</h2>
+            <div class="stats" id="calResumen"></div>
+        </section>
+
+        <!-- ---------- Detalle del día ---------- -->
+        <section class="card">
+            <h2 id="detalleTitulo">Detalle del día</h2>
+            <p class="card-text" id="detalleTexto">Pulsa sobre un día del calendario para ver el detalle.</p>
+            <div id="detalleContenido"></div>
+        </section>
+
+        <!-- ---------- Origen de datos ---------- -->
+        <section class="card">
+            <h2>Datos</h2>
+            <p class="card-text" id="origenDatos">Cargando…</p>
+            <div class="csv-actions">
+                <label class="btn btn-secondary file-label">
+                    Importar CSV
+                    <input type="file" id="importFile" accept=".csv">
+                </label>
+                <button type="button" class="btn btn-secondary" id="btnRecargar">Recargar</button>
+            </div>
+        </section>
+
+    </main>
+
+    <script type="module" src="js/estadisticas_dias.js"></script>
+</body>
+</html>
