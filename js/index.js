@@ -153,7 +153,7 @@ async function inicializarIndex() {
 
         if (numeroEjerciciosPendientes === 0) {
             infoSesion.textContent = `Todos los ejercicios de hoy completados`;
-            btnSesion.classList.add('btn-disabled');
+            // btnSesion.classList.add('btn-disabled');
         } else {
             btnSesion.href = `sesion.html?sesion=${sesionActual}`;
             infoSesion.textContent = `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`;

@@ -45,11 +45,16 @@ async function inicializarPantalla() {
 
         const fechaHoy = hoy();
         const hechosHoy = new Set(
-                    historialEjercicios
-                        .filter(h => h.fecha === fechaHoy)
-                        .map(h => Number(h.id_ejercicio))
-                );
-        const ejerciciosDeHoy = ejerciciosDB.filter(e => e.sesion.includes(sesionActual));
+            historialEjercicios
+                .filter(h => h.fecha === fechaHoy)
+                .map(h => Number(h.id_ejercicio))
+        );
+        
+        // const ejerciciosDeHoy = ejerciciosDB.filter(e => e.sesion.includes(sesionActual));
+        const ejerciciosDeHoy = ejerciciosDB
+            .filter(e => e.sesion.includes(sesionActual))
+            .sort((a, b) => (a.orden ?? Number.MAX_SAFE_INTEGER) - (b.orden ?? Number.MAX_SAFE_INTEGER)
+                            || Number(a.id) - Number(b.id));
 
         titulo.textContent = `Sesión ${sesionActual}`;
 
