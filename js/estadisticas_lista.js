@@ -10,7 +10,7 @@ const subtitulo  = document.getElementById('subtituloPagina');
 /* ---------- Utilidades ---------- */
 
 // Ruta por defecto para la imagen de una máquina sin imagen propia.
-const IMG_PLACEHOLDER = 'img/placeholder.png';
+const IMG_PLACEHOLDER = 'img/placeholder.svg';
 
 /**
  * Crea la tarjeta-enlace de una máquina.
@@ -50,10 +50,7 @@ function mostrarVacio(mensaje) {
 /**
  * Devuelve la lista de máquinas/ejercicios.
  *
- * ⚠️ Ajusta esta función a la fuente real de tu proyecto.
- *    En sesion.js ya debes tener algo equivalente; lo más limpio
- *    es importar el mismo módulo o reutilizar la misma clave de
- *    localStorage / CSV.
+ * Se puede ajustar para leer desde localStorage
  *
  * Formato esperado: Array<{ id: string, nombre: string, imagen?: string }>
  */
@@ -61,7 +58,9 @@ async function cargarMaquinas() {
     // Opción A: desde un JSON estático.
     const res = await fetch('ejercicios.json', { cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar la lista de ejercicios');
-    return res.json();
+    const maquinas = await res.json();
+    return maquinas.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    // return res.json();
 
     // Opción B (por defecto): desde localStorage, la misma clave que use sesion.js.
     // const raw = localStorage.getItem('ejercicios');
