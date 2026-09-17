@@ -736,6 +736,18 @@ canvas {
     vertical-align: middle;
 }
 
+/* Mejora: verde */
+.progreso-up {
+    background-color: #00ff4c;
+    color: #004431;
+}
+
+/* Descenso: azul */
+.progreso-down {
+    background-color: #ff0000;
+    color: #470000;
+}
+
 /* ---------- Ajustes responsive para el calendario ---------- */
 @media (min-width: 700px) {
     .cal-grid,

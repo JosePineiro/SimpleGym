@@ -52,95 +52,260 @@ async function cargarHistorial() {
 }
 
 /* ---------- Cálculo de días ---------- */
+
 function construirCache() {
     cacheDias = new Map();
     if (!historial.length || !ejercicios.length) return;
 
     // Agrupar por fecha
     const regsPorFecha = new Map();
+
     for (const r of historial) {
-        if (!regsPorFecha.has(r.fecha)) regsPorFecha.set(r.fecha, []);
+        if (!regsPorFecha.has(r.fecha)) {
+            regsPorFecha.set(r.fecha, []);
+        }
+
         regsPorFecha.get(r.fecha).push(r);
     }
 
-    // Índice de sesiones → ids de ejercicios, en un solo bucle
+    // Índice de sesiones → ids de ejercicios
     const idsDeSesion = new Map();
+
     for (const e of ejercicios) {
         for (const s of e.sesion) {
-            if (!idsDeSesion.has(s)) idsDeSesion.set(s, []);
+            if (!idsDeSesion.has(s)) {
+                idsDeSesion.set(s, []);
+            }
+
             idsDeSesion.get(s).push(e.id);
         }
     }
+
     const sesiones = [...idsDeSesion.keys()];
 
-    const ultimoPorEj = new Map(); // exId → { peso, reps }
+    // Último registro por ejercicio
+    const ultimoPorEj = new Map();
+
     const fechas = [...regsPorFecha.keys()].sort();
 
     for (const iso of fechas) {
         const regs = regsPorFecha.get(iso);
 
-        // 1) Mejor serie del día por ejercicio (peso, desempate por reps)
+        // 1) Mejor serie del día por ejercicio
         const mejorPorEj = new Map();
+
         for (const r of regs) {
             const prev = mejorPorEj.get(r.exId);
-            if (!prev || r.peso > prev.peso || (r.peso === prev.peso && r.reps > prev.reps)) {
+
+            if (
+                !prev ||
+                r.peso > prev.peso ||
+                (r.peso === prev.peso && r.reps > prev.reps)
+            ) {
                 mejorPorEj.set(r.exId, r);
             }
         }
 
-        // 2) Progreso respecto al último día registrado
+        // 2) Detectar mejoras y descensos
         const detalles = new Map();
+
         for (const [exId, r] of mejorPorEj) {
             const ant = ultimoPorEj.get(exId);
+
             if (!ant) continue;
+
             const masPeso = r.peso > ant.peso;
+            const menosPeso = r.peso < ant.peso;
+
             const masReps = r.reps > ant.reps;
-            if (masPeso || masReps) {
+            const menosReps = r.reps < ant.reps;
+
+            let tipo = null;
+
+            // El peso tiene prioridad
+            if (masPeso) {
+                tipo = 'up';
+            } else if (menosPeso) {
+                tipo = 'down';
+            } else if (masReps) {
+                tipo = 'up';
+            } else if (menosReps) {
+                tipo = 'down';
+            }
+
+            // Guardar cualquier cambio
+            if (tipo) {
                 detalles.set(exId, {
                     antes: { ...ant },
-                    ahora: { peso: r.peso, reps: r.reps },
-                    motivo: masPeso && masReps ? 'peso y reps' : masPeso ? 'peso' : 'repeticiones'
+                    ahora: {
+                        peso: r.peso,
+                        reps: r.reps
+                    },
+                    tipo
                 });
             }
         }
 
         // 3) Detectar sesión
         const idsHechos = new Set(regs.map(r => r.exId));
-        const sesionesRegs = [...new Set(regs.map(r => r.sesion).filter(s => s != null))];
-        let sesionDetectada = sesionesRegs.length === 1 ? sesionesRegs[0] : null;
+
+        const sesionesRegs = [
+            ...new Set(
+                regs.map(r => r.sesion).filter(s => s != null)
+            )
+        ];
+
+        let sesionDetectada =
+            sesionesRegs.length === 1
+                ? sesionesRegs[0]
+                : null;
+
         let sesionCompleta = false;
 
         if (sesionDetectada != null) {
             const ids = idsDeSesion.get(sesionDetectada) || [];
-            sesionCompleta = ids.length > 0 && ids.every(id => idsHechos.has(id));
+
+            sesionCompleta =
+                ids.length > 0 &&
+                ids.every(id => idsHechos.has(id));
         }
 
-        // Si no está completa, buscar la sesión con más coincidencias (exigiendo al menos 1)
+        // Si no está completa, buscar la sesión con más coincidencias
         if (!sesionCompleta) {
-            let mejor = null, mejorPunt = 0;
+            let mejor = null;
+            let mejorPunt = 0;
+
             for (const s of sesiones) {
                 const ids = idsDeSesion.get(s) || [];
-                const punt = ids.filter(id => idsHechos.has(id)).length;
+
+                const punt = ids.filter(
+                    id => idsHechos.has(id)
+                ).length;
+
                 if (punt > mejorPunt) {
                     mejorPunt = punt;
                     mejor = s;
                 }
             }
+
             sesionDetectada = mejor;
         }
 
-        const estado = !sesionCompleta ? 'some'
-                     : detalles.size  ?  'best'
-                     :                   'all';
+        // 4) Estado del día
+        const estado =
+            !sesionCompleta
+                ? 'some'
+                : detalles.size
+                    ? 'best'
+                    : 'all';
 
-        cacheDias.set(iso, { estado, regs, sesion: sesionDetectada, detalles });
+        cacheDias.set(iso, {
+            estado,
+            regs,
+            sesion: sesionDetectada,
+            detalles
+        });
 
-        // 4) Actualizar últimos valores con la mejor serie del día
+        // 5) Actualizar últimos valores
         for (const [exId, r] of mejorPorEj) {
-            ultimoPorEj.set(exId, { peso: r.peso, reps: r.reps });
+            ultimoPorEj.set(exId, {
+                peso: r.peso,
+                reps: r.reps
+            });
         }
     }
 }
+// function construirCache() {
+//     cacheDias = new Map();
+//     if (!historial.length || !ejercicios.length) return;
+
+//     // Agrupar por fecha
+//     const regsPorFecha = new Map();
+//     for (const r of historial) {
+//         if (!regsPorFecha.has(r.fecha)) regsPorFecha.set(r.fecha, []);
+//         regsPorFecha.get(r.fecha).push(r);
+//     }
+
+//     // Índice de sesiones → ids de ejercicios, en un solo bucle
+//     const idsDeSesion = new Map();
+//     for (const e of ejercicios) {
+//         for (const s of e.sesion) {
+//             if (!idsDeSesion.has(s)) idsDeSesion.set(s, []);
+//             idsDeSesion.get(s).push(e.id);
+//         }
+//     }
+//     const sesiones = [...idsDeSesion.keys()];
+
+//     const ultimoPorEj = new Map(); // exId → { peso, reps }
+//     const fechas = [...regsPorFecha.keys()].sort();
+
+//     for (const iso of fechas) {
+//         const regs = regsPorFecha.get(iso);
+
+//         // 1) Mejor serie del día por ejercicio (peso, desempate por reps)
+//         const mejorPorEj = new Map();
+//         for (const r of regs) {
+//             const prev = mejorPorEj.get(r.exId);
+//             if (!prev || r.peso > prev.peso || (r.peso === prev.peso && r.reps > prev.reps)) {
+//                 mejorPorEj.set(r.exId, r);
+//             }
+//         }
+
+//         // 2) Detectar cambios respecto al último día registrado
+//         const detalles = new Map();
+//         for (const [exId, r] of mejorPorEj) {
+//             const ant = ultimoPorEj.get(exId);
+//             if (!ant) continue;
+//             const masPeso = r.peso > ant.peso;
+//             const menosPeso = r.peso < ant.peso;
+//             const masReps = r.reps > ant.reps;
+//             const menosReps = r.reps < ant.reps;
+//             if (masPeso || menosPeso || masReps || menosReps) {
+//                 detalles.set(exId, {
+//                     antes: { ...ant },
+//                     ahora: { peso: r.peso, reps: r.reps },
+//                     tipo: (masPeso || masReps) ? 'up' : 'down'
+//                 });
+//             }
+//         }
+
+//         // 3) Detectar sesión
+//         const idsHechos = new Set(regs.map(r => r.exId));
+//         const sesionesRegs = [...new Set(regs.map(r => r.sesion).filter(s => s != null))];
+//         let sesionDetectada = sesionesRegs.length === 1 ? sesionesRegs[0] : null;
+//         let sesionCompleta = false;
+
+//         if (sesionDetectada != null) {
+//             const ids = idsDeSesion.get(sesionDetectada) || [];
+//             sesionCompleta = ids.length > 0 && ids.every(id => idsHechos.has(id));
+//         }
+
+//         // Si no está completa, buscar la sesión con más coincidencias (exigiendo al menos 1)
+//         if (!sesionCompleta) {
+//             let mejor = null, mejorPunt = 0;
+//             for (const s of sesiones) {
+//                 const ids = idsDeSesion.get(s) || [];
+//                 const punt = ids.filter(id => idsHechos.has(id)).length;
+//                 if (punt > mejorPunt) {
+//                     mejorPunt = punt;
+//                     mejor = s;
+//                 }
+//             }
+//             sesionDetectada = mejor;
+//         }
+
+//         const estado = !sesionCompleta ? 'some'
+//                      : detalles.size  ?  'best'
+//                      :                   'all';
+
+//         cacheDias.set(iso, { estado, regs, sesion: sesionDetectada, detalles });
+
+//         // 4) Actualizar últimos valores con la mejor serie del día
+//         for (const [exId, r] of mejorPorEj) {
+//             ultimoPorEj.set(exId, { peso: r.peso, reps: r.reps });
+//         }
+//     }
+// }
 
 function infoDia(iso) {
     return cacheDias.get(iso) || { estado: 'none', regs: [], sesion: null, detalles: new Map() };
@@ -275,13 +440,24 @@ function renderDetalle(iso) {
         let badge = '';
         if (det) {
             const partes = [];
-            if (det.ahora.peso > det.antes.peso) {
-                partes.push(`${det.antes.peso}→${det.ahora.peso} kg`);
+
+            if (det.ahora.peso !== det.antes.peso) {
+                partes.push(
+                    `${det.antes.peso}→${det.ahora.peso} kg`
+                );
             }
-            if (det.ahora.reps > det.antes.reps) {
-                partes.push(`${det.antes.reps}→${det.ahora.reps} reps`);
+
+            if (det.ahora.reps !== det.antes.reps) {
+                partes.push(
+                    `${det.antes.reps}→${det.ahora.reps} reps`
+                );
             }
-            badge = ` <span class="progreso-badge">▲ ${partes.join(' · ')}</span>`;
+
+            const icono = det.tipo === 'up' ? '▲' : '▼';
+
+            badge = ` <span class="progreso-badge progreso-${det.tipo}">
+                ${icono} ${partes.join(' · ')}
+            </span>`;
         }
         return `<tr>
             <td>${nombreEj(r.exId)}${badge}</td>
