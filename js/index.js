@@ -1,63 +1,78 @@
-import { dbAll, dbAdd, dbClear, hoy } from './database.js';
-
-async function loadExercises(){
-    const response = await fetch("ejercicios.json", { cache: "no-cache" });
-
-    if (!response.ok) {
-        throw new Error(`Error cargando ejercicios: ${response.status}`);
-    }
-
-    return response.json();
-}
-
+import { dbAll, dbAdd, dbClear, loadExercises, esMismoDia } from './database.js';
 
 function parseCSV(text) {
-    const lines = text.replace(/^\uFEFF/, '').replaceAll(`\r`, '').replaceAll('/', '-').replaceAll(',', '.').trim().split(/\n/);
-    
-    if (lines[0]?.toLowerCase().includes('id')) lines.shift(); // saltar cabecera
+    const lines = text
+        .replace(/^\uFEFF/, '')          // BOM
+        .replaceAll('\r', '')
+        .replaceAll('/', '-')
+        .replaceAll(',', '.')
+        .trim()
+        .split('\n');
+
+    // Saltar cabecera si existe
+    if (lines[0]?.toLowerCase().includes('id')) {
+        lines.shift();
+    }
+
     const rows = [];
     let skipped = 0;
 
     for (const line of lines) {
         const parts = line.split(';').map(p => p.trim());
-        if (parts.length < 5) { skipped++; continue; }
-
-        const [idStr, sesionStr, fecha, pesoStr, repeticionesStr] = parts;
-        const id = Number(idStr);
-        const peso = Number(pesoStr);
-        const repeticiones = Number(repeticionesStr);
-        const sesion = Number(sesionStr);
-        
-        if (!idStr || isNaN(id) || !pesoStr || isNaN(peso) || !repeticionesStr || isNaN(repeticiones) ||
-            !sesionStr || isNaN(sesion) || !/^2\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(fecha)) {
-        skipped++;
-        continue;
+        if (parts.length < 6) { 
+            skipped++; 
+            continue;
         }
 
-        rows.push({ id_ejercicio: id, sesion, fecha, peso, repeticiones});
+        const [exIdStr, sessionStr, totalsStr, dateStr, weightStr, repsStr] = parts;
+        const exId = Number(exIdStr);
+        const session = Number(sessionStr);
+        const totals = Number(totalsStr);
+        const date = new Date(dateStr);
+        const weight = Number(weightStr);
+        const reps = Number(repsStr);
+
+        // Validación
+        if (
+            !exIdStr    || isNaN(exId)    ||
+            !sessionStr || isNaN(session) ||
+            !totalsStr  || isNaN(totals)  ||
+            isNaN(date.getTime())         ||
+            !weightStr  || isNaN(weight)  ||
+            !repsStr    || isNaN(reps)
+        ) {
+            skipped++;
+            continue;
+        }
+
+        rows.push({ exId, session, totals, date, weight, reps});
     }
     return { rows, skipped };
 }
 
 
-function getSesionActual(totalSesiones, historialEjercicios) {
-    if (!historialEjercicios.length) return 1;
+function getSesionActual(totalSessions, historialEjercicios) {
+    if (!historialEjercicios?.length || !totalSessions) return 1;
 
     // Registro con la fecha más reciente (si hay empate da igual, misma sesión)
-    const ultimo = historialEjercicios.reduce((a, b) => (a.fecha >= b.fecha ? a : b));
-    const sesionUltima = Number(ultimo.sesion);
+    const last = historialEjercicios.reduce((a, b) => a.date.getTime() >= b.date.getTime() ? a : b);
 
-    // Si el último entrenamiento fue hoy, esa es la sesión actual
-    if (ultimo.fecha === hoy()) return sesionUltima;
-
+    // Si el último entrenamiento fue hoy → misma sesión
+    if (esMismoDia(last.date, new Date())) {
+        return last.session;
+    }
+     
     // Si fue antes de hoy, avanzamos una sesión (con wrap-around)
-    return (sesionUltima % totalSesiones) + 1;
+    return (last.session % totalSessions) + 1;
 }
 
 function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion) {
     // Conjunto de IDs de ejercicios ya realizados hoy
-    const fechaHoy = hoy();
-    const hechosHoy = new Set(historialEjercicios.filter(h => h.fecha === fechaHoy).map(h => Number(h.id_ejercicio)));
+    const hechosHoy = new Set(
+        (historialEjercicios || [])
+            .filter(h => esMismoDia(h.date, new Date()))
+            .map(h => h.exId)
+    );
 
     // Filtramos los ejercicios que pertenecen a la sesión indicada
     const ejerciciosSesion = ejerciciosDB.filter(e => e.sesion.includes(sesion));
@@ -101,10 +116,11 @@ async function exportarCSV() {
     }
 
     const filas = [
-        "id;sesion;fecha;peso;repeticiones",
-        ...historialEjercicios.map(row =>
-            `${row.id_ejercicio};${row.sesion};${row.fecha};${row.peso};${row.repeticiones}`
-        )
+        "id;sesion;totales;fecha;peso;repeticiones",
+        ...historialEjercicios.map(row => {
+            const fecha = `${row.date.getFullYear()}/${String(row.date.getMonth() + 1).padStart(2, '0')}/${String(row.date.getDate()).padStart(2, '0')}`;
+            return `${row.exId};${row.session};${row.totals};${fecha};${row.weight};${row.reps}`;
+        })
     ];
 
     const blob = new Blob(
@@ -153,7 +169,6 @@ async function inicializarIndex() {
 
         if (numeroEjerciciosPendientes === 0) {
             infoSesion.textContent = `Todos los ejercicios de hoy completados`;
-            // btnSesion.classList.add('btn-disabled');
         } else {
             btnSesion.href = `sesion.html?sesion=${sesionActual}`;
             infoSesion.textContent = `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`;

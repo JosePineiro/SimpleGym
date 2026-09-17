@@ -1,19 +1,16 @@
-import { dbAll, hoy } from './database.js';
+import { dbAll, loadExercises, esMismoDia } from './database.js';
 
-async function loadExercises() {
-    const response = await fetch("ejercicios.json");
-    const list = await response.json();
-    return list;
-}
+const IMG_PLACEHOLDER = 'img/placeholder.svg';
 
-function crearCard(ejercicio, sesionActual, completado) {
+
+function crearCard(ejercicio, completado, sesionActual, totales) {
     const a = document.createElement('a');
-    a.href = `ejercicio.html?sesion=${encodeURIComponent(sesionActual)}&ejercicio=${encodeURIComponent(ejercicio.id)}`;
+    a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}`;
     a.className = `card${completado ? ' completado' : ''}`;
     a.setAttribute('aria-label', `${ejercicio.nombre}${completado ? ' (completado)' : ''}`);
 
     const img = document.createElement('img');
-    img.src = ejercicio.imagen;
+    img.src = ejercicio.imagen || IMG_PLACEHOLDER;
     img.alt = ejercicio.nombre;
     img.loading = 'lazy';
 
@@ -26,40 +23,39 @@ function crearCard(ejercicio, sesionActual, completado) {
 }
 
 async function inicializarPantalla() {
-    const titulo = document.getElementById('tituloSesion');
-    const subtitulo = document.getElementById('subtituloSesion');
+    const titulo     = document.getElementById('tituloSesion');
+    const subtitulo  = document.getElementById('subtituloSesion');
     const contenedor = document.getElementById('contenedorEjercicios');
 
     try {
-        // Leer sesionActual
-        const params = new URLSearchParams(window.location.search);
-        const sesionActual = params.get('sesion') ? parseInt(params.get('sesion')) : null;
+        const sesionActual = parseInt(new URLSearchParams(location.search).get('sesion'), 10);
         if (!Number.isInteger(sesionActual) || sesionActual <= 0) {
-            throw new Error('Falta el parámetro SESION o no es válido.');
+            throw new Error('Falta el parámetro sesion o no es válido.');
         }
 
-        const [ejerciciosDB, historialEjercicios] = await Promise.all([
+        const [ejerciciosDB, historial] = await Promise.all([
             loadExercises(),
             dbAll()
         ]);
 
-        const fechaHoy = hoy();
+        const ahora = new Date();
         const hechosHoy = new Set(
-            historialEjercicios
-                .filter(h => h.fecha === fechaHoy)
-                .map(h => Number(h.id_ejercicio))
+            historial
+                .filter(h => h.date instanceof Date && esMismoDia(h.date, ahora))
+                .map(h => h.exId)
         );
-        
-        // const ejerciciosDeHoy = ejerciciosDB.filter(e => e.sesion.includes(sesionActual));
+
         const ejerciciosDeHoy = ejerciciosDB
-            .filter(e => e.sesion.includes(sesionActual))
-            .sort((a, b) => (a.orden ?? Number.MAX_SAFE_INTEGER) - (b.orden ?? Number.MAX_SAFE_INTEGER)
-                            || Number(a.id) - Number(b.id));
+            .filter(e => (e.sesion || []).includes(sesionActual))
+            .sort((a, b) =>
+                (a.orden ?? Infinity) - (b.orden ?? Infinity) ||
+                a.id - b.id
+            );
 
         titulo.textContent = `Sesión ${sesionActual}`;
 
-        const total = ejerciciosDeHoy.length;
-        const hechos = ejerciciosDeHoy.filter(e => hechosHoy.has(Number(e.id))).length;
+        const total  = ejerciciosDeHoy.length;
+        const hechos = ejerciciosDeHoy.filter(e => hechosHoy.has(e.id)).length;
 
         subtitulo.textContent = total
             ? `${hechos} de ${total} ejercicios completados`
@@ -67,7 +63,7 @@ async function inicializarPantalla() {
 
         contenedor.replaceChildren();
 
-        if (!total)  {
+        if (!total) {
             const empty = document.createElement('div');
             empty.className = 'empty-state';
             empty.textContent = 'No hay ejercicios asignados a esta sesión.';
@@ -77,10 +73,12 @@ async function inicializarPantalla() {
 
         const fragment = document.createDocumentFragment();
         for (const ejercicio of ejerciciosDeHoy) {
-            const completado = hechosHoy.has(Number(ejercicio.id));
-            fragment.appendChild(crearCard(ejercicio, sesionActual, completado));
+            fragment.appendChild(
+                crearCard(ejercicio, hechosHoy.has(ejercicio.id), sesionActual, total)
+            );
         }
         contenedor.appendChild(fragment);
+
     } catch (error) {
         console.error(error);
         titulo.textContent = 'Error';

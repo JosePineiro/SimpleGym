@@ -55,13 +55,25 @@ export async function dbClear() {
     });
 }
 
-export function hoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+// export function hoy() {
+//   const d = new Date();
+//   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+// }
 
 export async function loadExercises() {
-    const response = await fetch("ejercicios.json");
-    const list = await response.json();
-    return list;
+    const response = await fetch("ejercicios.json", { cache: "no-cache" });
+
+    if (!response.ok) {
+        throw new Error(`Error cargando ejercicios: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+export function esMismoDia(fecha1, fecha2) {
+    return (
+        fecha1.getFullYear() === fecha2.getFullYear() &&
+        fecha1.getMonth() === fecha2.getMonth() &&
+        fecha1.getDate() === fecha2.getDate()
+    );
 }

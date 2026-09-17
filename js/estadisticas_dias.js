@@ -1,16 +1,7 @@
-/* =========================================================
-   estadisticas_dias.js — Calendario de días de entreno
-   Fuente de datos: IndexedDB (store "historico") vía database.js
-   Registros: { id, sesion, fecha, peso, repeticiones }
-   ========================================================= */
-
-import { dbAll } from './database.js';
-
-const EJERCICIOS_URL = 'ejercicios.json';
+import { dbAll, loadExercises } from './database.js';
 
 let ejercicios = [];
 let ejerciciosPorId = new Map();
-let ejerciciosPorNombre = new Map();
 let historial = [];
 let cacheDias = new Map();
 let mesActual = new Date();
@@ -19,81 +10,41 @@ let diaSeleccionado = null;
 /* ---------- Utilidades ---------- */
 const pad = n => String(n).padStart(2, '0');
 const toISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-function parseISO(s) {
+const parseISO = s => {
     const [y, m, d] = s.split('-').map(Number);
     return new Date(y, m - 1, d);
-}
+};
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio',
                'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-function normalizarFecha(s) {
-    s = String(s ?? '').trim().replace(/^["']|["']$/g, '');
-    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
-    m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
-    if (m) {
-        const y = m[3].length === 2 ? '20' + m[3] : m[3];
-        return `${y}-${pad(m[2])}-${pad(m[1])}`;
-    }
-    return s;
-}
+const ETIQUETA_ESTADO = {
+    none: 'sin entrenamiento',
+    some: 'algo de ejercicio',
+    all:  'sesión completa',
+    best: 'sesión completa con progreso'
+};
 
-/* Resuelve el nombre del ejercicio desde id numérico o desde nombre directo */
-function resolverEjercicio(raw) {
-    if (raw == null) return '';
-    const s = String(raw).trim();
-    if (!s) return '';
-    if (/^\d+$/.test(s)) {
-        const ej = ejerciciosPorId.get(Number(s));
-        if (ej) return ej.nombre;
-    }
-    const porNombre = ejerciciosPorNombre.get(s.toLowerCase());
-    return porNombre ? porNombre.nombre : s;
+function nombreEj(id) {
+    return ejerciciosPorId.get(id)?.nombre ?? String(id);
 }
 
 function normalizarFila(r) {
+    if (!(r.date instanceof Date) || isNaN(r.date)) return null;
     return {
-        fecha: normalizarFecha(r.fecha ?? r.Fecha ?? r.date ?? r.Date ?? ''),
-        ejercicio: resolverEjercicio(
-            r.id_ejercicio  ?? r.idEjercicio  ??
-            r.id            ?? r.ID           ?? r.Id ??
-            r.ejercicio     ?? r.Ejercicio    ??
-            r.nombre        ?? r.Nombre       ?? ''
-        ),
-        peso: Number(r.peso ?? r.Peso ?? r.weight ?? 0) || 0,
-        repeticiones: Number(
-            r.repeticiones ?? r.reps ?? r.Repeticiones ?? r.Reps ?? 0
-        ) || 0,
-        sesion: (() => {
-            const s = r.sesion ?? r.Sesion ?? r['sesión'] ?? r.session ?? '';
-            return s === '' ? null : (Number(s) || null);
-        })()
+        fecha: toISO(r.date),
+        exId: r.exId,
+        peso: r.weight,
+        reps: r.reps,
+        sesion: r.session
     };
 }
 
-/* ---------- Carga ---------- */
-async function cargarEjercicios() {
-    const res = await fetch(EJERCICIOS_URL);
-    if (!res.ok) throw new Error('No se pudo cargar ejercicios.json');
-    ejercicios = await res.json();
-    ejerciciosPorId = new Map();
-    ejerciciosPorNombre = new Map();
-    for (const e of ejercicios) {
-        ejerciciosPorId.set(Number(e.id), e);
-        ejerciciosPorNombre.set(e.nombre.toLowerCase(), e);
-    }
-}
-
-/* Carga el historial desde IndexedDB */
 async function cargarHistorial() {
     try {
         const arr = await dbAll();
         if (!Array.isArray(arr)) return [];
-        return arr
-            .map(normalizarFila)
-            .filter(r => r.fecha && r.ejercicio);
+        return arr.map(normalizarFila).filter(Boolean);
     } catch (err) {
         console.error('Error leyendo IndexedDB:', err);
         return [];
@@ -105,101 +56,111 @@ function construirCache() {
     cacheDias = new Map();
     if (!historial.length || !ejercicios.length) return;
 
-    // 1) Agrupar registros por fecha (ordenados)
+    // Agrupar por fecha
     const regsPorFecha = new Map();
-    for (const r of [...historial].sort((a, b) => a.fecha.localeCompare(b.fecha))) {
+    for (const r of historial) {
         if (!regsPorFecha.has(r.fecha)) regsPorFecha.set(r.fecha, []);
         regsPorFecha.get(r.fecha).push(r);
     }
 
-    // 2) Ejercicios que componen cada sesión
-    const sesiones = new Set();
-    ejercicios.forEach(e => e.sesion.forEach(s => sesiones.add(s)));
-    const ejerciciosDe = new Map();
-    for (const s of sesiones) {
-        ejerciciosDe.set(s, ejercicios.filter(e => e.sesion.includes(s)).map(e => e.nombre));
+    // Índice de sesiones → ids de ejercicios, en un solo bucle
+    const idsDeSesion = new Map();
+    for (const e of ejercicios) {
+        for (const s of e.sesion) {
+            if (!idsDeSesion.has(s)) idsDeSesion.set(s, []);
+            idsDeSesion.get(s).push(e.id);
+        }
     }
+    const sesiones = [...idsDeSesion.keys()];
 
-    // 3) Recorrer fechas en orden manteniendo el último registro de cada ejercicio
-    const ultimoPorEj = new Map();
+    const ultimoPorEj = new Map(); // exId → { peso, reps }
     const fechas = [...regsPorFecha.keys()].sort();
 
     for (const iso of fechas) {
         const regs = regsPorFecha.get(iso);
 
-        // --- Progreso ---
-        const detalles = [];
+        // 1) Mejor serie del día por ejercicio (peso, desempate por reps)
+        const mejorPorEj = new Map();
         for (const r of regs) {
-            const ant = ultimoPorEj.get(r.ejercicio);
+            const prev = mejorPorEj.get(r.exId);
+            if (!prev || r.peso > prev.peso || (r.peso === prev.peso && r.reps > prev.reps)) {
+                mejorPorEj.set(r.exId, r);
+            }
+        }
+
+        // 2) Progreso respecto al último día registrado
+        const detalles = new Map();
+        for (const [exId, r] of mejorPorEj) {
+            const ant = ultimoPorEj.get(exId);
             if (!ant) continue;
             const masPeso = r.peso > ant.peso;
-            const masReps = r.repeticiones > ant.repeticiones;
+            const masReps = r.reps > ant.reps;
             if (masPeso || masReps) {
-                detalles.push({
-                    ejercicio: r.ejercicio,
+                detalles.set(exId, {
                     antes: { ...ant },
-                    ahora: { peso: r.peso, repeticiones: r.repeticiones },
-                    motivo: masPeso && masReps ? 'peso y reps'
-                          : masPeso              ? 'peso'
-                          :                        'repeticiones'
+                    ahora: { peso: r.peso, reps: r.reps },
+                    motivo: masPeso && masReps ? 'peso y reps' : masPeso ? 'peso' : 'repeticiones'
                 });
             }
         }
 
-        // --- Detectar sesión y si está completa ---
-        const nombresHechos = new Set(regs.map(r => r.ejercicio));
-        const sesionesRegs = new Set(regs.map(r => r.sesion).filter(s => s != null));
-        const sesionCandidata = sesionesRegs.size === 1 ? [...sesionesRegs][0] : null;
-
+        // 3) Detectar sesión
+        const idsHechos = new Set(regs.map(r => r.exId));
+        const sesionesRegs = [...new Set(regs.map(r => r.sesion).filter(s => s != null))];
+        let sesionDetectada = sesionesRegs.length === 1 ? sesionesRegs[0] : null;
         let sesionCompleta = false;
-        let sesionDetectada = sesionCandidata;
 
-        if (sesionCandidata != null) {
-            const nombres = ejerciciosDe.get(sesionCandidata) || [];
-            if (nombres.length && nombres.every(n => nombresHechos.has(n))) {
-                sesionCompleta = true;
-            }
+        if (sesionDetectada != null) {
+            const ids = idsDeSesion.get(sesionDetectada) || [];
+            sesionCompleta = ids.length > 0 && ids.every(id => idsHechos.has(id));
         }
 
+        // Si no está completa, buscar la sesión con más coincidencias (exigiendo al menos 1)
         if (!sesionCompleta) {
-            let mejor = null, mejorPunt = -1;
+            let mejor = null, mejorPunt = 0;
             for (const s of sesiones) {
-                const nombres = ejerciciosDe.get(s) || [];
-                const punt = nombres.filter(n => nombresHechos.has(n)).length;
-                if (punt > mejorPunt) { mejorPunt = punt; mejor = s; }
+                const ids = idsDeSesion.get(s) || [];
+                const punt = ids.filter(id => idsHechos.has(id)).length;
+                if (punt > mejorPunt) {
+                    mejorPunt = punt;
+                    mejor = s;
+                }
             }
             sesionDetectada = mejor;
         }
 
-        // --- Estado del día ---
-        let estado;
-        if (sesionCompleta && detalles.length) estado = 'best';
-        else if (sesionCompleta)                estado = 'all';
-        else                                    estado = 'some';
+        const estado = !sesionCompleta ? 'some'
+                     : detalles.size  ?  'best'
+                     :                   'all';
 
         cacheDias.set(iso, { estado, regs, sesion: sesionDetectada, detalles });
 
-        // Actualizar último registro por ejercicio
-        for (const r of regs) {
-            ultimoPorEj.set(r.ejercicio, {
-                peso: r.peso,
-                repeticiones: r.repeticiones
-            });
+        // 4) Actualizar últimos valores con la mejor serie del día
+        for (const [exId, r] of mejorPorEj) {
+            ultimoPorEj.set(exId, { peso: r.peso, reps: r.reps });
         }
     }
 }
 
 function infoDia(iso) {
-    return cacheDias.get(iso) ||
-        { estado: 'none', regs: [], sesion: null, detalles: [] };
+    return cacheDias.get(iso) || { estado: 'none', regs: [], sesion: null, detalles: new Map() };
 }
 
-const ETIQUETA_ESTADO = {
-    none: 'sin entrenamiento',
-    some: 'algo de ejercicio',
-    all:  'sesión completa',
-    best: 'sesión completa con progreso'
-};
+/* ---------- Navegación de meses ---------- */
+function esMesFuturo(f) {
+    const h = new Date();
+    return f.getFullYear() > h.getFullYear() || (f.getFullYear() === h.getFullYear() && f.getMonth() > h.getMonth());
+}
+
+function actualizarNavegacion() {
+    const btn = document.getElementById('btnMesSiguiente');
+    const siguiente = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 1);
+    const bloqueado = esMesFuturo(siguiente);
+
+    btn.disabled = bloqueado;
+    btn.classList.toggle('btn-disabled', bloqueado);
+    btn.setAttribute('aria-disabled', String(bloqueado));
+}
 
 /* ---------- Render calendario ---------- */
 function renderCalendario() {
@@ -235,9 +196,16 @@ function renderCalendario() {
         if (iso === diaSeleccionado) btn.classList.add('cal-day--sel');
         btn.textContent = d;
         btn.dataset.fecha = iso;
-        btn.setAttribute('aria-label',
-            `${d} de ${MESES[m]} de ${y}: ${ETIQUETA_ESTADO[estado]}`);
-        btn.addEventListener('click', () => seleccionarDia(iso));
+        btn.setAttribute('aria-label', `${d} de ${MESES[m]} de ${y}: ${ETIQUETA_ESTADO[estado]}`);
+
+        if (iso > hoyISO) {
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.setAttribute('aria-disabled', 'true');
+        } else {
+            btn.addEventListener('click', () => seleccionarDia(iso));
+        }
+
         grid.appendChild(btn);
     }
 
@@ -288,8 +256,7 @@ function renderDetalle(iso) {
     const cont   = document.getElementById('detalleContenido');
 
     const d = parseISO(iso);
-    titulo.textContent =
-        `Detalle · ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+    titulo.textContent = `Detalle · ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 
     const { estado, regs, sesion, detalles } = infoDia(iso);
 
@@ -300,26 +267,26 @@ function renderDetalle(iso) {
     }
 
     texto.innerHTML =
-        `Sesión detectada: <strong>${sesion ?? '—'}</strong> · ` +
+        `Sesión: <strong>${sesion ?? '—'}</strong> · ` +
         `Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
 
     const filas = regs.map(r => {
-        const det = detalles.find(x => x.ejercicio === r.ejercicio);
+        const det = detalles.get(r.exId);
         let badge = '';
         if (det) {
             const partes = [];
             if (det.ahora.peso > det.antes.peso) {
                 partes.push(`${det.antes.peso}→${det.ahora.peso} kg`);
             }
-            if (det.ahora.repeticiones > det.antes.repeticiones) {
-                partes.push(`${det.antes.repeticiones}→${det.ahora.repeticiones} reps`);
+            if (det.ahora.reps > det.antes.reps) {
+                partes.push(`${det.antes.reps}→${det.ahora.reps} reps`);
             }
             badge = ` <span class="progreso-badge">▲ ${partes.join(' · ')}</span>`;
         }
         return `<tr>
-            <td>${r.ejercicio}${badge}</td>
+            <td>${nombreEj(r.exId)}${badge}</td>
             <td>${r.peso} kg</td>
-            <td>${r.repeticiones}</td>
+            <td>${r.reps}</td>
         </tr>`;
     }).join('');
 
@@ -340,48 +307,50 @@ function renderTodo() {
     renderCalendario();
     renderResumen();
     if (diaSeleccionado) renderDetalle(diaSeleccionado);
+    actualizarNavegacion();
 }
 
 /* ---------- Init ---------- */
+function irMes(delta) {
+    const destino = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+    if (delta > 0 && esMesFuturo(destino)) return;
+
+    mesActual = destino;
+    renderCalendario();
+    renderResumen();
+    actualizarNavegacion();
+}
+
+function bindUI() {
+    document.getElementById('btnMesAnterior').addEventListener('click', () => irMes(-1));
+    document.getElementById('btnMesSiguiente').addEventListener('click', () => irMes(+1));
+    document.getElementById('btnHoy').addEventListener('click', () => {
+        mesActual = new Date();
+        diaSeleccionado = toISO(mesActual);
+        renderTodo();
+    });
+}
+
 async function init() {
     try {
-        await cargarEjercicios();
+        ejercicios = await loadExercises();
+        ejerciciosPorId = new Map(
+            ejercicios.filter(e => e.id != null).map(e => [Number(e.id), e])
+        );
     } catch (err) {
-        // document.getElementById('origenDatos').textContent =
-        //     'Error cargando ejercicios.json: ' + err.message;
+        console.error('Error cargando ejercicios.json:', err);
         return;
     }
 
-    historial = await cargarHistorial();
-    cacheDias = new Map();
+    historial = (await cargarHistorial()).sort((a, b) => a.fecha.localeCompare(b.fecha));
     construirCache();
 
-    const fechas = historial.map(r => r.fecha).sort();
-    if (fechas.length) {
-        diaSeleccionado = fechas[fechas.length - 1];
-        mesActual = parseISO(diaSeleccionado);
-    } else {
-        diaSeleccionado = toISO(new Date());
-        mesActual = new Date();
-    }
+    const ultima = historial.at(-1)?.fecha;
+    diaSeleccionado = ultima ?? toISO(new Date());
+    mesActual = ultima ? parseISO(ultima) : new Date();
 
     renderTodo();
-
-    document.getElementById('btnMesAnterior').addEventListener('click', () => {
-        mesActual.setMonth(mesActual.getMonth() - 1);
-        renderCalendario();
-        renderResumen();
-    });
-    document.getElementById('btnMesSiguiente').addEventListener('click', () => {
-        mesActual.setMonth(mesActual.getMonth() + 1);
-        renderCalendario();
-        renderResumen();
-    });
-    document.getElementById('btnHoy').addEventListener('click', () => {
-        mesActual = new Date();
-        diaSeleccionado = toISO(new Date());
-        renderTodo();
-    });
+    bindUI();
 }
 
 init();

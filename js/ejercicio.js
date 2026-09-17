@@ -1,149 +1,178 @@
-import { dbAll, dbAdd, hoy } from './database.js';
+import { dbAll, dbAdd, loadExercises } from './database.js';
 
-let exercise, historialEjercicios = [], seriesDone = 0, timerInterval = null;
-const $ = id => document.getElementById(id);
-
-/* ------------------------------------------------------------------ */
-/*  Parámetros obligatorios de la URL:  ?id=<ejercicio>&sesion=<n>    */
-/* ------------------------------------------------------------------ */
+let seriesStartTime = Date.now();
+let reps;
 const params = new URLSearchParams(location.search);
-const rawId     = params.get("ejercicio");
-const rawSesion = params.get("sesion");
-const exerciseId   = (rawId     !== null && rawId     !== "") ? Number(rawId)     : NaN;
-const sesionNumber = (rawSesion !== null && rawSesion !== "") ? Number(rawSesion) : NaN;
+const exerciseId      = Number(params.get("exId"));
+const sesionNumber    = Number(params.get("curSes"));
+const sesionExercices = Number(params.get("tot"));
 
 if (!Number.isInteger(exerciseId) || exerciseId <= 0 ||
-    !Number.isInteger(sesionNumber) || sesionNumber   <= 0) {
-  alert("Error: la URL debe incluir el ejercicio y la sesión.\n" +
-        "Ejemplo: ejercicio.html?sesion=2&ejercicio=3");
-  window.location.replace("index.html");
-  // Detenemos la ejecución del módulo: no se cargan datos ni listeners.
-  throw new Error("Parámetros de URL inválidos: se requiere 'ejercicio' y 'sesion'.");
+    !Number.isInteger(sesionNumber) || sesionNumber <= 0) {
+  alert("Error: la URL debe incluir 'exId' y 'curSes'.\n" +
+        "Ej: ejercicio.html?exId=3&curSes=2&tot=6");
+  location.replace("index.html");
+  throw new Error("Parámetros de URL inválidos");
 }
 
-/* ------------------------------------------------------------------ */
-/*  Carga del ejercicio                                               */
-/* ------------------------------------------------------------------ */
-async function loadExercise(id){
-  const response = await fetch("ejercicios.json");
-  const list = await response.json();
-  exercise = list.find(x => Number(x.id) === id) || list[0];
+let exercise;
+let seriesDone = 0;
+let timerInterval = null;
 
-  document.getElementById("exerciseTitle").textContent       = exercise.nombre;
-  document.getElementById("exerciseImage").src               = exercise.imagen;
-  document.getElementById("exerciseImage").alt               = exercise.nombre;
-  document.getElementById("exerciseDescription").textContent = exercise.descripcion;
-  document.getElementById("exerciseSeries").textContent      = exercise.numero_series;
-  document.getElementById("exerciseRepeticiones").textContent= exercise.repeticiones_minimas + '-' + exercise.repeticiones_maximas;
-  document.getElementById("exerciseRIR").textContent         = exercise.rir;
-  document.getElementById("exerciseDescanso").textContent    = exercise.segundos_descanso;
+/* ---------------- Carga del ejercicio ---------------- */
+async function loadExercise(id) {
+  const list = await loadExercises();
+  exercise = list.find(x => Number(x.id) === id) ?? list[0];
 
-  document.getElementById("exitBtn").onclick = () => {
-    window.location.href = `sesion.html?sesion=${sesionNumber}`;
-  };
+  document.getElementById("exerciseTitle").textContent        = exercise.nombre;
+  document.getElementById("exerciseImage").src                = exercise.imagen;
+  document.getElementById("exerciseImage").alt                = exercise.nombre;
+  document.getElementById("exerciseDescription").textContent  = exercise.descripcion;
+  document.getElementById("exerciseSeries").textContent       = exercise.numero_series;
+  document.getElementById("exerciseRepeticiones").textContent = `${exercise.repeticiones_minimas}-${exercise.repeticiones_maximas}`;
+  document.getElementById("exerciseRIR").textContent          = exercise.rir;
+  document.getElementById("exerciseDescanso").textContent     = exercise.segundos_descanso;
+  document.getElementById("exitBtn").onclick = () => { location.href = `sesion.html?sesion=${sesionNumber}`; };
 }
 
-function getExerciseHistory(id){
-  return historialEjercicios
-    .filter(x => x.id_ejercicio === Number(id))
-    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+/* ---------------- Última marca del ejercicio ---------------- */
+function lastPerformance(history, id) {
+  return history
+    .filter(x => Number(x.exId) === Number(id))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .at(-1);
 }
 
-function loadTargets(){
-  const h = getExerciseHistory(exercise.id);
-  const last = h.at(-1);
-  if (!last){
-    $("targetReps").textContent = exercise.repeticiones_minimas;
-    $("targetWeight").textContent = "—";
-    return;
-  }
-  let weight = last.peso;
-  let reps   = last.repeticiones;
+/* ---------------- Objetivos (peso / reps) ---------------- */
+function loadTargets(history) {
+  const last = lastPerformance(history, exercise.id);
 
-  if (reps >= exercise.repeticiones_maximas){        // Subimos peso, bajamos reps
-    weight += Number(exercise.incremento_peso);
-    reps = exercise.repeticiones_minimas;
-  } else if (reps < exercise.repeticiones_minimas){  // Bajamos peso, subimos reps
-    weight -= Number(exercise.incremento_peso);
-    reps = exercise.repeticiones_maximas;
-  } else {                                           // Subimos reps en 1
-    reps++;
+  let weight;
+  if (!last) {
+    weight = null;
+    reps   = exercise.repeticiones_minimas;
+  } else {
+    weight = Number(last.weight);
+    reps   = Number(last.reps);
+
+    if (reps >= exercise.repeticiones_maximas) {        // subir peso, bajar reps
+      weight += Number(exercise.incremento_peso);
+      reps = exercise.repeticiones_minimas;
+    } else if (reps < exercise.repeticiones_minimas) {  // bajar peso, subir reps
+      weight -= Number(exercise.incremento_peso);
+      reps = exercise.repeticiones_maximas;
+    } else {                                            // subir 1 rep
+      reps++;
+    }
   }
 
   document.getElementById("targetReps").textContent   = reps;
-  document.getElementById("targetWeight").textContent = `${weight} kg`;
-  document.getElementById("finalWeight").value        = weight;
-  document.getElementById("finalReps").value          = reps - 1;
+  document.getElementById("targetWeight").textContent = weight == null ? "—" : `${weight} kg`;
+  document.getElementById("finalWeight").value        = weight ?? "";
+  document.getElementById("finalReps").value          = reps;
 }
 
-function startRest(remaining){
-  const seriesBtn = document.getElementById("seriesBtn");
-  seriesBtn.classList.add('btn-disabled');
+/* ---------------- Descanso ---------------- */
+function startRest(seconds) {
+  const btn = document.getElementById("seriesBtn");
+  btn.classList.add("btn-disabled");
+  clearInterval(timerInterval);
+
   const paint = () => {
-    seriesBtn.textContent = `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
+    btn.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   };
   paint();
-  clearInterval(timerInterval);
+
   timerInterval = setInterval(() => {
-    remaining--;
+    seconds--;
     paint();
-    if (remaining <= 0){
+    if (seconds <= 0) {
       clearInterval(timerInterval);
-      seriesBtn.classList.remove('btn-disabled');
-      seriesBtn.textContent = `Terminé la serie ${seriesDone + 1}`;
+      btn.classList.remove("btn-disabled");
+      btn.textContent = `Terminé la serie ${seriesDone + 1}`;
     }
   }, 1000);
 }
 
-function seriesFinished(){
+/* ---------------- Fin de serie ---------------- */
+// function seriesFinished() {
+//   seriesDone++;
+//   if (seriesDone >= exercise.numero_series) {
+//     document.getElementById("seriesBtn").classList.add("hidden");
+//     document.getElementById("finishForm").classList.remove("hidden");
+//     return;
+//   }
+//   startRest(Number(exercise.segundos_descanso));
+// }
+
+/* ---------------- Fin de serie ---------------- */
+function seriesFinished() {
+    // Tiempo transcurrido desde el inicio de la serie
+  const elapsedSeconds = Math.floor((Date.now() - seriesStartTime) / 1000);
+
+  const targetSeconds = reps * 5;
+
+  // Comprobar si se ha terminado demasiado rápido
+  if (elapsedSeconds < targetSeconds) {
+    const tooFast = targetSeconds - elapsedSeconds;
+
+    alert(
+      `Has ido ${tooFast} segundo${tooFast !== 1 ? "s" : ""} demasiado rápido.`
+    );
+  }
+
+  // Serie completada
   seriesDone++;
-  if (seriesDone >= exercise.numero_series){
+
+  // Reiniciar contador para la siguiente serie
+  seriesStartTime = null;  //¿Se necesita?
+
+  if (seriesDone >= exercise.numero_series) {
     document.getElementById("seriesBtn").classList.add("hidden");
     document.getElementById("finishForm").classList.remove("hidden");
-    document.getElementById("finalWeight").value =
-      Number(($("targetWeight").textContent || "").replace(/[^\d.]/g, "")) || "";
-    document.getElementById("finalReps").value =
-      $("targetReps").textContent === "—" ? "" : $("targetReps").textContent;
     return;
   }
-  startRest(exercise.segundos_descanso);
+
+  // Descanso antes de la siguiente serie
+  startRest(Number(exercise.segundos_descanso));
+
+  // El contador se reinicia después del descanso
+  setTimeout(() => {
+    seriesStartTime = Date.now();
+  }, Number(exercise.segundos_descanso) * 1000);
 }
 
-async function saveWorkout(){
-  const peso        = Number($("finalWeight").value);
-  const repeticiones= Number($("finalReps").value);
+/* ---------------- Guardar ---------------- */
+async function saveWorkout() {
+  const weight = Number(document.getElementById("finalWeight").value);
+  const reps   = Number(document.getElementById("finalReps").value);
 
-  if (!Number.isFinite(peso) || !Number.isFinite(repeticiones))
+  if (!Number.isFinite(weight) || !Number.isFinite(reps)) {
     return alert("Introduce peso y repeticiones válidos.");
+  }
 
-  const item = {
-    id_ejercicio: exercise.id,
-    sesion:       sesionNumber,
-    fecha:        hoy(),
-    peso,
-    repeticiones
-  };
+  await dbAdd({
+    exId:    Number(exercise.id),
+    session: sesionNumber,
+    totals:  sesionExercices,
+    date:    new Date(),
+    weight,
+    reps,
+  });
 
-  await dbAdd(item);
-  historialEjercicios = await dbAll();
-  loadTargets();
-  document.getElementById("finishForm").innerHTML = "<h2>Entrenamiento guardado ✓</h2>";
+  location.href = `sesion.html?sesion=${sesionNumber}`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Listeners                                                         */
-/* ------------------------------------------------------------------ */
+/* ---------------- Listeners ---------------- */
 document.getElementById("seriesBtn").onclick = seriesFinished;
 document.getElementById("saveBtn").onclick   = saveWorkout;
 
-/* ------------------------------------------------------------------ */
-/*  Inicialización                                                    */
-/* ------------------------------------------------------------------ */
+/* ---------------- Init ---------------- */
 (async () => {
   try {
     await loadExercise(exerciseId);
-    historialEjercicios = await dbAll();
-    loadTargets();
+    const history = await dbAll();
+    loadTargets(history);
   } catch (e) {
     console.error(e);
     alert("No se han podido cargar los ejercicios. Asegúrate de que existe ejercicios.json");

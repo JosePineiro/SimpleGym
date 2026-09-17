@@ -226,9 +226,8 @@ input {
     height: auto;
     aspect-ratio: 4 / 3;
     object-fit: contain;
-    background: #f0f3f6;
     border-radius: 10px;
-    margin: 0 0 14px;
+    margin: 0;
 }
 
 .hero p {
