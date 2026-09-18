@@ -1,7 +1,14 @@
 import { dbAll, loadExercises, esMismoDia } from './database.js';
 
-const IMG_PLACEHOLDER = 'img/placeholder.svg';
+/* =========================================================
+   sesion.js
+   Muestra una ficha por cada máquina/ejercicio que hay en esa sesion.
+   La muestra desactivada si ya se ha realizado esa ficha.
+   Al pulsar una ficha → ejercicio.html?curSes=<sesion>&exId=<id>2&tot=<totales>
+   ========================================================= */
 
+const IMG_PLACEHOLDER = 'img/placeholder.svg';
+const ORDEN_POR_DEFECTO = 9999;
 
 function crearTarjeta(ejercicio, completado, sesionActual, totales) {
     const a = document.createElement('a');
@@ -16,11 +23,11 @@ function crearTarjeta(ejercicio, completado, sesionActual, totales) {
     img.decoding = 'async';
     img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; });
     
-    const div = document.createElement('div');
-    div.className = 'card-name';
-    div.textContent = ejercicio.nombre;
+    const span = document.createElement('span');
+    span.className = 'card-name';
+    span.textContent = ejercicio.nombre;
 
-    a.append(img, div);
+    a.append(img, span);
     return a;
 }
 
@@ -94,4 +101,10 @@ async function inicializarPantalla() {
     }
 }
 
-window.addEventListener('DOMContentLoaded', inicializarPantalla);
+// Al volver con "atrás" el navegador puede restaurar la página desde la bfcache
+// sin ejecutar el script, y el estado "completado" quedaría obsoleto.
+window.addEventListener('pageshow', e => {
+    if (e.persisted) inicializarPantalla();
+});
+
+inicializarPantalla();

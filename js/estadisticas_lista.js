@@ -56,16 +56,6 @@ async function cargarMaquinas() {
 
     const maquinas = ejerciciosDB.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
     return maquinas;
-    
-    // Opción B (por defecto): desde localStorage, la misma clave que use sesion.js.
-    // const raw = localStorage.getItem('ejercicios');
-    // if (!raw) return [];
-    // try {
-    //     const data = JSON.parse(raw);
-    //     return Array.isArray(data) ? data : [];
-    // } catch {
-    //     return [];
-    // }
 }
 
 /* ---------- Inicialización ---------- */

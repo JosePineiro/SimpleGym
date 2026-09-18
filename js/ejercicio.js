@@ -19,9 +19,9 @@ let seriesDone = 0;
 let timerInterval = null;
 
 /* ---------------- Carga del ejercicio ---------------- */
-async function loadExercise(id) {
-  const list = await loadExercises();
-  exercise = list.find(x => Number(x.id) === id) ?? list[0];
+async function loadExercise(ejerciciosDB, id) {
+  // const list = await loadExercises();
+  exercise = ejerciciosDB.find(x => Number(x.id) === id) ?? ejerciciosDB[0];
 
   document.getElementById("exerciseTitle").textContent        = exercise.nombre;
   document.getElementById("exerciseImage").src                = exercise.imagen;
@@ -31,7 +31,6 @@ async function loadExercise(id) {
   document.getElementById("exerciseRepeticiones").textContent = `${exercise.repeticiones_minimas}-${exercise.repeticiones_maximas}`;
   document.getElementById("exerciseRIR").textContent          = exercise.rir;
   document.getElementById("exerciseDescanso").textContent     = exercise.segundos_descanso;
-  document.getElementById("exitBtn").href                     = `sesion.html?sesion=${sesionNumber}`;
 }
 
 /* ---------------- Última marca del ejercicio ---------------- */
@@ -98,7 +97,7 @@ function seriesFinished() {
     // Tiempo transcurrido desde el inicio de la serie
   const elapsedSeconds = Math.floor((Date.now() - seriesStartTime) / 1000);
 
-  const targetSeconds = reps * 5;
+  const targetSeconds = reps * 6;  // 2s Concéntrica + 1s Retención + 3s Excéntrica.
 
   // Comprobar si se ha terminado demasiado rápido
   if (elapsedSeconds < targetSeconds) {
@@ -110,13 +109,10 @@ function seriesFinished() {
   // Serie completada
   seriesDone++;
 
-  // Reiniciar contador para la siguiente serie
-  seriesStartTime = null;  //¿Se necesita?
-
+  // Si es la última serie quitamos el contador y ponemos el boton de finalizar.
   if (seriesDone >= exercise.numero_series) {
     document.getElementById("seriesBtn").classList.add("hidden");
     document.getElementById("finishCard").classList.remove("hidden");
-    finishCard
     return;
   }
 
@@ -143,6 +139,7 @@ async function saveWorkout() {
     session: sesionNumber,
     totals:  sesionExercices,
     date:    new Date(),
+    sets:    exercise.numero_series,
     weight,
     reps,
   });
@@ -153,14 +150,18 @@ async function saveWorkout() {
 /* ---------------- Listeners ---------------- */
 document.getElementById("seriesBtn").onclick = seriesFinished;
 document.getElementById("saveBtn").onclick   = saveWorkout;
+document.getElementById("exitBtn").href      = `sesion.html?sesion=${sesionNumber}`;
 
 /* ---------------- Init ---------------- */
-(async () => {
-  try {
-    await loadExercise(exerciseId);
-    const history = await dbAll();
-    loadTargets(history);
-  } catch (error) {
-    alert(`Error al iniciar: ${error?.message || error}`);
-  }
-})();
+try {
+  // Cargamos los ejercicios y el historial
+  const [ejerciciosDB, historialEjercicios] = await Promise.all([
+      loadExercises(),
+      dbAll()
+  ]);
+  await loadExercise(ejerciciosDB, exerciseId);
+  // const historialEjercicios = await dbAll();
+  loadTargets(historialEjercicios);
+} catch (error) {
+  alert(`Error al iniciar: ${error?.message || error}`);
+}

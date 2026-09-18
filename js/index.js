@@ -71,7 +71,7 @@ async function importarCSV(event) {
         for (const row of rows) await dbAdd(row);
         alert(`${rows.length} ejercicios del historial importados${skipped ? `, ${skipped} saltados.` : '.'}`);
 
-        await inicializarIndex();
+        await inicializarPantalla();
     } catch (error) {
         alert(`Error al procesar el archivo CSV: ${error?.message || error}`);
         console.error(error);
@@ -139,7 +139,7 @@ async function importarJSON(event) {
         const blob = new Blob([text], { type: 'application/json' });
         await dbSaveExercisesFile(blob);
 
-        await inicializarIndex();
+        await inicializarPantalla();
         alert(`Ejercicios importados correctamente (${data.length} ejercicios).`);
     } catch (error) {
         alert(`Error al procesar el archivo JSON: ${error?.message || error}`);
@@ -193,7 +193,7 @@ function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion
     return ejerciciosDB.filter(e => e.sesion.includes(sesion) && !hechosHoy.has(e.id)).length;
 }
 
-async function inicializarIndex() {
+async function inicializarPantalla() {
     try {
         // Cargamos los ejercicios y el historial
         const [ejerciciosDB, historialEjercicios] = await Promise.all([
@@ -225,4 +225,4 @@ document.getElementById('importarCSV').addEventListener('change', importarCSV);
 document.getElementById('exportarCSV').addEventListener('click', exportarCSV);
 document.getElementById('importarJSON').addEventListener('change', importarJSON);
 document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
-inicializarIndex();
+inicializarPantalla();

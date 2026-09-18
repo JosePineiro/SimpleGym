@@ -90,11 +90,10 @@ input {
 
 /* =========================================================
    Contenedor principal de página
-   .contenido (index/sesion) y .container (ejercicio) comparten
+   (ejercicio/index/sesion) comparten
    el mismo comportamiento: columna flex, centrada y con el
    mismo ancho máximo, para que las tres páginas se vean iguales.
    ========================================================= */
-.contenido,
 .container {
     flex: 1;
     width: 100%;
@@ -395,7 +394,7 @@ input {
     width: 100%;
     font-size: 1.05rem;
     padding: 14px;
-    margin-top: auto;
+    /* margin-top: auto; */
 }
 
 .btn-disabled {
