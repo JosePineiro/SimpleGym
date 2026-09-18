@@ -1,3 +1,5 @@
+import { loadExercises } from './database.js';
+
 /* =========================================================
    estadisticas_lista.js
    Muestra una ficha por cada máquina/ejercicio.
@@ -14,8 +16,6 @@ const IMG_PLACEHOLDER = 'img/placeholder.svg';
 
 /**
  * Crea la tarjeta-enlace de una máquina.
- * Reutiliza las clases .card / .card-name de styles.css
- * (las mismas que usa la rejilla de sesion.html).
  */
 function crearTarjeta(ejercicio) {
     const a = document.createElement('a');
@@ -25,16 +25,16 @@ function crearTarjeta(ejercicio) {
 
     const img = document.createElement('img');
     img.src = ejercicio.imagen || IMG_PLACEHOLDER;
-    img.alt = '';
+    img.alt = ejercicio.nombre;
     img.loading = 'lazy';
     img.decoding = 'async';
-    img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+    img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; });
 
-    const nombre = document.createElement('div');
-    nombre.className = 'card-name';
-    nombre.textContent = ejercicio.nombre;
+    const div = document.createElement('div');
+    div.className = 'card-name';
+    div.textContent = ejercicio.nombre;
 
-    a.append(img, nombre);
+    a.append(img, div);
     return a;
 }
 
@@ -49,19 +49,14 @@ function mostrarVacio(mensaje) {
 
 /**
  * Devuelve la lista de máquinas/ejercicios.
- *
- * Se puede ajustar para leer desde localStorage
- *
- * Formato esperado: Array<{ id: string, nombre: string, imagen?: string }>
  */
 async function cargarMaquinas() {
-    // Opción A: desde un JSON estático.
-    const res = await fetch('ejercicios.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('No se pudo cargar la lista de ejercicios');
-    const maquinas = await res.json();
-    return maquinas.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-    // return res.json();
+    // desde un JSON estático.
+    const ejerciciosDB = await loadExercises();
 
+    const maquinas = ejerciciosDB.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return maquinas;
+    
     // Opción B (por defecto): desde localStorage, la misma clave que use sesion.js.
     // const raw = localStorage.getItem('ejercicios');
     // if (!raw) return [];

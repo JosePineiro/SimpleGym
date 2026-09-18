@@ -3,7 +3,7 @@ import { dbAll, loadExercises, esMismoDia } from './database.js';
 const IMG_PLACEHOLDER = 'img/placeholder.svg';
 
 
-function crearCard(ejercicio, completado, sesionActual, totales) {
+function crearTarjeta(ejercicio, completado, sesionActual, totales) {
     const a = document.createElement('a');
     a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}`;
     a.className = `card${completado ? ' completado' : ''}`;
@@ -13,7 +13,9 @@ function crearCard(ejercicio, completado, sesionActual, totales) {
     img.src = ejercicio.imagen || IMG_PLACEHOLDER;
     img.alt = ejercicio.nombre;
     img.loading = 'lazy';
-
+    img.decoding = 'async';
+    img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; });
+    
     const div = document.createElement('div');
     div.className = 'card-name';
     div.textContent = ejercicio.nombre;
@@ -74,7 +76,7 @@ async function inicializarPantalla() {
         const fragment = document.createDocumentFragment();
         for (const ejercicio of ejerciciosDeHoy) {
             fragment.appendChild(
-                crearCard(ejercicio, hechosHoy.has(ejercicio.id), sesionActual, total)
+                crearTarjeta(ejercicio, hechosHoy.has(ejercicio.id), sesionActual, total)
             );
         }
         contenedor.appendChild(fragment);

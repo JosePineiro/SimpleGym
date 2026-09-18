@@ -9,8 +9,7 @@ const sesionExercices = Number(params.get("tot"));
 
 if (!Number.isInteger(exerciseId) || exerciseId <= 0 ||
     !Number.isInteger(sesionNumber) || sesionNumber <= 0) {
-  alert("Error: la URL debe incluir 'exId' y 'curSes'.\n" +
-        "Ej: ejercicio.html?exId=3&curSes=2&tot=6");
+  alert("Error: la URL debe incluir 'exId' y 'curSes'.\nEj: ejercicio.html?exId=3&curSes=2&tot=6");
   location.replace("index.html");
   throw new Error("Parámetros de URL inválidos");
 }
@@ -116,9 +115,7 @@ function seriesFinished() {
   if (elapsedSeconds < targetSeconds) {
     const tooFast = targetSeconds - elapsedSeconds;
 
-    alert(
-      `Has ido ${tooFast} segundo${tooFast !== 1 ? "s" : ""} demasiado rápido.`
-    );
+    alert(`Has ido ${tooFast} segundo${tooFast !== 1 ? "s" : ""} demasiado rápido.`);
   }
 
   // Serie completada
@@ -173,8 +170,7 @@ document.getElementById("saveBtn").onclick   = saveWorkout;
     await loadExercise(exerciseId);
     const history = await dbAll();
     loadTargets(history);
-  } catch (e) {
-    console.error(e);
-    alert("No se han podido cargar los ejercicios. Asegúrate de que existe ejercicios.json");
+  } catch (error) {
+    alert(`Error al iniciar: ${error?.message || error}`);
   }
 })();

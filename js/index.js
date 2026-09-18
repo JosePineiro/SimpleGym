@@ -98,10 +98,11 @@ async function importarCSV(event) {
         await dbClear();
         for (const row of rows) await dbAdd(row);
         await inicializarIndex();
-
-        alert(`Importación finalizada. ${rows.length} registros importados, ${skipped} saltados.`);
-    } catch (err) {
-        alert(`Error al procesar el archivo CSV: ${err.message}`);
+        if(skipped) {
+            alert(`Importación finalizada. ${rows.length} registros importados, ${skipped} saltados.`);
+        }
+    } catch (error) {
+        alert(`Error al procesar el archivo CSV: ${error?.message || error}`);
         console.error(err);
     } finally {
         event.target.value = '';
@@ -180,7 +181,9 @@ async function inicializarIndex() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('importFile').addEventListener('change', importarCSV);
-    document.getElementById('btnExportar').addEventListener('click', exportarCSV);
+    document.getElementById('importarCSV').addEventListener('change', importarCSV);
+    document.getElementById('exportarCSV').addEventListener('click', exportarCSV);
+    // document.getElementById('importarJSON').addEventListener('change', importarJSON);
+    // document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
     inicializarIndex();
 });

@@ -514,7 +514,7 @@ async function init() {
             ejercicios.filter(e => e.id != null).map(e => [Number(e.id), e])
         );
     } catch (err) {
-        console.error('Error cargando ejercicios.json:', err);
+        alert(`Error al procesar el iniciar: ${error?.message || error}`);
         return;
     }
 
