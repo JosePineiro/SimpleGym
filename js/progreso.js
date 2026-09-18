@@ -65,9 +65,7 @@ function parseISO(s) {
     return new Date(y, m - 1, d);
 }
 
-/* ---------- Peso estimado ----------
-   estimado = peso + (incremento / (rep_max - rep_min)) * (reps - rep_min)
-*/
+/* ---------- Peso estimado ---------- */
 function calcularPesoEstimado(peso, reps, maquina) {
     const inc  = Number(maquina.incremento_peso) || 0;
     const rMin = Number(maquina.repeticiones_minimas);
@@ -77,7 +75,10 @@ function calcularPesoEstimado(peso, reps, maquina) {
     if (!Number.isInteger(rango) || rango <= 0 || !Number.isInteger(reps)) {
         return peso;
     }
-    peso += (inc / rango) * (reps - rMin);
+
+    const progreso = Math.min(Math.max(reps - rMin, 0), rango);
+    peso += (inc / (rango + 1)) * progreso;
+
     return Number(peso.toFixed(1));
 }
 
@@ -114,10 +115,7 @@ function mostrarVacio(msg) {
 
 function renderResumen(puntos) {
     const u = puntos[puntos.length - 1];
-    els.resumen.textContent =
-        `${puntos.length} ${puntos.length === 1 ? 'sesión' : 'sesiones'} · ` +
-        `Última: ${fmtFecha(u.fecha)} — ${fmtPeso(u.estimado)} ` +
-        `(${u.reps} reps @ ${u.peso} kg)`;
+    els.resumen.textContent = `Última: ${fmtFecha(u.fecha)} → ${u.peso} kg / ${u.reps} reps`;
 }
 
 function renderStats(puntos) {

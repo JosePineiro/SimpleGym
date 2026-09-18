@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sesión de Entrenamiento</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/sesion.js"></script>
 </head>
 <body>
     <header class="topbar">
-        <h1 id="tituloSesion">Cargando datos...</h1>
-        <p class="session-info" id="subtituloSesion"></p>
+        <h1 id="tituloSesion">-</h1>
+        <p class="session-info" id="subtituloSesion">-</p>
+        <nav aria-label="Navegación principal">
+            <a class="topbar-link" href="index.html">Inicio</a>
+        </nav>
     </header>
 
     <main class="contenido">
-        <div class="grid" id="contenedorEjercicios"></div>
-
-        <button type="button" id="exitBtn" class="btn btn-primary btn-large"
-                onclick="window.location.href='index.html'">Salir</button>
+        <section class="grid" id="contenedorEjercicios" aria-label="Ejercicios de la sesión"></section>
     </main>
-    <script type="module" src="js/sesion.js"></script>
 </body>
 </html>

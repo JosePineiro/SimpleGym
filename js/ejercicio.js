@@ -31,7 +31,7 @@ async function loadExercise(id) {
   document.getElementById("exerciseRepeticiones").textContent = `${exercise.repeticiones_minimas}-${exercise.repeticiones_maximas}`;
   document.getElementById("exerciseRIR").textContent          = exercise.rir;
   document.getElementById("exerciseDescanso").textContent     = exercise.segundos_descanso;
-  document.getElementById("exitBtn").onclick = () => { location.href = `sesion.html?sesion=${sesionNumber}`; };
+  document.getElementById("exitBtn").href                     = `sesion.html?sesion=${sesionNumber}`;
 }
 
 /* ---------------- Última marca del ejercicio ---------------- */
@@ -94,17 +94,6 @@ function startRest(seconds) {
 }
 
 /* ---------------- Fin de serie ---------------- */
-// function seriesFinished() {
-//   seriesDone++;
-//   if (seriesDone >= exercise.numero_series) {
-//     document.getElementById("seriesBtn").classList.add("hidden");
-//     document.getElementById("finishForm").classList.remove("hidden");
-//     return;
-//   }
-//   startRest(Number(exercise.segundos_descanso));
-// }
-
-/* ---------------- Fin de serie ---------------- */
 function seriesFinished() {
     // Tiempo transcurrido desde el inicio de la serie
   const elapsedSeconds = Math.floor((Date.now() - seriesStartTime) / 1000);
@@ -126,7 +115,8 @@ function seriesFinished() {
 
   if (seriesDone >= exercise.numero_series) {
     document.getElementById("seriesBtn").classList.add("hidden");
-    document.getElementById("finishForm").classList.remove("hidden");
+    document.getElementById("finishCard").classList.remove("hidden");
+    finishCard
     return;
   }
 

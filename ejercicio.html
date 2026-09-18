@@ -10,6 +10,9 @@
 <body>
 <header class="topbar">
   <h1 id="exerciseTitle">Entrenamiento</h1>
+  <nav aria-label="Navegación principal">
+    <a class="topbar-link" id="exitBtn" href="#">Volver</a>
+  </nav>
 </header>
 
 <main class="container">
@@ -28,11 +31,8 @@
     </div>
   </section>
 
-  <section class="card workout-card">
-    <!-- <div id="timer" class="timer hidden">—</div> -->
-    <button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
-
-    <div id="finishForm" class="finish-form hidden">
+  <section id="finishCard" class="card workout-card hidden">
+    <div class="finish-form">
       <label>Último peso utilizado
         <input id="finalWeight" type="number" min="5" step="0.5" inputmode="decimal" required>
       </label>
@@ -43,7 +43,7 @@
     </div>
   </section>
 
-  <button type="button" id="exitBtn" class="btn btn-primary btn-large" onclick="window.location.href='index.html'">Salir</button>
+  <button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
 </main>
 
 <script type="module" src="js/ejercicio.js"></script>

@@ -6,8 +6,7 @@
     <title>SIMPLEGYM - Progreso</title>
     <link rel="stylesheet" href="css/styles.css">
 
-    <!-- Estilos específicos de progreso.html.
-         (Se pueden mover a css/styles.css si se prefiere.) -->
+    <!-- Estilos específicos de progreso.html. -->
     <style>
         .chart-wrap {
             position: relative;
@@ -62,7 +61,7 @@
 <body>
     <header class="topbar">
         <h1 id="tituloMaquina">Cargando…</h1>
-        <a class="topbar-link" href="estadisticas_lista.html">← Lista</a>
+        <a class="topbar-link" href="estadisticas_lista.html">Volver</a>
     </header>
 
     <main class="contenido">
@@ -71,8 +70,7 @@
             <p class="card-text" id="resumenMaquina">—</p>
 
             <div class="chart-wrap">
-                <canvas id="grafico" role="img"
-                        aria-label="Gráfico de evolución del peso estimado"></canvas>
+                <canvas id="grafico" role="img" aria-label="Gráfico de evolución del peso estimado"></canvas>
             </div>
 
             <p class="chart-hint" id="chartHint">
@@ -80,16 +78,11 @@
             </p>
 
             <div class="chart-actions" id="chartActions">
-                <button type="button" class="btn btn-secondary" id="btnResetZoom">
-                    Reiniciar zoom
-                </button>
+                <button type="button" class="btn btn-secondary" id="btnResetZoom">Reiniciar zoom</button>
             </div>
 
             <div class="stats-row" id="statsRow"></div>
         </div>
-
-        <button type="button" id="exitBtn" class="btn btn-primary btn-large"
-                onclick="window.location.href='estadisticas_lista.html'">Volver</button>
     </main>
 
     <!-- Chart.js + plugin de zoom (UMD, exponen window.Chart y window.ChartZoom) -->
