@@ -1,4 +1,5 @@
-const DB_NAME = "fitnessDB", STORE = "historico", DB_VERSION = 2;
+const DB_NAME = "fitnessDB", STORE = "historico", FILES_STORE = "archivos", DB_VERSION = 3;
+const EJERCICIOS_KEY = "ejercicios";
 
 let dbPromise = null;
 
@@ -11,6 +12,9 @@ function openDB() {
                 const db = req.result;
                 if (!db.objectStoreNames.contains(STORE)) {
                     db.createObjectStore(STORE, { autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains(FILES_STORE)) {
+                    db.createObjectStore(FILES_STORE);
                 }
             };
             req.onsuccess = () => resolve(req.result);
@@ -55,19 +59,30 @@ export async function dbClear() {
     });
 }
 
-// export function hoy() {
-//   const d = new Date();
-//   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-// }
+// Guarda el archivo de ejercicios tal cual, en binario (Blob), en IndexedDB.
+export async function dbSaveExercisesFile(blob) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(FILES_STORE, "readwrite");
+        tx.objectStore(FILES_STORE).put(blob, EJERCICIOS_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onabort = tx.onerror = () => reject(tx.error);
+    });
+}
 
 export async function loadExercises() {
-    const response = await fetch("ejercicios.json", { cache: "no-cache" });
+    const db = await openDB();
+    const blob = await new Promise((resolve, reject) => {
+        const r = db.transaction(FILES_STORE, "readonly").objectStore(FILES_STORE).get(EJERCICIOS_KEY);
+        r.onsuccess = () => resolve(r.result ?? null);
+        r.onerror   = () => reject(r.error);
+    });
 
-    if (!response.ok) {
-        throw new Error(`Error cargando ejercicios: ${response.status} ${response.statusText}`);
+    if (!blob) {
+        throw new Error("No hay ejercicios importados. Usa 'Importar JSON' para cargarlos.");
     }
 
-    return response.json();
+    return JSON.parse(await blob.text());
 }
 
 export function esMismoDia(fecha1, fecha2) {

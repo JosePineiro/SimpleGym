@@ -1,4 +1,4 @@
-import { dbAll, dbAdd, dbClear, loadExercises, esMismoDia } from './database.js';
+import { dbAll, dbAdd, dbClear, loadExercises, esMismoDia, dbSaveExercisesFile } from './database.js';
 
 function parseCSV(text) {
     const lines = text
@@ -19,8 +19,8 @@ function parseCSV(text) {
 
     for (const line of lines) {
         const parts = line.split(';').map(p => p.trim());
-        if (parts.length < 6) { 
-            skipped++; 
+        if (parts.length < 6) {
+            skipped++;
             continue;
         }
 
@@ -61,7 +61,7 @@ function getSesionActual(totalSessions, historialEjercicios) {
     if (esMismoDia(last.date, new Date())) {
         return last.session;
     }
-     
+
     // Si fue antes de hoy, avanzamos una sesión (con wrap-around)
     return (last.session % totalSessions) + 1;
 }
@@ -103,7 +103,7 @@ async function importarCSV(event) {
         }
     } catch (error) {
         alert(`Error al procesar el archivo CSV: ${error?.message || error}`);
-        console.error(err);
+        console.error(error);
     } finally {
         event.target.value = '';
     }
@@ -139,16 +139,71 @@ async function exportarCSV() {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
+// ---- Importar / Exportar ejercicios en JSON (almacenamiento binario permanente) ----
+
+async function importarJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+
+        // Validamos que sea un JSON de ejercicios correcto antes de guardarlo
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error("El archivo no contiene un JSON válido.");
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error("El JSON debe ser un array de ejercicios no vacío.");
+        }
+
+        // Guardamos el archivo tal cual, en binario (Blob), en IndexedDB
+        const blob = new Blob([text], { type: 'application/json' });
+        await dbSaveExercisesFile(blob);
+
+        await inicializarIndex();
+        alert(`Ejercicios importados correctamente (${data.length} ejercicios).`);
+    } catch (error) {
+        alert(`Error al procesar el archivo JSON: ${error?.message || error}`);
+        console.error(error);
+    } finally {
+        event.target.value = '';
+    }
+}
+
+async function exportarJSON() {
+    let ejercicios;
+    try {
+        ejercicios = await loadExercises();
+    } catch {
+        alert("No hay ejercicios guardados en el almacenamiento local para exportar.");
+        return;
+    }
+
+    const blob = new Blob([JSON.stringify(ejercicios, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "ejercicios.json";
+    link.click();
+
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
 async function inicializarIndex() {
-    try {            
+    try {
         let sesionActual;
 
-        // Cargamos el json con los ejercicios
+        // Cargamos los ejercicios (ahora desde almacenamiento local, ver database.js)
         const ejerciciosDB = await loadExercises();
         if (!ejerciciosDB || ejerciciosDB.length === 0) {
             throw new Error("No se encontraron ejercicios en la base de datos.");
         }
-        
+
         // Cargamos el historial
         const historialEjercicios = await dbAll();
 
@@ -183,7 +238,7 @@ async function inicializarIndex() {
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('importarCSV').addEventListener('change', importarCSV);
     document.getElementById('exportarCSV').addEventListener('click', exportarCSV);
-    // document.getElementById('importarJSON').addEventListener('change', importarJSON);
-    // document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
+    document.getElementById('importarJSON').addEventListener('change', importarJSON);
+    document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
     inicializarIndex();
 });
