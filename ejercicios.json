@@ -1,0 +1,299 @@
+[
+  {
+    "id": 1,
+    "orden": 1,
+    "imagen": "images/leg_press.avif",
+    "nombre": "Leg Press",
+    "descripcion": "Músculos principales: cuádriceps y glúteo mayor. Sinergistas: aductores e isquiotibiales, con participación de la musculatura de la pantorrilla como estabilizadora.",
+    "incremento_peso": 10,
+    "sesion": [
+      1
+    ],
+    "numero_series": 3,
+    "repeticiones_minimas": 10,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 150
+  },
+  {
+    "id": 2,
+    "orden": 2,
+    "imagen": "images/leg_curl.avif",
+    "nombre": "Leg Curl",
+    "descripcion": "Músculos principales: isquiotibiales. Sinergistas: gastrocnemio y otros músculos flexores de la rodilla.",
+    "incremento_peso": 5,
+    "sesion": [
+      1,
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 90
+  },
+  {
+    "id": 3,
+    "orden": 3,
+    "imagen": "images/leg_extension.avif",
+    "nombre": "Leg Extension",
+    "descripcion": "Músculo principal: cuádriceps, con especial participación del recto femoral y los vastos.",
+    "incremento_peso": 5,
+    "sesion": [
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 3,
+    "segundos_descanso": 75
+  },
+  {
+    "id": 4,
+    "orden": 4,
+    "imagen": "images/farmer_carry.avif",
+    "nombre": "Farmer Carry",
+    "descripcion": "Ejercicio de transporte de carga que desarrolla principalmente agarre y antebrazos, trapecios y musculatura del tronco. También exige la participación de glúteos, cuádriceps, isquiotibiales y pantorrillas.",
+    "incremento_peso": 2,
+    "sesion": [
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 20,
+    "repeticiones_maximas": 50,
+    "rir": 7,
+    "segundos_descanso": 90
+  },
+  {
+    "id": 5,
+    "orden": 5,
+    "imagen": "images/leg_press.avif",
+    "nombre": "Gemelos",
+    "descripcion": "Músculos principales: gastrocnemio y sóleo. Sinergistas: otros flexores plantares, como tibial posterior y flexores de los dedos.",
+    "incremento_peso": 10,
+    "sesion": [
+      1,
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 12,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 60
+  },
+  {
+    "id": 6,
+    "orden": 6,
+    "imagen": "images/abductor.avif",
+    "nombre": "Abductor",
+    "descripcion": "Músculos principales: glúteo medio, glúteo menor y tensor de la fascia lata. Sinergistas: piriforme, glúteo mayor y sartorio",
+    "incremento_peso": 5,
+    "sesion": [
+      1,
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 12,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 60
+  },
+  {
+    "id": 7,
+    "orden": 8,
+    "imagen": "images/lower_back.avif",
+    "nombre": "Lower Back",
+    "descripcion": "Músculos principales: erectores espinales. Sinergistas: glúteo mayor e isquiotibiales.",
+    "incremento_peso": 5,
+    "sesion": [
+      1,
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 10,
+    "repeticiones_maximas": 15,
+    "rir": 3,
+    "segundos_descanso": 90
+  },
+  {
+    "id": 8,
+    "orden": 9,
+    "imagen": "images/pectoral.avif",
+    "nombre": "Pectoral",
+    "descripcion": "Músculo principal: pectoral mayor.",
+    "incremento_peso": 5,
+    "sesion": [
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 90
+  },
+  {
+    "id": 9,
+    "orden": 10,
+    "imagen": "images/vertical_traction.avif",
+    "nombre": "Vertical Traction",
+    "descripcion": "Músculo principal: dorsal ancho. Sinergistas: redondo mayor, bíceps braquial, braquial, romboides y trapecio, con participación del deltoides posterior y musculatura del antebrazo.",
+    "incremento_peso": 5,
+    "sesion": [
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 120
+  },
+  {
+    "id": 10,
+    "orden": 11,
+    "imagen": "images/chest_press.avif",
+    "nombre": "Chest Press",
+    "descripcion": "Músculo principal: pectoral mayor. Sinergistas: tríceps braquial y deltoides anterior.",
+    "incremento_peso": 5,
+    "sesion": [
+      2
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 150
+  },
+  {
+    "id": 11,
+    "orden": 12,
+    "imagen": "images/pulldown.avif",
+    "nombre": "Pulldown",
+    "descripcion": "Músculo principal: dorsal ancho. Sinergistas: redondo mayor, bíceps braquial y braquial; también participa la musculatura escapular.",
+    "incremento_peso": 5,
+    "sesion": [
+      2
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 10,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 120
+  },
+  {
+    "id": 12,
+    "orden": 13,
+    "imagen": "images/shoulder_press.avif",
+    "nombre": "Shoulder Press",
+    "descripcion": "Músculos principales: deltoides. Sinergista: tríceps braquial. El trapecio superior participa como estabilizador y colaborador.",
+    "incremento_peso": 5,
+    "sesion": [
+      2
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 120
+  },
+  {
+    "id": 13,
+    "orden": 14,
+    "imagen": "images/low_row.avif",
+    "nombre": "Low Row",
+    "descripcion": "Músculos principales: dorsal ancho, romboides y trapecio medio. Sinergistas: deltoides posterior, bíceps braquial, braquial y antebrazos.",
+    "incremento_peso": 5,
+    "sesion": [
+      2,
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 10,
+    "repeticiones_maximas": 12,
+    "rir": 3,
+    "segundos_descanso": 120
+  },
+  {
+    "id": 14,
+    "orden": 15,
+    "imagen": "images/delts_machine.avif",
+    "nombre": "Delts Machine",
+    "descripcion": "Elevación lateral. Músculo principal: deltoides medio. Sinergistas: supraespinoso y trapecio superior.",
+    "incremento_peso": 5,
+    "sesion": [
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 90
+  },
+  {
+    "id": 15,
+    "orden": 16,
+    "imagen": "images/arm_extension.avif",
+    "nombre": "Arm Extension",
+    "descripcion": "Músculo principal: tríceps braquial. Sinergista: ancóneo.",
+    "incremento_peso": 5,
+    "sesion": [
+      2,
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 75
+  },
+  {
+    "id": 16,
+    "orden": 17,
+    "imagen": "images/arm_curl.avif",
+    "nombre": "Arm Curl",
+    "descripcion": "Músculos principales: bíceps braquial y braquial. Sinergistas: braquiorradial y musculatura del antebrazo.",
+    "incremento_peso": 5,
+    "sesion": [
+      2,
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 8,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 75
+  },
+  {
+    "id": 17,
+    "orden": 18,
+    "imagen": "images/abdominal_crunch.avif",
+    "nombre": "Abdominal Crunch",
+    "descripcion": "Músculo principal: recto abdominal. Otros músculos del tronco participan como estabilizadores y colaboradores.",
+    "incremento_peso": 5,
+    "sesion": [
+      1,
+      4
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 12,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 60
+  },
+  {
+    "id": 18,
+    "orden": 7,
+    "imagen": "images/aductor.avif",
+    "nombre": "Aductor",
+    "descripcion": "Músculos principales:Aductor mayor, aductor largo, aductor corto, grácil y pectíneo. Sinergistas: músculos estabilizadores de la cadera y la pelvis.",
+    "incremento_peso": 5,
+    "sesion": [
+      1,
+      3
+    ],
+    "numero_series": 2,
+    "repeticiones_minimas": 12,
+    "repeticiones_maximas": 15,
+    "rir": 2,
+    "segundos_descanso": 60
+  }
+]

@@ -1,10 +1,12 @@
 import { dbAll, dbAdd, dbClear, loadExercises, esMismoDia, dbSaveExercisesFile } from './database.js';
 
+
+// ---- Importar / Exportar historial en CSV ----
+
 function parseCSV(text) {
     const lines = text
         .replace(/^\uFEFF/, '')          // BOM
         .replaceAll('\r', '')
-        .replaceAll('/', '-')
         .replaceAll(',', '.')
         .trim()
         .split('\n');
@@ -19,16 +21,18 @@ function parseCSV(text) {
 
     for (const line of lines) {
         const parts = line.split(';').map(p => p.trim());
-        if (parts.length < 6) {
+        if (parts.length < 7) {
             skipped++;
             continue;
         }
 
-        const [exIdStr, sessionStr, totalsStr, dateStr, weightStr, repsStr] = parts;
+        const [exIdStr, sessionStr, totalsStr, dateStr, setsStr, weightStr, repsStr] = parts;
         const exId = Number(exIdStr);
         const session = Number(sessionStr);
         const totals = Number(totalsStr);
-        const date = new Date(dateStr);
+        const [year, month, day] = dateStr.split(/[\/-]/).map(Number);
+        const date = new Date(year, month - 1, day);
+        const sets = Number(setsStr);
         const weight = Number(weightStr);
         const reps = Number(repsStr);
 
@@ -38,6 +42,7 @@ function parseCSV(text) {
             !sessionStr || isNaN(session) ||
             !totalsStr  || isNaN(totals)  ||
             isNaN(date.getTime())         ||
+            !setsStr  || isNaN(sets)  ||
             !weightStr  || isNaN(weight)  ||
             !repsStr    || isNaN(reps)
         ) {
@@ -45,42 +50,9 @@ function parseCSV(text) {
             continue;
         }
 
-        rows.push({ exId, session, totals, date, weight, reps});
+        rows.push({ exId, session, totals, date, sets, weight, reps});
     }
     return { rows, skipped };
-}
-
-
-function getSesionActual(totalSessions, historialEjercicios) {
-    if (!historialEjercicios?.length || !totalSessions) return 1;
-
-    // Registro con la fecha más reciente (si hay empate da igual, misma sesión)
-    const last = historialEjercicios.reduce((a, b) => a.date.getTime() >= b.date.getTime() ? a : b);
-
-    // Si el último entrenamiento fue hoy → misma sesión
-    if (esMismoDia(last.date, new Date())) {
-        return last.session;
-    }
-
-    // Si fue antes de hoy, avanzamos una sesión (con wrap-around)
-    return (last.session % totalSessions) + 1;
-}
-
-function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion) {
-    // Conjunto de IDs de ejercicios ya realizados hoy
-    const hechosHoy = new Set(
-        (historialEjercicios || [])
-            .filter(h => esMismoDia(h.date, new Date()))
-            .map(h => h.exId)
-    );
-
-    // Filtramos los ejercicios que pertenecen a la sesión indicada
-    const ejerciciosSesion = ejerciciosDB.filter(e => e.sesion.includes(sesion));
-
-    // Contamos los que NO se han hecho hoy
-    const pendientes = ejerciciosSesion.filter(e => !hechosHoy.has(e.id)).length;
-
-    return pendientes;
 }
 
 async function importarCSV(event) {
@@ -97,10 +69,9 @@ async function importarCSV(event) {
 
         await dbClear();
         for (const row of rows) await dbAdd(row);
+        alert(`${rows.length} ejercicios del historial importados${skipped ? `, ${skipped} saltados.` : '.'}`);
+
         await inicializarIndex();
-        if(skipped) {
-            alert(`Importación finalizada. ${rows.length} registros importados, ${skipped} saltados.`);
-        }
     } catch (error) {
         alert(`Error al procesar el archivo CSV: ${error?.message || error}`);
         console.error(error);
@@ -117,10 +88,10 @@ async function exportarCSV() {
     }
 
     const filas = [
-        "id;sesion;totales;fecha;peso;repeticiones",
+        "id;sesion;totales;fecha;series;peso;repeticiones",
         ...historialEjercicios.map(row => {
             const fecha = `${row.date.getFullYear()}/${String(row.date.getMonth() + 1).padStart(2, '0')}/${String(row.date.getDate()).padStart(2, '0')}`;
-            return `${row.exId};${row.session};${row.totals};${fecha};${row.weight};${row.reps}`;
+            return `${row.exId};${row.session};${row.totals};${fecha};${row.sets};${row.weight};${row.reps}`;
         })
     ];
 
@@ -139,7 +110,7 @@ async function exportarCSV() {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-// ---- Importar / Exportar ejercicios en JSON (almacenamiento binario permanente) ----
+// ---- Importar / Exportar ejercicios en JSON ----
 
 async function importarJSON(event) {
     const file = event.target.files[0];
@@ -157,10 +128,14 @@ async function importarJSON(event) {
         }
 
         if (!Array.isArray(data) || data.length === 0) {
-            throw new Error("El JSON debe ser un array de ejercicios no vacío.");
+            throw new Error("El JSON no contiene ningún ejercicio.");
         }
 
-        // Guardamos el archivo tal cual, en binario (Blob), en IndexedDB
+        if (!data.every(e => typeof e.id === 'number' && Array.isArray(e.sesion))) {
+            throw new Error("El JSON no tiene el formato de ejercicios esperado.");
+        }
+
+        // Guardamos el archivo como binario (Blob), en IndexedDB
         const blob = new Blob([text], { type: 'application/json' });
         await dbSaveExercisesFile(blob);
 
@@ -194,39 +169,50 @@ async function exportarJSON() {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
+// ---- Inicializar el formulario ----
+
+function getSesionActual(totalSessions, historialEjercicios) {
+    if (!historialEjercicios?.length || !totalSessions) return 1;
+
+    // Registro con la fecha más reciente (si hay empate da igual, misma sesión)
+    // const last = historialEjercicios.reduce((a, b) => a.date.getTime() >= b.date.getTime() ? a : b);
+    const last = historialEjercicios.reduce((a, b) => a.date > b.date ? a : b);
+
+    // Si el último entrenamiento fue hoy → misma sesión
+    if (esMismoDia(last.date, new Date())) return last.session;
+
+    // Si fue antes de hoy, avanzamos una sesión (con wrap-around)
+    return (last.session % totalSessions) + 1;
+}
+
+
+function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion) {
+    // Conjunto de IDs de ejercicios ya realizados hoy
+    const hechosHoy = new Set(historialEjercicios.filter(h => esMismoDia(h.date, new Date())).map(h => h.exId));
+
+    return ejerciciosDB.filter(e => e.sesion.includes(sesion) && !hechosHoy.has(e.id)).length;
+}
+
 async function inicializarIndex() {
     try {
-        let sesionActual;
-
-        // Cargamos los ejercicios (ahora desde almacenamiento local, ver database.js)
-        const ejerciciosDB = await loadExercises();
-        if (!ejerciciosDB || ejerciciosDB.length === 0) {
-            throw new Error("No se encontraron ejercicios en la base de datos.");
-        }
-
-        // Cargamos el historial
-        const historialEjercicios = await dbAll();
+        // Cargamos los ejercicios y el historial
+        const [ejerciciosDB, historialEjercicios] = await Promise.all([
+            loadExercises(),
+            dbAll()
+        ]);
 
         // Configuramos la ficha de entrenamiento
-        const infoSesion = document.getElementById('infoSesion')
+        const totalSesiones = ejerciciosDB.reduce((max, e) => Math.max(max, e.sesion || 0), 1);         // Sesión más alta definida en ejercicios.json
+        const sesionActual = getSesionActual(totalSesiones, historialEjercicios);
         const btnSesion = document.getElementById('btnIrSesion');
-        btnSesion.classList.remove('btn-disabled');
+        btnSesion.textContent = `Comenzar Sesión ${sesionActual}`;
+        btnSesion.href = `sesion.html?sesion=${sesionActual}`;
 
-        if (historialEjercicios.length === 0) {
-            btnSesion.textContent = '¡Bienvenido! Empieza tu primera sesión.';
-            sesionActual = 1;
-        } else {
-            const totalSesiones = Math.max(...ejerciciosDB.flatMap(e => e.sesion)); // Sesión más alta definida en ejercicios.json
-            sesionActual = getSesionActual(totalSesiones, historialEjercicios);
-            btnSesion.textContent = `Comenzar Sesión ${sesionActual}`;
-        }
-
+        const infoSesion = document.getElementById('infoSesion')
         const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesionActual);
-
         if (numeroEjerciciosPendientes === 0) {
             infoSesion.textContent = `Todos los ejercicios de hoy completados`;
         } else {
-            btnSesion.href = `sesion.html?sesion=${sesionActual}`;
             infoSesion.textContent = `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`;
         }
     } catch (error) {
@@ -235,10 +221,8 @@ async function inicializarIndex() {
     }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('importarCSV').addEventListener('change', importarCSV);
-    document.getElementById('exportarCSV').addEventListener('click', exportarCSV);
-    document.getElementById('importarJSON').addEventListener('change', importarJSON);
-    document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
-    inicializarIndex();
-});
+document.getElementById('importarCSV').addEventListener('change', importarCSV);
+document.getElementById('exportarCSV').addEventListener('click', exportarCSV);
+document.getElementById('importarJSON').addEventListener('change', importarJSON);
+document.getElementById('exportarJSON').addEventListener('click', exportarJSON);
+inicializarIndex();

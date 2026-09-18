@@ -422,14 +422,14 @@ input[type="file"] {
     margin: 5px 0;
 }
 
-.csv-actions {
+.btn-panel {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     justify-content: center;
 }
 
-.csv-actions .btn {
+.btn-panel .btn {
     flex: 1 1 45%;
     min-width: 140px;
 }
