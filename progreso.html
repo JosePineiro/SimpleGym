@@ -57,10 +57,14 @@
             font-size: 1.05rem;
         }
     </style>
+    <!-- Chart.js + plugin de zoom (UMD, exponen window.Chart y window.ChartZoom) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script type="module" src="js/progreso.js"></script>
 </head>
 <body>
     <header class="topbar">
-        <h1 id="tituloMaquina">Cargando…</h1>
+        <h1 id="tituloMaquina">Máquina no especificada</h1>
         <nav aria-label="Navegación principal">
             <a class="topbar-link" href="estadisticas_lista.html">Volver</a>
         </nav>
@@ -86,11 +90,5 @@
             <div class="stats-row" id="statsRow"></div>
         </div>
     </main>
-
-    <!-- Chart.js + plugin de zoom (UMD, exponen window.Chart y window.ChartZoom) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-
-    <script type="module" src="js/progreso.js"></script>
 </body>
 </html>

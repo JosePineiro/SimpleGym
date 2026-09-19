@@ -38,26 +38,11 @@ if (window.ChartZoom && !window.Chart.registry.plugins.get('zoom')) {
 
 /* ---------- Contexto ---------- */
 const idMaquina = new URLSearchParams(location.search).get('id');
-
-const els = {
-    titulo:  document.getElementById('tituloMaquina'),
-    resumen: document.getElementById('resumenMaquina'),
-    canvas:  document.getElementById('grafico'),
-    hint:    document.getElementById('chartHint'),
-    actions: document.getElementById('chartActions'),
-    stats:   document.getElementById('statsRow'),
-    reset:   document.getElementById('btnResetZoom'),
-};
-
 let chart = null;
 
 /* ---------- Formato ---------- */
-const fmtFecha = d =>
-    `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-
-const fmtFechaCorta = d =>
-    `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}`;
-
+const fmtFecha = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+const fmtFechaCorta = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}`;
 const fmtPeso = n => (Number.isFinite(n) ? `${n.toFixed(1)} kg` : '—');
 
 function parseISO(s) {
@@ -106,16 +91,14 @@ function construirPuntos(maquina, historial) {
 
 /* ---------- Render ---------- */
 function mostrarVacio(msg) {
-    els.resumen.textContent = msg;
-    els.canvas.parentElement.style.display = 'none';
-    els.hint.style.display    = 'none';
-    els.actions.style.display = 'none';
-    els.stats.innerHTML = '';
+    document.getElementById('resumenMaquina').textContent = msg;
+    document.getElementById('chartHint').style.display    = 'none';
+    document.getElementById('chartActions').style.display = 'none';
 }
 
 function renderResumen(puntos) {
     const u = puntos[puntos.length - 1];
-    els.resumen.textContent = `Última: ${fmtFecha(u.fecha)} → ${u.peso} kg / ${u.reps} reps`;
+    document.getElementById('resumenMaquina').textContent = `Última: ${fmtFecha(u.fecha)} → ${u.peso} kg / ${u.reps} reps`;
 }
 
 function renderStats(puntos) {
@@ -123,7 +106,7 @@ function renderStats(puntos) {
     const ultimo  = puntos[puntos.length - 1];
     const mejor   = puntos.reduce((acc, p) => (p.estimado > acc.estimado ? p : acc), puntos[0]);
 
-    els.stats.innerHTML = [
+    document.getElementById('statsRow').innerHTML = [
         { label: 'Sesiones', value: String(puntos.length) },
         { label: 'Primera',  value: fmtFecha(primero.fecha) },
         { label: 'Última',   value: fmtFecha(ultimo.fecha) },
@@ -138,7 +121,7 @@ function crearGrafico(puntos) {
 
     const data = puntos.map(p => ({ x: p.fecha.getTime(), y: p.estimado }));
 
-    chart = new Chart(els.canvas, {
+    chart = new Chart(document.getElementById('grafico'), {
         type: 'line',
         data: {
             datasets: [{
@@ -173,7 +156,7 @@ function crearGrafico(puntos) {
                         label: item => {
                             const p = puntos[item.dataIndex];
                             if (!p) return '';
-                            return `Estimado: ${fmtPeso(p.estimado)} (${p.reps} reps @ ${p.peso} kg)`;
+                            return `Estimado: ${fmtPeso(p.estimado)} (${p.reps} reps, ${p.peso} kg)`;
                         },
                     },
                 },
@@ -215,8 +198,7 @@ function crearGrafico(puntos) {
 /* ---------- Init ---------- */
 (async function init() {
     if (!idMaquina) {
-        els.titulo.textContent = 'Máquina no especificada';
-        mostrarVacio('Falta el parámetro ?id= en la URL.');
+        mostrarVacio("Falta el parámetro 'id' en la URL.");
         return;
     }
 
@@ -236,13 +218,12 @@ function crearGrafico(puntos) {
         .find(e => e.id == idMaquina); 
 
     if (!maquina) {
-        els.titulo.textContent = `Máquina ${idMaquina}`;
         mostrarVacio(`No se encontró la máquina con id "${idMaquina}".`);
         return;
     }
 
     const nombre = maquina.nombre || `Máquina ${idMaquina}`;
-    els.titulo.textContent = nombre;
+    document.getElementById('tituloMaquina').textContent = nombre;
     document.title = `SIMPLEGYM - ${nombre}`;
 
     const puntos = construirPuntos(maquina, historial);
@@ -257,6 +238,6 @@ function crearGrafico(puntos) {
     crearGrafico(puntos);
 })();
 
-els.reset.addEventListener('click', () => {
+document.getElementById('btnResetZoom').addEventListener('click', () => {
     if (chart?.resetZoom) chart.resetZoom();
 });
