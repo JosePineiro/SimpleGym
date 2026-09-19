@@ -8,24 +8,23 @@ import { dbAll, loadExercises, esMismoDia } from './database.js';
    ========================================================= */
 
 const IMG_PLACEHOLDER = 'img/placeholder.svg';
-const ORDEN_POR_DEFECTO = 9999;
 
 function crearTarjeta(ejercicio, completado, sesionActual, totales) {
-    const a = document.createElement('a');
-    a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}`;
-    a.className = `card${completado ? ' completado' : ''}`;
-    a.setAttribute('aria-label', `${ejercicio.nombre}${completado ? ' (completado)' : ''}`);
-
     const img = document.createElement('img');
     img.src = ejercicio.imagen || IMG_PLACEHOLDER;
     img.alt = ejercicio.nombre;
     img.loading = 'lazy';
     img.decoding = 'async';
-    img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; });
-    
+    img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; }, { once: true });
+        
     const span = document.createElement('span');
     span.className = 'card-name';
     span.textContent = ejercicio.nombre;
+
+    const a = document.createElement('a');
+    a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}`;
+    a.className = completado ? 'card completado' : 'card';
+    if (completado) a.setAttribute('aria-label', `${ejercicio.nombre} (completado)`);
 
     a.append(img, span);
     return a;
@@ -36,68 +35,49 @@ async function inicializarPantalla() {
     const subtitulo  = document.getElementById('subtituloSesion');
     const contenedor = document.getElementById('contenedorEjercicios');
 
+    const mostrarVacio = texto => {
+        const div = document.createElement('div');
+        div.className = 'empty-state';
+        div.textContent = texto;
+        contenedor.replaceChildren(div);
+    };
+
     try {
-        const sesionActual = parseInt(new URLSearchParams(location.search).get('sesion'), 10);
-        if (!Number.isInteger(sesionActual) || sesionActual <= 0) {
-            throw new Error('Falta el parámetro sesion o no es válido.');
-        }
+        const sesion = parseInt(new URLSearchParams(location.search).get('sesion'), 10);
+        if (!(sesion > 0)) throw new Error('Falta el parámetro sesion o no es válido.');
 
-        const [ejerciciosDB, historial] = await Promise.all([
-            loadExercises(),
-            dbAll()
-        ]);
+        const [ejerciciosDB, historial] = await Promise.all([loadExercises(), dbAll()]);
 
-        const ahora = new Date();
+        const hoy = new Date();
         const hechosHoy = new Set(
-            historial
-                .filter(h => h.date instanceof Date && esMismoDia(h.date, ahora))
-                .map(h => h.exId)
+            historial.filter(h => h.date && esMismoDia(h.date, hoy)).map(h => h.exId)
         );
 
         const ejerciciosDeHoy = ejerciciosDB
-            .filter(e => (e.sesion || []).includes(sesionActual))
-            .sort((a, b) =>
-                (a.orden ?? Infinity) - (b.orden ?? Infinity) ||
-                a.id - b.id
-            );
-
-        titulo.textContent = `Sesión ${sesionActual}`;
+            .filter(e => e.sesion.includes(sesion))
+            .sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || a.id - b.id);
 
         const total  = ejerciciosDeHoy.length;
         const hechos = ejerciciosDeHoy.filter(e => hechosHoy.has(e.id)).length;
 
-        subtitulo.textContent = total
-            ? `${hechos} de ${total} ejercicios completados`
-            : 'No hay ejercicios para esta sesión';
-
-        contenedor.replaceChildren();
+        titulo.textContent = `Sesión ${sesion}`;
 
         if (!total) {
-            const empty = document.createElement('div');
-            empty.className = 'empty-state';
-            empty.textContent = 'No hay ejercicios asignados a esta sesión.';
-            contenedor.appendChild(empty);
-            return;
+            subtitulo.textContent = 'No hay ejercicios para esta sesión';
+            return mostrarVacio('No hay ejercicios que mostrar.');
         }
 
-        const fragment = document.createDocumentFragment();
-        for (const ejercicio of ejerciciosDeHoy) {
-            fragment.appendChild(
-                crearTarjeta(ejercicio, hechosHoy.has(ejercicio.id), sesionActual, total)
-            );
-        }
-        contenedor.appendChild(fragment);
+        subtitulo.textContent = `${hechos} de ${total} ejercicios completados`;
+
+        contenedor.replaceChildren(
+            ...ejerciciosDeHoy.map(e => crearTarjeta(e, hechosHoy.has(e.id), sesion, total))
+        );
 
     } catch (error) {
         console.error(error);
         titulo.textContent = 'Error';
-        subtitulo.textContent = error?.message || 'Error inicializando la sesión';
-        contenedor.replaceChildren();
-
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        empty.textContent = 'No se pudo cargar la sesión.';
-        contenedor.appendChild(empty);
+        subtitulo.textContent = error.message || 'Error inicializando la sesión';
+        mostrarVacio('No se pudo cargar la sesión.');
     }
 }
 

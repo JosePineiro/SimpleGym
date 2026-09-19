@@ -9,7 +9,9 @@
 <body>
     <header class="topbar">
         <h1>SIMPLEGYM · Días de entreno</h1>
-        <a class="topbar-link" href="index.html">Inicio</a>
+        <nav aria-label="Navegación principal">
+            <a class="topbar-link" href="index.html">Inicio</a>
+        </nav>
     </header>
 
     <main class="container">
@@ -23,19 +25,15 @@
             </div>
 
             <div class="cal-weekdays" aria-hidden="true">
-                <span>L</span><span>M</span><span>X</span><span>J</span>
-                <span>V</span><span>S</span><span>D</span>
+                <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
             </div>
 
             <div class="cal-grid" id="calGrid"></div>
-
-            <button type="button" class="btn btn-secondary btn-large" id="btnHoy">Ir al día actual</button>
         </section>
 
         <!-- ---------- Leyenda ---------- -->
         <section class="card">
             <ul class="cal-leyenda">
-                <li><span class="cal-swatch cal-day--none" aria-hidden="true"></span> Sin entrenamiento</li>
                 <li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Algo de ejercicio (sesión incompleta)</li>
                 <li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
                 <li><span class="cal-swatch cal-day--best" aria-hidden="true"></span> Sesión completa + progreso (★)</li>

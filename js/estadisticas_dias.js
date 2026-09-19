@@ -36,7 +36,9 @@ function normalizarFila(r) {
         exId: r.exId,
         peso: r.weight,
         reps: r.reps,
-        sesion: r.session
+        sesion: r.session,
+        totals: r.totals,
+        series: r.sets
     };
 }
 
@@ -55,7 +57,7 @@ async function cargarHistorial() {
 
 function construirCache() {
     cacheDias = new Map();
-    if (!historial.length || !ejercicios.length) return;
+    if (!historial.length) return;
 
     // Agrupar por fecha
     const regsPorFecha = new Map();
@@ -67,21 +69,6 @@ function construirCache() {
 
         regsPorFecha.get(r.fecha).push(r);
     }
-
-    // Índice de sesiones → ids de ejercicios
-    const idsDeSesion = new Map();
-
-    for (const e of ejercicios) {
-        for (const s of e.sesion) {
-            if (!idsDeSesion.has(s)) {
-                idsDeSesion.set(s, []);
-            }
-
-            idsDeSesion.get(s).push(e.id);
-        }
-    }
-
-    const sesiones = [...idsDeSesion.keys()];
 
     // Último registro por ejercicio
     const ultimoPorEj = new Map();
@@ -146,50 +133,10 @@ function construirCache() {
             }
         }
 
-        // 3) Detectar sesión
-        const idsHechos = new Set(regs.map(r => r.exId));
-
-        const sesionesRegs = [
-            ...new Set(
-                regs.map(r => r.sesion).filter(s => s != null)
-            )
-        ];
-
-        let sesionDetectada =
-            sesionesRegs.length === 1
-                ? sesionesRegs[0]
-                : null;
-
-        let sesionCompleta = false;
-
-        if (sesionDetectada != null) {
-            const ids = idsDeSesion.get(sesionDetectada) || [];
-
-            sesionCompleta =
-                ids.length > 0 &&
-                ids.every(id => idsHechos.has(id));
-        }
-
-        // Si no está completa, buscar la sesión con más coincidencias
-        if (!sesionCompleta) {
-            let mejor = null;
-            let mejorPunt = 0;
-
-            for (const s of sesiones) {
-                const ids = idsDeSesion.get(s) || [];
-
-                const punt = ids.filter(
-                    id => idsHechos.has(id)
-                ).length;
-
-                if (punt > mejorPunt) {
-                    mejorPunt = punt;
-                    mejor = s;
-                }
-            }
-
-            sesionDetectada = mejor;
-        }
+        // 3) Sesión y completitud
+        // Todos los registros del día comparten sesión y `totals`
+        const { sesion, totals } = regs[0];
+        const sesionCompleta = new Set(regs.map(r => r.exId)).size >= totals;
 
         // 4) Estado del día
         const estado =
@@ -202,7 +149,7 @@ function construirCache() {
         cacheDias.set(iso, {
             estado,
             regs,
-            sesion: sesionDetectada,
+            sesion,
             detalles
         });
 
@@ -215,97 +162,6 @@ function construirCache() {
         }
     }
 }
-// function construirCache() {
-//     cacheDias = new Map();
-//     if (!historial.length || !ejercicios.length) return;
-
-//     // Agrupar por fecha
-//     const regsPorFecha = new Map();
-//     for (const r of historial) {
-//         if (!regsPorFecha.has(r.fecha)) regsPorFecha.set(r.fecha, []);
-//         regsPorFecha.get(r.fecha).push(r);
-//     }
-
-//     // Índice de sesiones → ids de ejercicios, en un solo bucle
-//     const idsDeSesion = new Map();
-//     for (const e of ejercicios) {
-//         for (const s of e.sesion) {
-//             if (!idsDeSesion.has(s)) idsDeSesion.set(s, []);
-//             idsDeSesion.get(s).push(e.id);
-//         }
-//     }
-//     const sesiones = [...idsDeSesion.keys()];
-
-//     const ultimoPorEj = new Map(); // exId → { peso, reps }
-//     const fechas = [...regsPorFecha.keys()].sort();
-
-//     for (const iso of fechas) {
-//         const regs = regsPorFecha.get(iso);
-
-//         // 1) Mejor serie del día por ejercicio (peso, desempate por reps)
-//         const mejorPorEj = new Map();
-//         for (const r of regs) {
-//             const prev = mejorPorEj.get(r.exId);
-//             if (!prev || r.peso > prev.peso || (r.peso === prev.peso && r.reps > prev.reps)) {
-//                 mejorPorEj.set(r.exId, r);
-//             }
-//         }
-
-//         // 2) Detectar cambios respecto al último día registrado
-//         const detalles = new Map();
-//         for (const [exId, r] of mejorPorEj) {
-//             const ant = ultimoPorEj.get(exId);
-//             if (!ant) continue;
-//             const masPeso = r.peso > ant.peso;
-//             const menosPeso = r.peso < ant.peso;
-//             const masReps = r.reps > ant.reps;
-//             const menosReps = r.reps < ant.reps;
-//             if (masPeso || menosPeso || masReps || menosReps) {
-//                 detalles.set(exId, {
-//                     antes: { ...ant },
-//                     ahora: { peso: r.peso, reps: r.reps },
-//                     tipo: (masPeso || masReps) ? 'up' : 'down'
-//                 });
-//             }
-//         }
-
-//         // 3) Detectar sesión
-//         const idsHechos = new Set(regs.map(r => r.exId));
-//         const sesionesRegs = [...new Set(regs.map(r => r.sesion).filter(s => s != null))];
-//         let sesionDetectada = sesionesRegs.length === 1 ? sesionesRegs[0] : null;
-//         let sesionCompleta = false;
-
-//         if (sesionDetectada != null) {
-//             const ids = idsDeSesion.get(sesionDetectada) || [];
-//             sesionCompleta = ids.length > 0 && ids.every(id => idsHechos.has(id));
-//         }
-
-//         // Si no está completa, buscar la sesión con más coincidencias (exigiendo al menos 1)
-//         if (!sesionCompleta) {
-//             let mejor = null, mejorPunt = 0;
-//             for (const s of sesiones) {
-//                 const ids = idsDeSesion.get(s) || [];
-//                 const punt = ids.filter(id => idsHechos.has(id)).length;
-//                 if (punt > mejorPunt) {
-//                     mejorPunt = punt;
-//                     mejor = s;
-//                 }
-//             }
-//             sesionDetectada = mejor;
-//         }
-
-//         const estado = !sesionCompleta ? 'some'
-//                      : detalles.size  ?  'best'
-//                      :                   'all';
-
-//         cacheDias.set(iso, { estado, regs, sesion: sesionDetectada, detalles });
-
-//         // 4) Actualizar últimos valores con la mejor serie del día
-//         for (const [exId, r] of mejorPorEj) {
-//             ultimoPorEj.set(exId, { peso: r.peso, reps: r.reps });
-//         }
-//     }
-// }
 
 function infoDia(iso) {
     return cacheDias.get(iso) || { estado: 'none', regs: [], sesion: null, detalles: new Map() };
@@ -421,8 +277,7 @@ function renderDetalle(iso) {
     const cont   = document.getElementById('detalleContenido');
 
     const d = parseISO(iso);
-    titulo.textContent = `Detalle · ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-
+    titulo.textContent = `Detalle del ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
     const { estado, regs, sesion, detalles } = infoDia(iso);
 
     if (estado === 'none') {
@@ -442,25 +297,18 @@ function renderDetalle(iso) {
             const partes = [];
 
             if (det.ahora.peso !== det.antes.peso) {
-                partes.push(
-                    `${det.antes.peso}→${det.ahora.peso} kg`
-                );
+                partes.push(`${det.antes.peso}→${det.ahora.peso} kg`);
             }
 
             if (det.ahora.reps !== det.antes.reps) {
-                partes.push(
-                    `${det.antes.reps}→${det.ahora.reps} reps`
-                );
+                partes.push(`${det.antes.reps}→${det.ahora.reps} reps`);
             }
 
-            const icono = det.tipo === 'up' ? '▲' : '▼';
-
-            badge = ` <span class="progreso-badge progreso-${det.tipo}">
-                ${icono} ${partes.join(' · ')}
-            </span>`;
+            badge = ` <span class="progreso-badge progreso-${det.tipo}">${partes.join(' · ')}</span>`;
         }
         return `<tr>
             <td>${nombreEj(r.exId)}${badge}</td>
+            <td>${r.series}</td>
             <td>${r.peso} kg</td>
             <td>${r.reps}</td>
         </tr>`;
@@ -470,7 +318,7 @@ function renderDetalle(iso) {
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>Ejercicio</th><th>Peso</th><th>Reps</th></tr>
+                    <tr><th>Ejercicio</th><th>Series</th><th>Peso</th><th>Reps</th></tr>
                 </thead>
                 <tbody>${filas}</tbody>
             </table>
@@ -500,21 +348,14 @@ function irMes(delta) {
 function bindUI() {
     document.getElementById('btnMesAnterior').addEventListener('click', () => irMes(-1));
     document.getElementById('btnMesSiguiente').addEventListener('click', () => irMes(+1));
-    document.getElementById('btnHoy').addEventListener('click', () => {
-        mesActual = new Date();
-        diaSeleccionado = toISO(mesActual);
-        renderTodo();
-    });
 }
 
 async function init() {
     try {
         ejercicios = await loadExercises();
-        ejerciciosPorId = new Map(
-            ejercicios.filter(e => e.id != null).map(e => [Number(e.id), e])
-        );
+        ejerciciosPorId = new Map(ejercicios.filter(e => e.id != null).map(e => [Number(e.id), e]));
     } catch (err) {
-        alert(`Error al procesar el iniciar: ${error?.message || error}`);
+        alert(`Error al procesar el iniciar: ${err?.message || err}`);
         return;
     }
 
