@@ -9,7 +9,7 @@ import { dbAll, loadExercises, esMismoDia } from './database.js';
 
 const IMG_PLACEHOLDER = 'img/placeholder.svg';
 
-function crearTarjeta(ejercicio, completado, sesionActual, totales) {
+function crearTarjeta(ejercicio, completado, sesionActual, totales, hechos) {
     const img = document.createElement('img');
     img.src = ejercicio.imagen || IMG_PLACEHOLDER;
     img.alt = ejercicio.nombre;
@@ -22,7 +22,7 @@ function crearTarjeta(ejercicio, completado, sesionActual, totales) {
     span.textContent = ejercicio.nombre;
 
     const a = document.createElement('a');
-    a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}`;
+    a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}&made=${hechos}`;
     a.className = completado ? 'card completado' : 'card';
     if (completado) a.setAttribute('aria-label', `${ejercicio.nombre} (completado)`);
 
@@ -70,7 +70,7 @@ async function inicializarPantalla() {
         subtitulo.textContent = `${hechos} de ${total} ejercicios completados`;
 
         contenedor.replaceChildren(
-            ...ejerciciosDeHoy.map(e => crearTarjeta(e, hechosHoy.has(e.id), sesion, total))
+            ...ejerciciosDeHoy.map(e => crearTarjeta(e, hechosHoy.has(e.id), sesion, total, hechos))
         );
 
     } catch (error) {

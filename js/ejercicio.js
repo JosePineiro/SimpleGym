@@ -1,15 +1,68 @@
 import { dbAll, dbAdd, loadExercises } from './database.js';
 
+/* ---------------- Series de aproximación ---------------- */
+const EJERCICIOS_INICIO_SESION = 2; // los 2 primeros ejercicios hechos cuentan como "inicio de sesión"
+
+// function clamp(value, min, max) {
+//   return Math.min(Math.max(value, min), max);
+// }
+
+// Devuelve un array (vacío, 1 o 2 series) con { peso, reps, descanso }
+function calcularAproximaciones(exercise, pesoObjetivo, pesoUltimaSesion, ejerciciosHechosEnSesion) {
+  //  - Al inicio de la sesión, o si sube el peso: todas las previstas (series_aproximacion).
+  //  - Con el músculo ya caliente y sin subir peso: una menos.
+  const seriesAproximacion = exercise.series_aproximacion;
+  if (ejerciciosHechosEnSesion >= EJERCICIOS_INICIO_SESION && pesoObjetivo <= pesoUltimaSesion) seriesAproximacion--;
+  if (seriesAproximacion < 1) return [];
+
+  // Porcentaje como entero: evita errores de coma flotante (0.7 * 180 / 2 = 62.999…)
+  const miRedondeo = (pct, redondeo) => Math.max(exercise.incremento_peso, redondeo((pct * pesoObjetivo) / (100 * exercise.incremento_peso)) * exercise.incremento_peso);
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const descanso = clamp(Math.round(Number(exercise.segundos_descanso) / 2), 60, 90);
+  const series = [];
+
+  // 1ª aproximación (~50 %, redondeo hacia abajo)
+  const peso1 = miRedondeo(50, Math.trunc);
+  if (peso1 >= pesoObjetivo) return [];
+  series.push({
+    peso: peso1,
+    reps: clamp(Math.round((exercise.repeticiones_minimas + exercise.repeticiones_maximas) / 2), 8, 12),
+    descanso,
+  });
+
+  // 2ª aproximación (~70 %, redondeo al más cercano para que no quede pegada a la 1ª)
+  if (seriesAproximacion >= 2) {
+    const peso2 = miRedondeo(70, Math.round);
+    if (peso2 > peso1 && peso2 < pesoObjetivo) {
+      series.push({
+        peso: peso2,
+        reps: clamp(Math.trunc(exercise.repeticiones_minimas / 2), 4, 5),
+        descanso,
+      });
+    }
+  }
+  return series;
+}
+
+/* ---------------- Estado ---------------- */
 let seriesStartTime = Date.now();
-let reps;
+let reps;                 // repeticiones objetivo de las series de trabajo
+let workWeight = null;    // peso objetivo de las series de trabajo
+let approachSets = [];    // series de aproximación de este ejercicio
+let approachDone = 0;
+
 const params = new URLSearchParams(location.search);
 const exerciseId      = Number(params.get("exId"));
 const sesionNumber    = Number(params.get("curSes"));
 const sesionExercices = Number(params.get("tot"));
+const madeSesionExercices = Number(params.get("made"));
 
 if (!Number.isInteger(exerciseId) || exerciseId <= 0 ||
-    !Number.isInteger(sesionNumber) || sesionNumber <= 0) {
-  alert("Error: la URL debe incluir 'exId' y 'curSes'.\nEj: ejercicio.html?exId=3&curSes=2&tot=6");
+    !Number.isInteger(sesionNumber) || sesionNumber <= 0 ||
+    !Number.isInteger(sesionExercices) || sesionExercices < 0 ||
+    !Number.isInteger(madeSesionExercices) || madeSesionExercices < 0) {
+  alert("Error: la URL debe incluir 'exId' y 'curSes'.\nEj: ejercicio.html?exId=3&curSes=2&tot=6&made=0");
   location.replace("index.html");
   throw new Error("Parámetros de URL inválidos");
 }
@@ -20,7 +73,6 @@ let timerInterval = null;
 
 /* ---------------- Carga del ejercicio ---------------- */
 async function loadExercise(ejerciciosDB, id) {
-  // const list = await loadExercises();
   exercise = ejerciciosDB.find(x => Number(x.id) === id) ?? ejerciciosDB[0];
 
   document.getElementById("exerciseTitle").textContent        = exercise.nombre;
@@ -41,13 +93,34 @@ function lastPerformance(history, id) {
     .at(-1);
 }
 
+/* ---------------- Serie actual (aproximación o trabajo) ---------------- */
+function currentApproach() {
+  return approachSets[approachDone] ?? null;
+}
+
+// Muestra el peso y las repeticiones objetivo de la serie que toca ahora
+function renderSetTargets() {
+  const approach  = currentApproach();
+  const setWeight = approach ? approach.peso : workWeight;
+  const setReps   = approach ? approach.reps : reps;
+
+  document.getElementById("targetReps").textContent   = setReps;
+  document.getElementById("targetWeight").textContent = setWeight == null ? "—" : `${setWeight} kg`;
+}
+
+function seriesButtonLabel() {
+  return currentApproach()
+    ? `Terminé la serie de aproximación ${approachDone + 1}`
+    : `Terminé la serie ${seriesDone + 1}`;
+}
+
 /* ---------------- Objetivos (peso / reps) ---------------- */
 function loadTargets(history) {
   const last = lastPerformance(history, exercise.id);
-
+  
   let weight;
   if (!last) {
-    weight = null;
+    weight = exercise.incremento_peso;
     reps   = exercise.repeticiones_minimas;
   } else {
     weight = Number(last.weight);
@@ -64,10 +137,16 @@ function loadTargets(history) {
     }
   }
 
-  document.getElementById("targetReps").textContent   = reps;
-  document.getElementById("targetWeight").textContent = weight == null ? "—" : `${weight} kg`;
-  document.getElementById("finalWeight").value        = weight ?? "";
-  document.getElementById("finalReps").value          = reps;
+  workWeight = weight;
+
+  // Series de aproximación
+  approachSets = calcularAproximaciones(exercise, weight, last ? last.weight : weight, madeSesionExercices);
+  approachDone = 0;
+
+  renderSetTargets();
+  document.getElementById("seriesBtn").textContent = seriesButtonLabel();
+  document.getElementById("finalWeight").value     = weight;
+  document.getElementById("finalReps").value       = reps;
 }
 
 /* ---------------- Descanso ---------------- */
@@ -77,7 +156,7 @@ function startRest(seconds) {
   clearInterval(timerInterval);
 
   const paint = () => {
-    btn.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+    btn.textContent = `${String(Math.trunc(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   };
   paint();
 
@@ -87,18 +166,21 @@ function startRest(seconds) {
     if (seconds <= 0) {
       clearInterval(timerInterval);
       btn.classList.remove("btn-disabled");
-      btn.textContent = `Terminé la serie ${seriesDone + 1}`;
+      btn.textContent = seriesButtonLabel();
     }
   }, 1000);
 }
 
 /* ---------------- Fin de serie ---------------- */
 function seriesFinished() {
-    // Tiempo transcurrido desde el inicio de la serie
-  const elapsedSeconds = Math.floor((Date.now() - seriesStartTime) / 1000);
+  const approach = currentApproach();
+  const setReps  = approach ? approach.reps : reps;
 
-  const targetSeconds = reps * 6;  // 2s Concéntrica + 1s Retención + 3s Excéntrica.
+  // Tiempo transcurrido desde el inicio de la serie
+  const elapsedSeconds = Math.trunc((Date.now() - seriesStartTime) / 1000);
 
+  const targetSeconds = setReps * 6;  // 2s Concéntrica + 1s Retención + 3s Excéntrica.
+  if (approach) targetSeconds /= 2;
   // Comprobar si se ha terminado demasiado rápido
   if (elapsedSeconds < targetSeconds) {
     const tooFast = targetSeconds - elapsedSeconds;
@@ -106,23 +188,35 @@ function seriesFinished() {
     alert(`Has ido ${tooFast} segundo${tooFast !== 1 ? "s" : ""} demasiado rápido.`);
   }
 
-  // Serie completada
-  seriesDone++;
+  let restSeconds;
 
-  // Si es la última serie quitamos el contador y ponemos el boton de finalizar.
-  if (seriesDone >= exercise.numero_series) {
-    document.getElementById("seriesBtn").classList.add("hidden");
-    document.getElementById("finishCard").classList.remove("hidden");
-    return;
+  if (approach) {
+    // Serie de aproximación completada (no cuenta como serie de trabajo)
+    approachDone++;
+    restSeconds = approach.descanso;
+  } else {
+    // Serie de trabajo completada
+    seriesDone++;
+
+    // Si es la última serie quitamos el contador y ponemos el boton de finalizar.
+    if (seriesDone >= exercise.numero_series) {
+      document.getElementById("seriesBtn").classList.add("hidden");
+      document.getElementById("finishCard").classList.remove("hidden");
+      return;
+    }
+    restSeconds = Number(exercise.segundos_descanso);
   }
 
+  // Durante el descanso ya se muestra el objetivo de la siguiente serie
+  renderSetTargets();
+
   // Descanso antes de la siguiente serie
-  startRest(Number(exercise.segundos_descanso));
+  startRest(restSeconds);
 
   // El contador se reinicia después del descanso
   setTimeout(() => {
     seriesStartTime = Date.now();
-  }, Number(exercise.segundos_descanso) * 1000);
+  }, restSeconds * 1000);
 }
 
 /* ---------------- Guardar ---------------- */
@@ -134,6 +228,7 @@ async function saveWorkout() {
     return alert("Introduce peso y repeticiones válidos.");
   }
 
+  // Solo se guardan las series de trabajo (las de aproximación no)
   await dbAdd({
     exId:    Number(exercise.id),
     session: sesionNumber,
@@ -160,7 +255,6 @@ try {
       dbAll()
   ]);
   await loadExercise(ejerciciosDB, exerciseId);
-  // const historialEjercicios = await dbAll();
   loadTargets(historialEjercicios);
 } catch (error) {
   alert(`Error al iniciar: ${error?.message || error}`);
