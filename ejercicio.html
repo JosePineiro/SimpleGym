@@ -1,50 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="Registro de ejercicios y progresión de entrenamiento">
-  <title>SIMPLEGYM - Entrenamiento</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <script type="module" src="js/ejercicio.js"></script>
-</head>
-<body>
-<header class="topbar">
-  <h1 id="exerciseTitle">Entrenamiento</h1>
-  <nav aria-label="Navegación principal">
-    <a class="topbar-link" id="exitBtn" href="#">Volver</a>
-  </nav>
-</header>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+		<meta name="description" content="Registro de ejercicios y progresión de entrenamiento">
+		<title>SIMPLEGYM - Entrenamiento</title>
+		<link rel="stylesheet" href="css/styles.css">
+		<script type="module" src="js/ejercicio.mjs"></script>
+	</head>
 
-<main class="container">
-  <section class="hero card">
-    <img id="exerciseImage" class="exerciseImage" alt="Máquina de fitness">
-    <div>
-      <p id="exerciseDescription"></p>
-      <div class="stats">
-        <div><span>Series</span><strong id="exerciseSeries">—</strong></div>
-        <div><span>Repeticiones</span><strong id="exerciseRepeticiones">—</strong></div>
-        <div><span>RIR</span><strong id="exerciseRIR">—</strong></div>
-        <div><span>Descanso</span><strong id="exerciseDescanso">—</strong></div>
-        <div><span>Repeticiones objetivo</span><strong id="targetReps">—</strong></div>
-        <div><span>Peso objetivo</span><strong id="targetWeight">—</strong></div>
-      </div>
-    </div>
-  </section>
+	<body>
+		<header class="topbar">
+			<h1 id="exerciseTitle">Entrenamiento</h1>
+			<nav aria-label="Navegación principal">
+				<!-- biome-ignore lint/a11y/useValidAnchor: <Se rellenará con js> -->
+				<a class="topbar-link" id="exitBtn" href="#">Volver</a>
+			</nav>
+		</header>
 
-  <section id="finishCard" class="card workout-card hidden">
-    <div class="finish-form">
-      <label>Último peso utilizado
-        <input id="finalWeight" type="number" min="5" step="0.5" inputmode="decimal" required>
-      </label>
-      <label>Repeticiones alcanzadas
-        <input id="finalReps" type="number" min="5" max="20" step="1" inputmode="numeric" required>
-      </label>
-      <button type="submit" id="saveBtn" class="btn btn-primary">Guardar</button>
-    </div>
-  </section>
+		<main class="container">
+			<section class="hero card">
+				<img src="img/placeholder.svg" alt="Máquina de fitness" id="exerciseImage" class="exerciseImage">
+				<div>
+					<p id="exerciseDescription"></p>
+					<div class="stats">
+						<div>
+							<span>Series</span>
+							<strong id="exerciseSeries">—</strong>
+						</div>
+						<div>
+							<span>Repeticiones</span>
+							<strong id="exerciseRepeticiones">—</strong>
+						</div>
+						<div>
+							<span>RIR</span>
+							<strong id="exerciseRIR">—</strong>
+						</div>
+						<div>
+							<span>Descanso</span>
+							<strong id="exerciseDescanso">—</strong>
+						</div>
+						<div>
+							<span>Repeticiones objetivo</span>
+							<strong id="targetReps">—</strong>
+						</div>
+						<div>
+							<span>Peso objetivo</span>
+							<strong id="targetWeight">—</strong>
+						</div>
+					</div>
+				</div>
+			</section>
 
-  <button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
-</main>
-</body>
+			<section id="finishCard" class="card workout-card hidden">
+				<div class="finish-form">
+					<label>
+						Último peso utilizado
+						<input id="finalWeight" type="number" min="5" step="0.5" inputmode="decimal" required>
+					</label>
+					<label>
+						Repeticiones alcanzadas
+						<input id="finalReps" type="number" min="5" max="20" step="1" inputmode="numeric" required>
+					</label>
+					<button type="submit" id="saveBtn" class="btn btn-primary">Guardar</button>
+				</div>
+			</section>
+
+			<button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
+		</main>
+	</body>
 </html>

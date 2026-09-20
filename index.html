@@ -1,54 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIMPLEGYM - Panel Principal</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <script type="module" src="js/index.js"></script>
-</head>
-<body>
-    <header class="topbar">
-        <h1>SIMPLEGYM</h1>
-    </header>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>SIMPLEGYM - Panel Principal</title>
+		<link rel="stylesheet" href="css/styles.css">
+		<script type="module" src="js/index.mjs"></script>
+	</head>
 
-    <main class="container">
-        <section class="dashboard-container">
-            <article class="card">
-                <h2>Entrenamiento</h2>
-                <p class="card-text" id="infoSesion">Calculando...</p>
-                <a id="btnIrSesion" href="#" class="btn btn-primary">Comenzar Sesión</a>
-            </article>
+	<body>
+		<header class="topbar">
+			<h1>SIMPLEGYM</h1>
+		</header>
 
-            <article class="card">
-                <h2>Estadísticas</h2>
-                <p class="card-text">Revisa tus marcas y evolución histórica.</p>
-                <div class="btn-panel">
-                    <a href="estadisticas_dias.html" class="btn btn-primary">Días de entreno</a>
-                    <a href="estadisticas_lista.html" class="btn btn-primary">Peso por máquina</a>
-                </div>
-            </article>
+		<main class="container">
+			<section class="dashboard-container">
+				<article class="card">
+					<h2>Entrenamiento</h2>
+					<p class="card-text" id="infoSesion">Calculando...</p>
+					<a id="btnIrSesion" href="index.html" class="btn btn-primary">Comenzar Sesión</a>
+				</article>
 
-            <article class="card">
-                <h2>Gestión de ejercicios (JSON)</h2>
-                <p class="card-text">Importa o exporta tus ejercicios.</p>
-                <div class="btn-panel">
-                    <label for="importarJSON" class="btn btn-primary file-label">Importar</label>
-                    <input type="file" id="importarJSON" accept=".json" aria-label="Importar ejercicios en formato JSON" hidden>
-                    <button type="button" class="btn btn-primary" id="exportarJSON">Exportar</button>
-                </div>
-            </article >
+				<article class="card">
+					<h2>Estadísticas</h2>
+					<p class="card-text">Revisa tus marcas y evolución histórica.</p>
+					<div class="btn-panel">
+						<a href="estadisticas_dias.html" class="btn btn-primary">Días de entreno</a>
+						<a href="estadisticas_lista.html" class="btn btn-primary">Peso por máquina</a>
+					</div>
+				</article>
 
-            <article class="card">
-                <h2>Gestión de Historial (CSV)</h2>
-                <p class="card-text">Gestiona tu historial de ejercicios.</p>
-                <div class="btn-panel">
-                    <label for="importarCSV" class="btn btn-primary file-label">Importar</label>
-                    <input type="file" id="importarCSV" accept=".csv,text/csv" aria-label="Importar historial en formato CSV" hidden>
-                    <button type="button" class="btn btn-primary" id="exportarCSV">Exportar</button>
-                </div>
-            </article>
-        </section>
-    </main>
-</body>
+				<article class="card">
+					<h2>Gestión de ejercicios (JSON)</h2>
+					<p class="card-text">Importa o exporta tus ejercicios.</p>
+					<div class="btn-panel">
+						<label for="importarJSON" class="btn btn-primary file-label">Importar</label>
+						<input type="file" id="importarJSON" accept=".json" aria-label="Importar ejercicios en formato JSON" hidden>
+						<button type="button" class="btn btn-primary" id="exportarJSON">Exportar</button>
+					</div>
+				</article>
+
+				<article class="card">
+					<h2>Gestión de Historial (CSV)</h2>
+					<p class="card-text">Gestiona tu historial de ejercicios.</p>
+					<div class="btn-panel">
+						<label for="importarCSV" class="btn btn-primary file-label">Importar</label>
+						<input type="file" id="importarCSV" accept=".csv,text/csv" aria-label="Importar historial en formato CSV" hidden>
+						<button type="button" class="btn btn-primary" id="exportarCSV">Exportar</button>
+					</div>
+				</article>
+			</section>
+		</main>
+	</body>
 </html>
