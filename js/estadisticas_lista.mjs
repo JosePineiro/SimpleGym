@@ -1,4 +1,4 @@
-import { loadExercises } from "./database.mjs";
+import { dbLoadExercises } from "./database.mjs";
 
 /* =========================================================
    estadisticas_lista.js
@@ -54,7 +54,7 @@ function mostrarVacio(mensaje) {
  */
 async function cargarMaquinas() {
 	// desde un JSON estático.
-	const ejerciciosDB = await loadExercises();
+	const ejerciciosDB = await dbLoadExercises();
 
 	const maquinas = ejerciciosDB.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 	return maquinas;

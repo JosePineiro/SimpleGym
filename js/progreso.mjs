@@ -36,7 +36,14 @@ if (window.ChartZoom && !window.Chart.registry.plugins.get("zoom")) {
 }
 
 /* ---------- Contexto ---------- */
-const idMaquina = new URLSearchParams(location.search).get("id");
+const params = new URLSearchParams(location.search);
+const idMaquina = Number(params.get("id"));
+if (!Number.isInteger(idMaquina) || idMaquina <= 0) {
+	alert("Error: la URL debe incluir 'id'.\nEj: progreso.html?id=3");
+	location.replace("estadisticas_lista.html");
+	throw new Error("Parámetros de URL inválidos");
+}
+
 let chart = null;
 
 /* ---------- Formato ---------- */
@@ -207,6 +214,13 @@ function crearGrafico(puntos) {
 
 /* ---------- Init ---------- */
 (async function init() {
+	const btnReset = document.getElementById("btnResetZoom");
+	if (btnReset) {
+		btnReset.addEventListener("click", () => {
+			if (chart?.resetZoom) chart.resetZoom();
+		});
+	}
+
 	if (!idMaquina) {
 		mostrarVacio("Falta el parámetro 'id' en la URL.");
 		return;
@@ -214,11 +228,10 @@ function crearGrafico(puntos) {
 
 	let ejercicios = [];
 	let historial = [];
-
 	try {
 		[ejercicios, historial] = await Promise.all([dbLoadExercises(), cargarHistorial()]);
-	} catch (err) {
-		console.error("[progreso] Error cargando datos:", err);
+	} catch (error) {
+		console.error("[progreso] Error cargando datos:", error);
 	}
 
 	const maquina = (Array.isArray(ejercicios) ? ejercicios : []).find((e) => e.id === idMaquina);
@@ -243,7 +256,3 @@ function crearGrafico(puntos) {
 	renderStats(puntos);
 	crearGrafico(puntos);
 })();
-
-document.getElementById("btnResetZoom").addEventListener("click", () => {
-	if (chart?.resetZoom) chart.resetZoom();
-});

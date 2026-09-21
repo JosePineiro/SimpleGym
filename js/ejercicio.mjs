@@ -91,10 +91,10 @@ async function loadExercise(ejerciciosDB, id) {
 	img.loading = "lazy";
 	img.decoding = "async";
 
-	document.getElementById("exerciseSeries").textContent = exercise.numero_series;
-	document.getElementById("exerciseRepeticiones").textContent = `${exercise.repeticiones_minimas}-${exercise.repeticiones_maximas}`;
+	document.getElementById("exerciseSets").textContent = exercise.numero_series;
+	document.getElementById("exerciseReps").textContent = `${exercise.repeticiones_minimas}-${exercise.repeticiones_maximas}`;
 	document.getElementById("exerciseRIR").textContent = exercise.rir;
-	document.getElementById("exerciseDescanso").textContent = exercise.segundos_descanso;
+	document.getElementById("exerciseRest").textContent = exercise.segundos_descanso;
 }
 
 /* ---------------- Última marca del ejercicio ---------------- */
