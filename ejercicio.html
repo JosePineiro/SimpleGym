@@ -5,16 +5,15 @@
 		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 		<meta name="description" content="Registro de ejercicios y progresión de entrenamiento">
 		<title>SIMPLEGYM - Entrenamiento</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 		<link rel="stylesheet" href="css/styles.css">
 		<script type="module" src="js/ejercicio.mjs"></script>
 	</head>
-
 	<body>
 		<header class="topbar">
 			<h1 id="exerciseTitle">Entrenamiento</h1>
 			<nav aria-label="Navegación principal">
-				<!-- biome-ignore lint/a11y/useValidAnchor: <Se rellenará con js> -->
-				<a class="topbar-link" id="exitBtn" href="#">Volver</a>
+				<a class="topbar-link" id="exitBtn" href="index.html">Volver</a>
 			</nav>
 		</header>
 
@@ -26,11 +25,11 @@
 					<div class="stats">
 						<div>
 							<span>Series</span>
-							<strong id="exerciseSeries">—</strong>
+							<strong id="exerciseSets">—</strong>
 						</div>
 						<div>
-							<span>Repeticiones</span>
-							<strong id="exerciseRepeticiones">—</strong>
+							<span>Rango de repeticiones</span>
+							<strong id="exerciseReps">—</strong>
 						</div>
 						<div>
 							<span>RIR</span>
@@ -38,7 +37,7 @@
 						</div>
 						<div>
 							<span>Descanso</span>
-							<strong id="exerciseDescanso">—</strong>
+							<strong id="exerciseRest">—</strong>
 						</div>
 						<div>
 							<span>Repeticiones objetivo</span>
@@ -51,7 +50,6 @@
 					</div>
 				</div>
 			</section>
-
 			<section id="finishCard" class="card workout-card hidden">
 				<div class="finish-form">
 					<label>
@@ -60,13 +58,12 @@
 					</label>
 					<label>
 						Repeticiones alcanzadas
-						<input id="finalReps" type="number" min="5" max="20" step="1" inputmode="numeric" required>
+						<input id="finalReps" type="number" min="5" max="50" step="1" inputmode="numeric" required>
 					</label>
 					<button type="submit" id="saveBtn" class="btn btn-primary">Guardar</button>
 				</div>
 			</section>
-
-			<button type="button" id="seriesBtn" class="btn btn-primary btn-large">Terminé la serie 1</button>
+			<button type="button" id="seriesBtn" class="btn btn-primary btn-large">-</button>
 		</main>
 	</body>
 </html>

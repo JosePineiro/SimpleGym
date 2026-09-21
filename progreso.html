@@ -4,6 +4,7 @@
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>SIMPLEGYM - Progreso</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 		<link rel="stylesheet" href="css/styles.css">
 
 		<!-- Estilos específicos de progreso.html. -->
@@ -58,12 +59,8 @@
 		}
 		</style>
 		<!-- Chart.js + plugin de zoom (UMD, exponen window.Chart y window.ChartZoom) -->
-		<script
-			src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
-		></script>
-		<script
-			src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"
-		></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 		<script type="module" src="js/progreso.mjs"></script>
 	</head>
 	<body>
@@ -80,21 +77,13 @@
 				<p class="card-text" id="resumenMaquina">—</p>
 
 				<div class="chart-wrap">
-					<canvas
-						id="grafico"
-						role="img"
-						aria-label="Gráfico de evolución del peso estimado"
-					></canvas>
+					<canvas id="grafico" role="img" aria-label="Gráfico de evolución del peso estimado"></canvas>
 				</div>
 
-				<p class="chart-hint" id="chartHint">
-					Rueda del ratón o pinza para hacer zoom · Arrastra para desplazar
-				</p>
+				<p class="chart-hint" id="chartHint">Rueda del ratón o pinza para hacer zoom · Arrastra para desplazar</p>
 
 				<div class="chart-actions" id="chartActions">
-					<button type="button" class="btn btn-secondary" id="btnResetZoom">
-						Reiniciar zoom
-					</button>
+					<button type="button" class="btn btn-secondary" id="btnResetZoom">Reiniciar zoom</button>
 				</div>
 
 				<div class="stats-row" id="statsRow"></div>
