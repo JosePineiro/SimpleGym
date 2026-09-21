@@ -18,10 +18,10 @@ const IMG_PLACEHOLDER = "images/placeholder.svg";
  * Crea la tarjeta-enlace de una máquina.
  */
 function crearTarjeta(ejercicio) {
-	const a = document.createElement("a");
-	a.className = "card";
-	a.href = `progreso.html?id=${encodeURIComponent(ejercicio.id)}`;
-	a.setAttribute("aria-label", `Ver progreso de ${ejercicio.nombre}`);
+	const enlace = document.createElement("a");
+	enlace.className = "card";
+	enlace.href = `progreso_peso.html?id=${encodeURIComponent(ejercicio.id)}`;
+	enlace.setAttribute("aria-label", `Ver progreso de ${ejercicio.nombre}`);
 
 	const img = document.createElement("img");
 	img.src = ejercicio.imagen || IMG_PLACEHOLDER;
@@ -36,8 +36,8 @@ function crearTarjeta(ejercicio) {
 	div.className = "card-name";
 	div.textContent = ejercicio.nombre;
 
-	a.append(img, div);
-	return a;
+	enlace.append(img, div);
+	return enlace;
 }
 
 function mostrarVacio(mensaje) {

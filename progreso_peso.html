@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>SIMPLEGYM - Progreso</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+		<script type="module" src="js/progreso_peso.mjs"></script>
+	</head>
+	<body>
+		<header class="topbar">
+			<h1 id="tituloMaquina">Máquina no especificada</h1>
+			<nav aria-label="Navegación principal">
+				<a class="topbar-link" href="estadisticas_peso.html">Volver</a>
+			</nav>
+		</header>
+
+		<main class="container">
+			<div class="card" id="cardGrafico">
+				<h2 id="titulo">Evolución del peso</h2>
+				<div class="chart-wrap">
+					<canvas id="grafico" role="img" aria-label="Gráfico de evolución del peso estimado"></canvas>
+				</div>
+				<p class="card-text" id="chartHint" style="text-align:center;margin-top:10px">
+					Rueda del ratón o pinza para hacer zoom · Arrastra para desplazar
+				</p>
+			</div>
+
+			<div class="card" id="cardStats">
+				<div class="stats-progreso" id="statsRow">
+					<div class="stats">
+						<div class="stat-hero">
+							<span>Peso actual</span>
+							<strong id="statPesoActual">—</strong>
+							<em class="stat-trend" id="statTendencia"></em>
+						</div>
+						<div class="stat-hero">
+							<span>Mejor marca</span>
+							<strong id="statMejorMarca">—</strong>
+							<em class="stat-trend" id="statMejorFecha">—</em>
+						</div>
+					</div>
+
+					<div class="stats stats--minis">
+						<div>
+							<span>Sesiones</span>
+							<strong id="statSesiones">—</strong>
+						</div>
+						<div>
+							<span>Primera</span>
+							<strong id="statPrimera">—</strong>
+						</div>
+						<div>
+							<span>Última</span>
+							<strong id="statUltima">—</strong>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+	</body>
+</html>

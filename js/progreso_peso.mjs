@@ -39,8 +39,8 @@ if (window.ChartZoom && !window.Chart.registry.plugins.get("zoom")) {
 const params = new URLSearchParams(location.search);
 const idMaquina = Number(params.get("id"));
 if (!Number.isInteger(idMaquina) || idMaquina <= 0) {
-	alert("Error: la URL debe incluir 'id'.\nEj: progreso.html?id=3");
-	location.replace("estadisticas_lista.html");
+	alert("Error: la URL debe incluir 'id'.\nEj: progreso_peso.html?id=3");
+	location.replace("estadisticas_peso.html");
 	throw new Error("Parámetros de URL inválidos");
 }
 
@@ -49,7 +49,7 @@ let chart = null;
 /* ---------- Formato ---------- */
 const fmtFecha = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 const fmtFechaCorta = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}`;
-const fmtPeso = (n) => (Number.isFinite(n) ? `${n.toFixed(1)} kg` : "—");
+const fmtPeso = (n) => (Number.isFinite(n) ? `${n.toFixed(1)}` : "—");
 
 function parseISO(s) {
 	const [y, m, d] = s.split("-").map(Number);
@@ -97,30 +97,46 @@ function construirPuntos(maquina, historial) {
 
 /* ---------- Render ---------- */
 function mostrarVacio(msg) {
-	document.getElementById("resumenMaquina").textContent = msg;
-	document.getElementById("chartHint").style.display = "none";
-	document.getElementById("chartActions").style.display = "none";
+	document.getElementById("tituloMaquina").textContent = msg;
+	document.getElementById("cardGrafico").style.display = "none";
+	document.getElementById("cardStats").style.display = "none";
 }
 
-function renderResumen(puntos) {
-	const u = puntos[puntos.length - 1];
-	document.getElementById("resumenMaquina").textContent = `Última: ${fmtFecha(u.fecha)} → ${u.peso} kg / ${u.reps} reps`;
+function setText(id, txt) {
+	const el = document.getElementById(id);
+	if (el) el.textContent = txt;
 }
 
 function renderStats(puntos) {
+	// Si no hay puntos, dejamos los "—" que vienen por defecto en el HTML.
+	if (!Array.isArray(puntos) || puntos.length === 0) return;
+
 	const primero = puntos[0];
 	const ultimo = puntos[puntos.length - 1];
 	const mejor = puntos.reduce((acc, p) => (p.estimado > acc.estimado ? p : acc), puntos[0]);
 
-	document.getElementById("statsRow").innerHTML = [
-		{ label: "Sesiones", value: String(puntos.length) },
-		{ label: "Primera", value: fmtFecha(primero.fecha) },
-		{ label: "Última", value: fmtFecha(ultimo.fecha) },
-		{ label: "Actual", value: fmtPeso(ultimo.estimado) },
-		{ label: "Mejor", value: fmtPeso(mejor.estimado) },
-	]
-		.map((i) => `<div><span>${i.label}</span><strong>${i.value}</strong></div>`)
-		.join("");
+	// Campos simples
+	setText("statPesoActual", fmtPeso(ultimo.estimado));
+	setText("statMejorMarca", fmtPeso(mejor.estimado));
+	setText("statMejorFecha", fmtFecha(mejor.fecha));
+	setText("statSesiones", String(puntos.length));
+	setText("statPrimera", fmtFechaCorta(primero.fecha));
+	setText("statUltima", fmtFechaCorta(ultimo.fecha));
+
+	// Píldora de tendencia
+	const elTrend = document.getElementById("statTendencia");
+	if (elTrend) {
+		if (puntos.length > 1) {
+			const diff = ultimo.estimado - primero.estimado;
+			const cls = diff > 0.05 ? "up" : diff < -0.05 ? "down" : "same";
+			const signo = diff > 0 ? "+" : "";
+			elTrend.textContent = `${signo}${diff.toFixed(1)} kg vs inicio`;
+			elTrend.className = `stat-trend ${cls}`;
+		} else {
+			elTrend.textContent = "Primera sesión";
+			elTrend.className = "stat-trend";
+		}
+	}
 }
 
 /* ---------- Gráfico ---------- */
@@ -156,7 +172,8 @@ function crearGrafico(puntos) {
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			animation: { duration: 400 },
+			// animation: { duration: 400 },
+			animation: false,
 			interaction: { mode: "index", intersect: false },
 			plugins: {
 				legend: { display: false },
@@ -192,7 +209,7 @@ function crearGrafico(puntos) {
 			scales: {
 				x: {
 					type: "linear",
-					title: { display: true, text: "Fecha" },
+					// title: { display: true, text: "Fecha" },
 					ticks: {
 						autoSkip: true,
 						maxTicksLimit: 6,
@@ -202,7 +219,7 @@ function crearGrafico(puntos) {
 					grid: { color: "rgba(0,0,0,0.05)" },
 				},
 				y: {
-					title: { display: true, text: "Peso (kg)" },
+					// title: { display: true, text: "Peso (kg)" },
 					beginAtZero: false,
 					ticks: { callback: (v) => fmtPeso(v) },
 					grid: { color: "rgba(0,0,0,0.05)" },
@@ -214,17 +231,12 @@ function crearGrafico(puntos) {
 
 /* ---------- Init ---------- */
 (async function init() {
-	const btnReset = document.getElementById("btnResetZoom");
-	if (btnReset) {
-		btnReset.addEventListener("click", () => {
-			if (chart?.resetZoom) chart.resetZoom();
-		});
-	}
-
-	if (!idMaquina) {
-		mostrarVacio("Falta el parámetro 'id' en la URL.");
-		return;
-	}
+	window.addEventListener("unhandledrejection", (e) => {
+		if (/zoom|chart/i.test(String(e.reason))) {
+			console.warn("Rechazo ignorado del plugin:", e.reason);
+			e.preventDefault();
+		}
+	});
 
 	let ejercicios = [];
 	let historial = [];
@@ -235,7 +247,6 @@ function crearGrafico(puntos) {
 	}
 
 	const maquina = (Array.isArray(ejercicios) ? ejercicios : []).find((e) => e.id === idMaquina);
-
 	if (!maquina) {
 		mostrarVacio(`No se encontró la máquina con id "${idMaquina}".`);
 		return;
@@ -246,13 +257,11 @@ function crearGrafico(puntos) {
 	document.title = `SIMPLEGYM - ${nombre}`;
 
 	const puntos = construirPuntos(maquina, historial);
-
 	if (!puntos.length) {
-		mostrarVacio(`Sin registros para ${nombre}.`);
+		mostrarVacio(`${nombre} sin hitórico.`);
 		return;
 	}
 
-	renderResumen(puntos);
 	renderStats(puntos);
 	crearGrafico(puntos);
 })();
