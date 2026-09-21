@@ -307,6 +307,7 @@ function renderDetalle(iso) {
             <td>${r.series}</td>
             <td>${r.peso} kg</td>
             <td>${r.reps}</td>
+			<td>${r.series * r.peso * r.reps}</td>
         </tr>`;
 		})
 		.join("");
@@ -315,7 +316,7 @@ function renderDetalle(iso) {
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>Ejercicio</th><th>Series</th><th>Peso</th><th>Reps</th></tr>
+                    <tr><th>Ejercicio</th><th>Series</th><th>Peso</th><th>Reps</th><th>Vol.</th></tr>
                 </thead>
                 <tbody>${filas}</tbody>
             </table>
