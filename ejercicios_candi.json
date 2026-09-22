@@ -258,7 +258,7 @@
 		"id": 18,
 		"orden": 9,
 		"imagen": "images/aductor.avif",
-		"nombre": "Aductor",
+		"nombre": "Adductor",
 		"descripcion": "Siéntate con la espalda apoyada en el respaldo y coloca los pies en los reposapiés de modo que las articulaciones de las rodillas queden alineadas con el centro de las almohadillas para las piernas. Ajusta la posición inicial para partir con una apertura de piernas cómoda. Junta las piernas de forma controlada y sin impulso.",
 		"incremento_peso": 5,
 		"sesion": [2],
