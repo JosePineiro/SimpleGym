@@ -172,22 +172,16 @@ function crearGrafico(puntos) {
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			// animation: { duration: 400 },
 			animation: false,
 			interaction: { mode: "index", intersect: false },
 			plugins: {
 				legend: { display: false },
 				tooltip: {
+					displayColors: false,
 					callbacks: {
-						title: (items) => {
-							const t = items[0]?.parsed?.x;
-							return t ? fmtFecha(new Date(t)) : "";
-						},
-						label: (item) => {
-							const p = puntos[item.dataIndex];
-							if (!p) return "";
-							return `Estimado: ${fmtPeso(p.estimado)} (${p.reps} reps, ${p.peso} kg)`;
-						},
+						title: (items) => fmtFecha(new Date(items[0].parsed.x)),
+						label: (item) =>
+							`${fmtPeso(puntos[item.dataIndex].estimado)} (${puntos[item.dataIndex].reps} reps, ${puntos[item.dataIndex].peso} kg)`,
 					},
 				},
 				zoom: {
@@ -209,7 +203,6 @@ function crearGrafico(puntos) {
 			scales: {
 				x: {
 					type: "linear",
-					// title: { display: true, text: "Fecha" },
 					ticks: {
 						autoSkip: true,
 						maxTicksLimit: 6,
@@ -219,7 +212,6 @@ function crearGrafico(puntos) {
 					grid: { color: "rgba(0,0,0,0.05)" },
 				},
 				y: {
-					// title: { display: true, text: "Peso (kg)" },
 					beginAtZero: false,
 					ticks: { callback: (v) => fmtPeso(v) },
 					grid: { color: "rgba(0,0,0,0.05)" },
@@ -252,7 +244,8 @@ async function init() {
 
 		const points = construirPuntos(maquina, historial);
 		if (!points.length) {
-			mostrarVacio(`${nombre} sin histórico.`);
+			document.getElementById("cardGrafico").style.display = "none";
+			document.getElementById("cardStats").style.display = "none";
 		} else {
 			crearGrafico(points);
 			renderStats(points);

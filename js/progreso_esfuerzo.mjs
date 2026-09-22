@@ -31,7 +31,7 @@ if (!Number.isInteger(sesion) || sesion <= 0) {
 	throw new Error("Parámetros de URL inválidos");
 }
 
-let chart = null;
+// let chart = null;
 
 /* ---------- Carga de datos ---------- */
 
@@ -107,7 +107,7 @@ function renderStats(points) {
 	const diff = last.esfuerzo - first.esfuerzo;
 	const trend = points.length > 1 ? `${diff > 0 ? "+" : ""}${fmtNumero(diff)}` : "Primera sesión";
 	setText("statEsfuerzoActual", fmtNumero(last.esfuerzo));
-	setText("statMejorEsfuerzo", `${fmtNumero(best.esfuerzo)} el ${fmtFecha(best.fecha)}`);
+	setText("statMejorEsfuerzo", `${fmtNumero(best.esfuerzo)} el ${fmtFechaCorta(best.fecha)}`);
 	setText("statDias", String(points.length));
 	setText("statTendencia", trend);
 }
@@ -120,7 +120,7 @@ function crearGrafico(points) {
 		y: point.esfuerzo,
 	}));
 
-	chart = new Chart(document.getElementById("grafico"), {
+	new Chart(document.getElementById("grafico"), {
 		type: "line",
 		data: {
 			datasets: [
@@ -152,8 +152,9 @@ function crearGrafico(points) {
 			plugins: {
 				legend: { display: false },
 				tooltip: {
+					displayColors: false,
 					callbacks: {
-						title: (items) => (items[0]?.parsed?.x ? fmtFecha(new Date(items[0].parsed.x)) : ""),
+						title: (items) => fmtFecha(new Date(items[0].parsed.x)),
 						label: (item) => `Esfuerzo: ${fmtNumero(item.parsed.y)}`,
 					},
 				},
@@ -200,7 +201,8 @@ async function init() {
 		setText("subtituloSesion", `${points.length} día${points.length === 1 ? "" : "s"} registrado${points.length === 1 ? "" : "s"}`);
 
 		if (!points.length) {
-			mostrarVacio(`${nombre} sin histórico.`);
+			document.getElementById("cardGrafico").style.display = "none";
+			document.getElementById("cardStats").style.display = "none";
 		} else {
 			crearGrafico(points);
 			renderStats(points);
