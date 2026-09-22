@@ -214,7 +214,7 @@
 		"orden": 11,
 		"imagen": "images/arm_extension.avif",
 		"nombre": "Arm Extension",
-		"descripcion": "Ajusta el asiento para que los codos queden alineados con el eje de giro de la máquina y apoyados en la almohadilla. Extiende los brazos sin bloquear los codos y sin mover los hombros.",
+		"descripcion": "Ajusta el asiento para que los codos queden alineados con el eje de giro de la máquina. Extiende los brazos sin bloquear los codos y sin mover los hombros.",
 		"incremento_peso": 5,
 		"sesion": [2],
 		"numero_series": 2,
@@ -229,7 +229,7 @@
 		"orden": 10,
 		"imagen": "images/arm_curl.avif",
 		"nombre": "Arm Curl",
-		"descripcion": "Ajusta el asiento para que los codos queden alineados con el eje de giro de la máquina y los brazos apoyados en la almohadilla. Flexiona los codos sin levantar los hombros ni balancear el torso, y bajahasta casi estirar el brazo.",
+		"descripcion": "Ajusta el asiento para que los codos queden alineados con el eje de giro de la máquina y los brazos apoyados en la almohadilla. Flexiona los codos sin levantar los hombros ni balancear el torso, y baja hasta casi estirar el brazo.",
 		"incremento_peso": 5,
 		"sesion": [2],
 		"numero_series": 2,
@@ -268,5 +268,20 @@
 		"repeticiones_maximas": 20,
 		"rir": 4,
 		"segundos_descanso": 90
+	},
+	{
+		"id": 19,
+		"orden": 19,
+		"imagen": "images/prone_leg_curl.avif",
+		"nombre": "Prone Leg Curl",
+		"descripcion": "Túmbate boca abajo en la máquina con las rodillas alineadas con el eje de giro y el rodillo justo por encima de los talones. Agarra las asas y mantén la cadera y el abdomen pegados al banco. Flexiona las rodillas de forma controlada, sin despegar la cadera ni arquear la espalda. Baja despacio hasta casi estirar las piernas, sin bloquear las rodillas.",
+		"incremento_peso": 5,
+		"sesion": [],
+		"numero_series": 2,
+		"series_aproximacion": 0,
+		"repeticiones_minimas": 12,
+		"repeticiones_maximas": 15,
+		"rir": 2,
+		"segundos_descanso": 60
 	}
 ]
