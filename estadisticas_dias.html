@@ -11,20 +11,17 @@
 	<body>
 		<header class="topbar">
 			<h1>SIMPLEGYM · Días de entreno</h1>
-			<nav aria-label="Navegación principal">
-				<a class="topbar-link" href="index.html">Inicio</a>
-			</nav>
+			<p class="session-info" id="subtituloPagina"></p>
+			<a class="topbar-link" href="index.html">Inicio</a>
 		</header>
 
 		<main class="container">
-			<!-- ---------- Calendario ---------- -->
 			<section class="card">
 				<div class="cal-toolbar">
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
-					<h2 class="cal-title" id="calTitulo">—</h2>
+					<h2 class="card-title cal-title" id="calTitulo">—</h2>
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
 				</div>
-
 				<div class="cal-weekdays" aria-hidden="true">
 					<span>L</span>
 					<span>M</span>
@@ -34,11 +31,9 @@
 					<span>S</span>
 					<span>D</span>
 				</div>
-
 				<div class="cal-grid" id="calGrid"></div>
 			</section>
 
-			<!-- ---------- Leyenda ---------- -->
 			<section class="card">
 				<ul class="cal-leyenda">
 					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Algo de ejercicio (sesión incompleta)</li>
@@ -47,13 +42,11 @@
 				</ul>
 			</section>
 
-			<!-- ---------- Resumen mensual ---------- -->
 			<section class="card">
 				<h2>Resumen del mes</h2>
 				<div class="stats" id="calResumen"></div>
 			</section>
 
-			<!-- ---------- Detalle del día ---------- -->
 			<section class="card">
 				<h2 id="detalleTitulo">Detalle del día</h2>
 				<p class="card-text" id="detalleTexto">Pulsa sobre un día del calendario para ver el detalle.</p>

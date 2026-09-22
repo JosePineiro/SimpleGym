@@ -12,13 +12,12 @@
 	<body>
 		<header class="topbar">
 			<h1 id="exerciseTitle">Entrenamiento</h1>
-			<nav aria-label="Navegación principal">
-				<a class="topbar-link" id="exitBtn" href="index.html">Volver</a>
-			</nav>
+			<p class="session-info"></p>
+			<a class="topbar-link" id="exitBtn" href="index.html">Volver</a>
 		</header>
 
 		<main class="container">
-			<section class="hero card">
+			<section class="card hero">
 				<img src="img/placeholder.svg" alt="Máquina de fitness" id="exerciseImage" class="exerciseImage">
 				<div>
 					<p id="exerciseDescription"></p>
@@ -50,7 +49,8 @@
 					</div>
 				</div>
 			</section>
-			<section id="finishCard" class="card workout-card hidden">
+
+			<section id="finishCard" class="card hidden">
 				<div class="finish-form">
 					<label>
 						Último peso utilizado
@@ -63,6 +63,7 @@
 					<button type="submit" id="saveBtn" class="btn btn-primary">Guardar</button>
 				</div>
 			</section>
+
 			<button type="button" id="seriesBtn" class="btn btn-primary btn-large">-</button>
 		</main>
 	</body>

@@ -283,7 +283,7 @@ function renderDetalle(iso) {
 		return;
 	}
 
-	texto.innerHTML = `Sesión: <strong>${sesion ?? "—"}</strong> · ` + `Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
+	texto.innerHTML = `Sesión: <strong>${sesion ?? "—"}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
 
 	const filas = regs
 		.map((r) => {
@@ -294,9 +294,7 @@ function renderDetalle(iso) {
 
 				if (det.ahora.peso !== det.antes.peso) {
 					partes.push(`${det.antes.peso}→${det.ahora.peso} kg`);
-				}
-
-				if (det.ahora.reps !== det.antes.reps) {
+				} else if (det.ahora.reps !== det.antes.reps) {
 					partes.push(`${det.antes.reps}→${det.ahora.reps} reps`);
 				}
 

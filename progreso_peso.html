@@ -13,20 +13,16 @@
 	<body>
 		<header class="topbar">
 			<h1 id="tituloMaquina">Máquina no especificada</h1>
-			<nav aria-label="Navegación principal">
-				<a class="topbar-link" href="estadisticas_peso.html">Volver</a>
-			</nav>
+			<p class="session-info"></p>
+			<a class="topbar-link" href="estadisticas_peso.html">Volver</a>
 		</header>
 
 		<main class="container">
-			<section class="card" id="cardGrafico">
-				<h2 id="titulo">Evolución del peso</h2>
+			<section class="card">
+				<h2>Evolución del peso</h2>
 				<div class="chart-wrap">
 					<canvas id="grafico" role="img" aria-label="Gráfico de evolución del peso estimado"></canvas>
 				</div>
-				<p class="card-text" id="chartHint" style="text-align:center;margin-top:10px">
-					Rueda del ratón o pinza para hacer zoom · Arrastra para desplazar
-				</p>
 			</section>
 
 			<section class="card" id="cardStats">
