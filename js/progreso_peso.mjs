@@ -229,17 +229,11 @@ function crearGrafico(puntos) {
 	});
 }
 
-/* ---------- Init ---------- */
-(async function init() {
-	window.addEventListener("unhandledrejection", (e) => {
-		if (/zoom|chart/i.test(String(e.reason))) {
-			console.warn("Rechazo ignorado del plugin:", e.reason);
-			e.preventDefault();
-		}
-	});
-
+/* ---------------- Init ---------------- */
+async function init() {
 	let ejercicios = [];
 	let historial = [];
+
 	try {
 		[ejercicios, historial] = await Promise.all([dbLoadExercises(), cargarHistorial()]);
 	} catch (error) {
@@ -247,21 +241,23 @@ function crearGrafico(puntos) {
 	}
 
 	const maquina = (Array.isArray(ejercicios) ? ejercicios : []).find((e) => e.id === idMaquina);
+
 	if (!maquina) {
 		mostrarVacio(`No se encontró la máquina con id "${idMaquina}".`);
-		return;
+	} else {
+		const nombre = maquina.nombre || `Máquina ${idMaquina}`;
+
+		document.getElementById("tituloMaquina").textContent = nombre;
+		document.title = `SIMPLEGYM - ${nombre}`;
+
+		const points = construirPuntos(maquina, historial);
+		if (!points.length) {
+			mostrarVacio(`${nombre} sin histórico.`);
+		} else {
+			crearGrafico(points);
+			renderStats(points);
+		}
 	}
+}
 
-	const nombre = maquina.nombre || `Máquina ${idMaquina}`;
-	document.getElementById("tituloMaquina").textContent = nombre;
-	document.title = `SIMPLEGYM - ${nombre}`;
-
-	const puntos = construirPuntos(maquina, historial);
-	if (!puntos.length) {
-		mostrarVacio(`${nombre} sin hitórico.`);
-		return;
-	}
-
-	renderStats(puntos);
-	crearGrafico(puntos);
-})();
+init();

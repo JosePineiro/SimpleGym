@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>SIMPLEGYM - Progreso de esfuerzo</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+		<script type="module" src="js/progreso_esfuerzo.mjs"></script>
+	</head>
+	<body>
+		<header class="topbar">
+			<h1 id="tituloSesion">Progreso de esfuerzo</h1>
+			<p class="session-info" id="subtituloSesion"></p>
+			<a class="topbar-link" href="estadisticas_sesiones.html">Sesiones</a>
+		</header>
+
+		<main class="container">
+			<section class="card" id="cardGrafico">
+				<h2>Esfuerzo a lo largo del tiempo</h2>
+				<div class="chart-container" style="position:relative;height:360px;">
+					<canvas id="grafico"></canvas>
+				</div>
+			</section>
+
+			<section class="card" id="cardStats">
+				<h2>Resumen</h2>
+				<div class="stats-grid">
+					<div>
+						<span class="stat-label">Esfuerzo total:</span>
+						<strong id="statEsfuerzoActual">—</strong>
+					</div>
+					<div>
+						<span class="stat-label">Mejor día:</span>
+						<strong id="statMejorEsfuerzo">—</strong>
+					</div>
+					<div>
+						<span class="stat-label">Días registrados:</span>
+						<strong id="statDias">—</strong>
+					</div>
+					<div>
+						<span class="stat-label">Tendencia:</span>
+						<strong id="statTendencia">—</strong>
+					</div>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>
