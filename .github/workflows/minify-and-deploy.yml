@@ -2,13 +2,17 @@ name: Minify and Deploy
 
 on:
   push:
-    branches: [ main ]   # o master, según uses
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -22,18 +26,20 @@ jobs:
       - name: Minify HTML, CSS y JS
         run: |
           # Minificar HTML
-          find . -name "*.html" -not -path "./.git/*" -exec html-minifier-terser \
+          find . -name "*.html" -not -path "./.git/*" -not -path "./node_modules/*" -exec html-minifier-terser \
             --collapse-whitespace --remove-comments --minify-css true --minify-js true \
             -o {} {} \;
 
           # Minificar CSS
-          find . -name "*.css" -not -path "./.git/*" -exec cleancss -o {} {} \;
+          find . -name "*.css" -not -path "./.git/*" -not -path "./node_modules/*" -exec cleancss -o {} {} \;
 
           # Minificar JS
-          find . -name "*.js" -not -path "./.git/*" -exec terser {} -o {} -c -m \;
+          find . -name "*.js" -not -path "./.git/*" -not -path "./node_modules/*" -exec terser {} -o {} -c -m \;
+          find . -name "*.mjs" -not -path "./.git/*" -not -path "./node_modules/*" -exec terser {} -o {} -c -m \;
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
+          force_orphan: true          # ayuda a evitar problemas de historial
