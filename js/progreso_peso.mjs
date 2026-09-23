@@ -239,8 +239,7 @@ async function init() {
 
 			const points = construirPuntos(maquina, historial);
 			if (!points.length) {
-				document.getElementById("cardGrafico").style.display = "none";
-				document.getElementById("cardStats").style.display = "none";
+				mostrarVacio(`No hay historial para esta máquina`);
 			} else {
 				crearGrafico(points);
 				renderStats(points);
