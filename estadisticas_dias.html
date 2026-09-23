@@ -22,7 +22,7 @@
 					<h2 class="card-title cal-title" id="calTitulo">—</h2>
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
 				</div>
-				<div class="cal-weekdays" aria-hidden="true">
+				<div class="cal-weekdays">
 					<span>L</span>
 					<span>M</span>
 					<span>X</span>
@@ -36,7 +36,7 @@
 
 			<section class="card">
 				<ul class="cal-leyenda">
-					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Algo de ejercicio (sesión incompleta)</li>
+					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Sesión incompleta</li>
 					<li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
 					<li><span class="cal-swatch cal-day--best" aria-hidden="true"></span> Sesión completa + progreso (★)</li>
 				</ul>
@@ -44,13 +44,45 @@
 
 			<section class="card">
 				<h2>Resumen del mes</h2>
-				<div class="stats" id="calResumen"></div>
+				<div class="stats">
+					<div>
+						<span>Sin entreno</span>
+						<strong id="descanso"></strong>
+					</div>
+					<div>
+						<span>Parcial</span>
+						<strong id="parcial"></strong>
+					</div>
+					<div>
+						<span>Completo</span>
+						<strong id="completo"></strong>
+					</div>
+					<div>
+						<span>Con progreso</span>
+						<strong id="progreso"></strong>
+					</div>
+				</div>
 			</section>
 
-			<section class="card">
+			<section class="card" id="detalleDia">
 				<h2 id="detalleTitulo">Detalle del día</h2>
-				<p class="card-text" id="detalleTexto">Pulsa sobre un día del calendario para ver el detalle.</p>
-				<div id="detalleContenido"></div>
+				<p class="card-text" id="detalleTexto"></p>
+				<div id="detalleContenido">
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>Ejercicio</th>
+									<th>Series</th>
+									<th>Peso</th>
+									<th>Reps</th>
+									<th>Vol.</th>
+								</tr>
+							</thead>
+							<tbody id="detalleFilas"></tbody>
+						</table>
+					</div>
+				</div>
 			</section>
 		</main>
 	</body>

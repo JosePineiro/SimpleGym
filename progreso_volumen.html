@@ -3,23 +3,23 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>SIMPLEGYM - Progreso de esfuerzo</title>
+		<title>SIMPLEGYM - Progreso de volumen</title>
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 		<link rel="stylesheet" href="css/styles.css">
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
-		<script type="module" src="js/progreso_esfuerzo.mjs"></script>
+		<script type="module" src="js/progreso_volumen.mjs"></script>
 	</head>
 	<body>
 		<header class="topbar">
-			<h1 id="tituloSesion">Progreso de esfuerzo</h1>
+			<h1 id="tituloSesion">Progreso de volumen</h1>
 			<p class="session-info" id="subtituloSesion"></p>
 			<a class="topbar-link" href="estadisticas_sesiones.html">Sesiones</a>
 		</header>
 
 		<main class="container">
 			<section class="card" id="cardGrafico">
-				<h2>Esfuerzo a lo largo del tiempo</h2>
+				<h2>Volumen a lo largo del tiempo</h2>
 				<div class="chart-wrap">
 					<canvas id="grafico"></canvas>
 				</div>
@@ -29,16 +29,16 @@
 				<h2>Resumen</h2>
 				<div class="stats">
 					<div>
-						<span>Esfuerzo total</span>
-						<strong id="statEsfuerzoActual">—</strong>
+						<span>Volumen actual</span>
+						<strong id="statVolumenActual">—</strong>
 					</div>
 					<div>
-						<span>Mejor día</span>
-						<strong id="statMejorEsfuerzo">—</strong>
+						<span>Mejor volumen</span>
+						<strong id="statMejorVolumen">—</strong>
 					</div>
 					<div>
-						<span>Días registrados</span>
-						<strong id="statDias">—</strong>
+						<span>PR de sesión</span>
+						<strong id="prSesion">—</strong>
 					</div>
 					<div>
 						<span>Tendencia</span>

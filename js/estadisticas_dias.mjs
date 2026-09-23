@@ -1,22 +1,11 @@
 import { dbAll, dbLoadExercises } from "./database.mjs";
 
-let ejercicios = [];
 let ejerciciosPorId = new Map();
-let historial = [];
-let cacheDias = new Map();
 let mesActual = new Date();
-let diaSeleccionado = null;
-
-/* ---------- Utilidades ---------- */
-const pad = (n) => String(n).padStart(2, "0");
-const toISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseISO = (s) => {
-	const [y, m, d] = s.split("-").map(Number);
-	return new Date(y, m - 1, d);
-};
+let diaSeleccionado = null; // Siempre en formato ISO "YYYY-MM-DD".
+let cacheDias = new Map();
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-
 const ETIQUETA_ESTADO = {
 	none: "sin entrenamiento",
 	some: "algo de ejercicio",
@@ -24,41 +13,46 @@ const ETIQUETA_ESTADO = {
 	best: "sesión completa con progreso",
 };
 
-function nombreEj(id) {
-	return ejerciciosPorId.get(id)?.nombre ?? String(id);
-}
+/* ---------- Utilidades de fecha ---------- */
+
+/**
+ * Convierte un Date a una fecha de negocio ISO local:  "YYYY-MM-DD"
+ */
+const pad = (n) => String(n).padStart(2, "0");
+const toISO = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+/**
+ * Convierte una fecha de negocio ISO "YYYY-MM-DD" a un Date local.
+ */
+const parseISO = (iso) => {
+	const [y, m, d] = iso.split("-").map(Number);
+	return new Date(y, m - 1, d);
+};
+
+/* ---------- Historial ---------- */
 
 function normalizarFila(r) {
 	if (!(r.date instanceof Date) || Number.isNaN(r.date.getTime())) return null;
+
 	return {
 		fecha: toISO(r.date),
 		exId: r.exId,
-		peso: r.weight,
+		weight: r.weight,
 		reps: r.reps,
 		sesion: r.session,
 		totals: r.totals,
-		series: r.sets,
+		sets: r.sets,
 	};
-}
-
-async function cargarHistorial() {
-	try {
-		const arr = await dbAll();
-		if (!Array.isArray(arr)) return [];
-		return arr.map(normalizarFila).filter(Boolean);
-	} catch (err) {
-		console.error("Error leyendo IndexedDB:", err);
-		return [];
-	}
 }
 
 /* ---------- Cálculo de días ---------- */
 
-function construirCache() {
-	cacheDias = new Map();
+function construirCache(historial) {
 	if (!historial.length) return;
 
-	// Agrupar por fecha
+	cacheDias = new Map();
+
+	// Agrupar por fecha ISO.
 	const regsPorFecha = new Map();
 
 	for (const r of historial) {
@@ -69,26 +63,29 @@ function construirCache() {
 		regsPorFecha.get(r.fecha).push(r);
 	}
 
-	// Último registro por ejercicio
+	// Último registro por ejercicio.
 	const ultimoPorEj = new Map();
 
+	// YYYY-MM-DD se puede ordenar directamente como texto porque su orden lexicográfico coincide con el cronológico.
 	const fechas = [...regsPorFecha.keys()].sort();
 
 	for (const iso of fechas) {
 		const regs = regsPorFecha.get(iso);
 
-		// 1) Mejor serie del día por ejercicio
+		/* 1) Mejor serie del día por ejercicio */
+
 		const mejorPorEj = new Map();
 
 		for (const r of regs) {
 			const prev = mejorPorEj.get(r.exId);
 
-			if (!prev || r.peso > prev.peso || (r.peso === prev.peso && r.reps > prev.reps)) {
+			if (!prev || r.weight > prev.weight || (r.weight === prev.weight && r.reps > prev.reps)) {
 				mejorPorEj.set(r.exId, r);
 			}
 		}
 
-		// 2) Detectar mejoras y descensos
+		/* 2) Detectar mejoras y descensos */
+		const epley = (peso, reps) => peso * (1 + reps / 30);
 		const detalles = new Map();
 
 		for (const [exId, r] of mejorPorEj) {
@@ -96,31 +93,32 @@ function construirCache() {
 
 			if (!ant) continue;
 
-			const masPeso = r.peso > ant.peso;
-			const menosPeso = r.peso < ant.peso;
+			const actual = epley(r.weight, r.reps);
+			const anterior = epley(ant.weight, ant.reps);
+			const tipo = actual > anterior ? "up" : actual < anterior ? "down" : null;
 
-			const masReps = r.reps > ant.reps;
-			const menosReps = r.reps < ant.reps;
+			// Por volumen total (peso * reps) también se podría detectar progreso, pero es menos preciso que Epley.
+			// let tipo = null;
+			// if (r.weight * r.reps > ant.weight * ant.reps) {
+			// 	tipo = "up";
+			// } else if (r.weight * r.reps < ant.weight * ant.reps) {
+			// 	tipo = "down";
+			// }
 
-			let tipo = null;
+			// Por peso y repeticiones también se podría detectar progreso, pero es menos preciso que Epley.
+			// let tipo = null;
+			// if (r.peso !== ant.peso) {
+			// 	tipo = r.peso > ant.peso ? "up" : "down";
+			// } else if (r.reps !== ant.reps) {
+			// 	tipo = r.reps > ant.reps ? "up" : "down";
+			// }
 
-			// El peso tiene prioridad
-			if (masPeso) {
-				tipo = "up";
-			} else if (menosPeso) {
-				tipo = "down";
-			} else if (masReps) {
-				tipo = "up";
-			} else if (menosReps) {
-				tipo = "down";
-			}
-
-			// Guardar cualquier cambio
+			// Guardar cualquier cambio.
 			if (tipo) {
 				detalles.set(exId, {
 					antes: { ...ant },
 					ahora: {
-						peso: r.peso,
+						weight: r.weight,
 						reps: r.reps,
 					},
 					tipo,
@@ -128,12 +126,15 @@ function construirCache() {
 			}
 		}
 
-		// 3) Sesión y completitud
-		// Todos los registros del día comparten sesión y `totals`
-		const { sesion, totals } = regs[0];
-		const sesionCompleta = new Set(regs.map((r) => r.exId)).size >= totals;
+		/* 3) Sesión y completitud */
 
-		// 4) Estado del día
+		// Todos los registros del día comparten sesión y totals.
+		const { sesion, totals } = regs[0];
+		const ejerciciosRealizados = new Set(regs.map((r) => r.exId)).size;
+		const sesionCompleta = ejerciciosRealizados >= totals;
+
+		/* 4) Estado del día */
+
 		const estado = !sesionCompleta ? "some" : detalles.size ? "best" : "all";
 
 		cacheDias.set(iso, {
@@ -143,10 +144,11 @@ function construirCache() {
 			detalles,
 		});
 
-		// 5) Actualizar últimos valores
+		/* 5) Actualizar últimos valores */
+
 		for (const [exId, r] of mejorPorEj) {
 			ultimoPorEj.set(exId, {
-				peso: r.peso,
+				weight: r.weight,
 				reps: r.reps,
 			});
 		}
@@ -165,9 +167,11 @@ function infoDia(iso) {
 }
 
 /* ---------- Navegación de meses ---------- */
-function esMesFuturo(f) {
-	const h = new Date();
-	return f.getFullYear() > h.getFullYear() || (f.getFullYear() === h.getFullYear() && f.getMonth() > h.getMonth());
+
+function esMesFuturo(fecha) {
+	const hoy = new Date();
+
+	return fecha.getFullYear() > hoy.getFullYear() || (fecha.getFullYear() === hoy.getFullYear() && fecha.getMonth() > hoy.getMonth());
 }
 
 function actualizarNavegacion() {
@@ -181,21 +185,30 @@ function actualizarNavegacion() {
 }
 
 /* ---------- Render calendario ---------- */
-function renderCalendario() {
+
+function renderCalendario(mes) {
 	const grid = document.getElementById("calGrid");
 	const titulo = document.getElementById("calTitulo");
-	const y = mesActual.getFullYear();
-	const m = mesActual.getMonth();
+
+	// Date solo se utiliza aquí para operaciones de calendario.
+	const y = mes.getFullYear();
+	const m = mes.getMonth();
 
 	titulo.textContent = `${MESES[m]} ${y}`;
 	grid.innerHTML = "";
 
 	const primerDia = new Date(y, m, 1);
+
 	let offset = primerDia.getDay() - 1;
-	if (offset < 0) offset = 6;
+
+	if (offset < 0) {
+		offset = 6;
+	}
 
 	const diasEnMes = new Date(y, m + 1, 0).getDate();
-	const hoyISO = toISO(new Date());
+
+	// Desde aquí trabajamos con ISO como identificador del día.
+	const hoy = toISO(new Date());
 
 	for (let i = 0; i < offset; i++) {
 		const c = document.createElement("div");
@@ -204,30 +217,47 @@ function renderCalendario() {
 	}
 
 	for (let d = 1; d <= diasEnMes; d++) {
+		// Date para calcular el día, ISO para representar el día.
 		const iso = toISO(new Date(y, m, d));
 		const { estado } = infoDia(iso);
 
 		const btn = document.createElement("button");
+
 		btn.type = "button";
 		btn.className = `cal-day cal-day--${estado}`;
-		if (iso === hoyISO) btn.classList.add("cal-day--hoy");
-		if (iso === diaSeleccionado) btn.classList.add("cal-day--sel");
+
+		if (iso === hoy) {
+			btn.classList.add("cal-day--hoy");
+		}
+
+		if (iso === diaSeleccionado) {
+			btn.classList.add("cal-day--sel");
+		}
+
 		btn.textContent = d;
 		btn.dataset.fecha = iso;
+
 		btn.setAttribute("aria-label", `${d} de ${MESES[m]} de ${y}: ${ETIQUETA_ESTADO[estado]}`);
 
-		if (iso > hoyISO) {
+		// La comparación de fechas de negocio se hace directamente entre cadenas ISO.
+		if (iso > hoy) {
 			btn.disabled = true;
 			btn.classList.add("btn-disabled");
 			btn.setAttribute("aria-disabled", "true");
 		} else {
-			btn.addEventListener("click", () => seleccionarDia(iso));
+			btn.addEventListener("click", () => {
+				diaSeleccionado = iso; // diaSeleccionado SIEMPRE es ISO.
+				mesActual = parseISO(iso); // Para renderizar el mes necesitamos Date.
+				renderCalendario(mesActual);
+				renderDetalleDia(diaSeleccionado);
+			});
 		}
 
 		grid.appendChild(btn);
 	}
 
 	const resto = grid.children.length % 7;
+
 	if (resto) {
 		for (let i = 0; i < 7 - resto; i++) {
 			const c = document.createElement("div");
@@ -238,132 +268,138 @@ function renderCalendario() {
 }
 
 /* ---------- Resumen mensual ---------- */
-function renderResumen() {
-	const el = document.getElementById("calResumen");
-	const y = mesActual.getFullYear();
-	const m = mesActual.getMonth();
-	const diasEnMes = new Date(y, m + 1, 0).getDate();
-	const hoyISO = toISO(new Date());
 
-	const cuenta = { none: 0, some: 0, all: 0, best: 0 };
+function renderResumenMes(mes) {
+	// Date solo para calcular la estructura del mes.
+	const year = mes.getFullYear();
+	const month = mes.getMonth();
+
+	const diasEnMes = new Date(year, month + 1, 0).getDate();
+	const hoy = toISO(new Date());
+
+	const cuenta = {
+		none: 0,
+		some: 0,
+		all: 0,
+		best: 0,
+	};
+
 	for (let d = 1; d <= diasEnMes; d++) {
-		const iso = toISO(new Date(y, m, d));
+		const iso = toISO(new Date(year, month, d));
 		const est = infoDia(iso).estado;
-		if (iso > hoyISO && est === "none") continue;
+
+		if (iso > hoy && est === "none") {
+			continue;
+		}
+
 		cuenta[est]++;
 	}
 
-	el.innerHTML = `
-        <div><span>Sin entreno</span><strong>${cuenta.none}</strong></div>
-        <div><span>Parcial</span><strong>${cuenta.some}</strong></div>
-        <div><span>Completo</span><strong>${cuenta.all}</strong></div>
-        <div><span>Con progreso</span><strong>${cuenta.best}</strong></div>
-    `;
+	document.getElementById("descanso").textContent = cuenta.none;
+	document.getElementById("parcial").textContent = cuenta.some;
+	document.getElementById("completo").textContent = cuenta.all;
+	document.getElementById("progreso").textContent = cuenta.best;
 }
 
 /* ---------- Detalle del día ---------- */
-function seleccionarDia(iso) {
-	diaSeleccionado = iso;
-	renderCalendario();
-	renderDetalle(iso);
-}
 
-function renderDetalle(iso) {
-	const titulo = document.getElementById("detalleTitulo");
-	const texto = document.getElementById("detalleTexto");
-	const cont = document.getElementById("detalleContenido");
-
-	const d = parseISO(iso);
-	titulo.textContent = `Detalle del ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+function renderDetalleDia(iso) {
 	const { estado, regs, sesion, detalles } = infoDia(iso);
-
+	const detalle = document.getElementById("detalleDia");
 	if (estado === "none") {
-		texto.textContent = "No se registró entrenamiento este día.";
-		cont.innerHTML = "";
+		detalle.hidden = true;
 		return;
 	}
+	detalle.hidden = false;
 
-	texto.innerHTML = `Sesión: <strong>${sesion ?? "—"}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
+	// Solo aquí necesitamos convertir ISO -> Date para extraer día/mes/año.
+	const date = parseISO(iso);
+	document.getElementById("detalleTitulo").textContent =
+		`Detalle del ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
-	const filas = regs
+	document.getElementById("detalleTexto").innerHTML =
+		`Sesión: <strong>${sesion}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
+
+	document.getElementById("detalleFilas").innerHTML = regs
 		.map((r) => {
-			const det = detalles.get(r.exId);
-			let badge = "";
-			if (det) {
-				const partes = [];
+			const nombre = ejerciciosPorId.get(r.exId) ?? String(r.exId);
+			const badge = crearBadge(detalles.get(r.exId));
 
-				if (det.ahora.peso !== det.antes.peso) {
-					partes.push(`${det.antes.peso}→${det.ahora.peso} kg`);
-				} else if (det.ahora.reps !== det.antes.reps) {
-					partes.push(`${det.antes.reps}→${det.ahora.reps} reps`);
-				}
-
-				badge = ` <span class="progreso-badge progreso-${det.tipo}">${partes.join(" · ")}</span>`;
-			}
-			return `<tr>
-            <td>${nombreEj(r.exId)}${badge}</td>
-            <td>${r.series}</td>
-            <td>${r.peso} kg</td>
-            <td>${r.reps}</td>
-			<td>${r.series * r.peso * r.reps}</td>
-        </tr>`;
+			return `
+			<tr>
+				<td>${nombre}${badge}</td>
+				<td>${r.sets}</td>
+				<td>${r.weight}</td>
+				<td>${r.reps}</td>
+				<td>${r.sets * r.weight * r.reps}</td>
+			</tr>
+		`;
 		})
 		.join("");
-
-	cont.innerHTML = `
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr><th>Ejercicio</th><th>Series</th><th>Peso</th><th>Reps</th><th>Vol.</th></tr>
-                </thead>
-                <tbody>${filas}</tbody>
-            </table>
-        </div>
-    `;
 }
 
-/* ---------- Render general ---------- */
-function renderTodo() {
-	renderCalendario();
-	renderResumen();
-	if (diaSeleccionado) renderDetalle(diaSeleccionado);
+function crearBadge(det) {
+	if (!det) return "";
+
+	if (det.ahora.weight !== det.antes.weight) {
+		return `<span class="progreso-badge progreso-${det.tipo}">${det.antes.weight}→${det.ahora.weight} kg</span>`;
+	}
+
+	if (det.ahora.reps !== det.antes.reps) {
+		return `<span class="progreso-badge progreso-${det.tipo}">${det.antes.reps}→${det.ahora.reps} reps</span>`;
+	}
+
+	return "";
+}
+
+/* ---------- Navegación ---------- */
+
+function irMes(delta) {
+	const destino = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+
+	if (delta > 0 && esMesFuturo(destino)) return;
+
+	mesActual = destino;
+
+	// Último día del mes con ejercicios. Si no hay ninguno, el primer día del mes.
+	const prefijo = `${mesActual.getFullYear()}-${pad(mesActual.getMonth() + 1)}-`;
+	diaSeleccionado = [...cacheDias.keys()].filter((iso) => iso.startsWith(prefijo)).at(-1) ?? prefijo + "01";
+
+	renderCalendario(mesActual);
+	renderResumenMes(mesActual);
+	renderDetalleDia(diaSeleccionado);
 	actualizarNavegacion();
 }
 
 /* ---------- Init ---------- */
-function irMes(delta) {
-	const destino = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
-	if (delta > 0 && esMesFuturo(destino)) return;
-
-	mesActual = destino;
-	renderCalendario();
-	renderResumen();
-	actualizarNavegacion();
-}
-
-function bindUI() {
-	document.getElementById("btnMesAnterior").addEventListener("click", () => irMes(-1));
-	document.getElementById("btnMesSiguiente").addEventListener("click", () => irMes(+1));
-}
-
 async function init() {
 	try {
-		ejercicios = await dbLoadExercises();
-		ejerciciosPorId = new Map(ejercicios.filter((e) => e.id != null).map((e) => [Number(e.id), e]));
+		const [ejerciciosDB, historialEjercicios] = await Promise.all([dbLoadExercises(), dbAll()]);
+
+		ejerciciosPorId = new Map(ejerciciosDB.filter((e) => e.id != null).map((e) => [Number(e.id), e.nombre]));
+
+		const historial = (Array.isArray(historialEjercicios) ? historialEjercicios : [])
+			.map(normalizarFila)
+			.filter(Boolean)
+			.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+		construirCache(historial);
+
+		diaSeleccionado = historial.at(-1)?.fecha ?? toISO(new Date());
+
+		mesActual = parseISO(diaSeleccionado);
+
+		renderCalendario(mesActual);
+		renderResumenMes(mesActual);
+		renderDetalleDia(diaSeleccionado);
+		actualizarNavegacion();
+
+		document.getElementById("btnMesAnterior").addEventListener("click", () => irMes(-1));
+
+		document.getElementById("btnMesSiguiente").addEventListener("click", () => irMes(+1));
 	} catch (err) {
-		alert(`Error al procesar el iniciar: ${err?.message || err}`);
-		return;
+		alert(`Error al iniciar: ${err?.message || err}`);
 	}
-
-	historial = (await cargarHistorial()).sort((a, b) => a.fecha.localeCompare(b.fecha));
-	construirCache();
-
-	const ultima = historial.at(-1)?.fecha;
-	diaSeleccionado = ultima ?? toISO(new Date());
-	mesActual = ultima ? parseISO(ultima) : new Date();
-
-	renderTodo();
-	bindUI();
 }
 
 init();

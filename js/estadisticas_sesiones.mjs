@@ -6,8 +6,8 @@ function crearTarjetaSesion(numeroSesion) {
 	const enlace = document.createElement("a");
 
 	enlace.className = "card";
-	enlace.href = `progreso_esfuerzo.html?sesion=${encodeURIComponent(numeroSesion)}`;
-	enlace.setAttribute("aria-label", `Ver progreso de esfuerzo de la sesión ${numeroSesion}`);
+	enlace.href = `progreso_volumen.html?sesion=${encodeURIComponent(numeroSesion)}`;
+	enlace.setAttribute("aria-label", `Ver progreso de volumen de la sesión ${numeroSesion}`);
 
 	const div = document.createElement("div");
 	div.className = "card-name";

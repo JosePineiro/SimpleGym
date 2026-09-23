@@ -76,6 +76,7 @@ function calcularPesoEstimado(peso, reps, maquina) {
 /* ---------- Serie temporal ---------- */
 function construirPuntos(maquina, historial) {
 	const idBuscado = maquina.id;
+	const epley = (peso, reps) => peso * (1 + reps / 30);
 
 	return historial
 		.filter((r) => r.exId === idBuscado)
@@ -88,7 +89,7 @@ function construirPuntos(maquina, historial) {
 				peso: r.peso,
 				reps: r.reps,
 				sesion: r.sesion,
-				estimado,
+				epley: epley(r.peso, r.reps),
 			};
 		})
 		.filter(Boolean)
@@ -113,11 +114,11 @@ function renderStats(puntos) {
 
 	const primero = puntos[0];
 	const ultimo = puntos[puntos.length - 1];
-	const mejor = puntos.reduce((acc, p) => (p.estimado > acc.estimado ? p : acc), puntos[0]);
+	const mejor = puntos.reduce((acc, p) => (p.epley > acc.epley ? p : acc), puntos[0]);
 
 	// Campos simples
-	setText("statPesoActual", fmtPeso(ultimo.estimado));
-	setText("statMejorMarca", fmtPeso(mejor.estimado));
+	setText("statPesoActual", fmtPeso(ultimo.epley));
+	setText("statMejorMarca", fmtPeso(mejor.epley));
 	setText("statMejorFecha", fmtFecha(mejor.fecha));
 	setText("statSesiones", String(puntos.length));
 	setText("statPrimera", fmtFechaCorta(primero.fecha));
@@ -127,7 +128,7 @@ function renderStats(puntos) {
 	const elTrend = document.getElementById("statTendencia");
 	if (elTrend) {
 		if (puntos.length > 1) {
-			const diff = ultimo.estimado - primero.estimado;
+			const diff = ultimo.epley - primero.epley;
 			const cls = diff > 0.05 ? "up" : diff < -0.05 ? "down" : "same";
 			const signo = diff > 0 ? "+" : "";
 			elTrend.textContent = `${signo}${diff.toFixed(1)} kg vs inicio`;
@@ -146,7 +147,7 @@ function crearGrafico(puntos) {
 		chart = null;
 	}
 
-	const data = puntos.map((p) => ({ x: p.fecha.getTime(), y: p.estimado }));
+	const data = puntos.map((p) => ({ x: p.fecha.getTime(), y: p.epley }));
 
 	chart = new Chart(document.getElementById("grafico"), {
 		type: "line",
@@ -181,7 +182,7 @@ function crearGrafico(puntos) {
 					callbacks: {
 						title: (items) => fmtFecha(new Date(items[0].parsed.x)),
 						label: (item) =>
-							`${fmtPeso(puntos[item.dataIndex].estimado)} (${puntos[item.dataIndex].reps} reps, ${puntos[item.dataIndex].peso} kg)`,
+							`${fmtPeso(puntos[item.dataIndex].epley)} (${puntos[item.dataIndex].reps} reps, ${puntos[item.dataIndex].peso} kg)`,
 					},
 				},
 				zoom: {
@@ -223,33 +224,30 @@ function crearGrafico(puntos) {
 
 /* ---------------- Init ---------------- */
 async function init() {
-	let ejercicios = [];
-	let historial = [];
-
 	try {
-		[ejercicios, historial] = await Promise.all([dbLoadExercises(), cargarHistorial()]);
+		const [ejercicios, historial] = await Promise.all([dbLoadExercises(), cargarHistorial()]);
+
+		const maquina = (Array.isArray(ejercicios) ? ejercicios : []).find((e) => e.id === idMaquina);
+
+		if (!maquina) {
+			mostrarVacio(`No se encontró la máquina con id "${idMaquina}".`);
+		} else {
+			const nombre = maquina.nombre || `Máquina ${idMaquina}`;
+
+			document.getElementById("tituloMaquina").textContent = nombre;
+			document.title = `SIMPLEGYM - ${nombre}`;
+
+			const points = construirPuntos(maquina, historial);
+			if (!points.length) {
+				document.getElementById("cardGrafico").style.display = "none";
+				document.getElementById("cardStats").style.display = "none";
+			} else {
+				crearGrafico(points);
+				renderStats(points);
+			}
+		}
 	} catch (error) {
 		console.error("[progreso] Error cargando datos:", error);
-	}
-
-	const maquina = (Array.isArray(ejercicios) ? ejercicios : []).find((e) => e.id === idMaquina);
-
-	if (!maquina) {
-		mostrarVacio(`No se encontró la máquina con id "${idMaquina}".`);
-	} else {
-		const nombre = maquina.nombre || `Máquina ${idMaquina}`;
-
-		document.getElementById("tituloMaquina").textContent = nombre;
-		document.title = `SIMPLEGYM - ${nombre}`;
-
-		const points = construirPuntos(maquina, historial);
-		if (!points.length) {
-			document.getElementById("cardGrafico").style.display = "none";
-			document.getElementById("cardStats").style.display = "none";
-		} else {
-			crearGrafico(points);
-			renderStats(points);
-		}
 	}
 }
 
