@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+		<meta name="description" content="Evolución histórica de un ejercicio">
+		<title>SIMPLEGYM - Estadísticas de ejercicio</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+		<script type="module" src="js/estadisticas_ejercicio.mjs"></script>
+	</head>
+
+	<body>
+		<header class="topbar">
+			<h1 id="titulo">Ejercicio</h1>
+			<p class="session-info" id="subtitulo"></p>
+			<a class="topbar-link" href="estadisticas_ejercicios.html">Ejercicios</a>
+		</header>
+		<main class="container">
+			<section class="card" id="tarjeta-grafico">
+				<h2>Evolución del peso 1PR (Epley)</h2>
+				<div class="chart-wrap">
+					<canvas id="grafico-peso"></canvas>
+				</div>
+			</section>
+			<section class="card" id="tarjeta-estadisticas">
+				<h2>📊 Resumen</h2>
+				<div class="stats-progreso">
+					<div class="stats">
+						<div>
+							<span>Peso 1PR actual</span>
+							<strong id="peso-estimado-actual">—</strong>
+						</div>
+						<div>
+							<span>Último / mejor 1PR</span>
+							<strong id="porcentaje-mejor-1pr">—</strong>
+						</div>
+						<div>
+							<span>Frecuencia media</span>
+							<strong id="frecuencia-media">—</strong>
+						</div>
+						<div>
+							<span>Tendencia</span>
+							<strong id="tendencia-ejercicio">—</strong>
+						</div>
+						<div>
+							<span>Volumen total acumulado</span>
+							<strong id="volumen-total">—</strong>
+						</div>
+						<div>
+							<span>Repeticiones totales acumuladas</span>
+							<strong id="repeticiones-totales">—</strong>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="card" id="tarjeta-records-historicos">
+				<h2>🏅 Récords históricos</h2>
+				<div class="stats">
+					<div>
+						<span>Peso 1PR (Epley)</span>
+						<strong id="record-1pr-epley">—</strong>
+					</div>
+					<div>
+						<span>Peso</span>
+						<strong id="record-peso">—</strong>
+					</div>
+					<div>
+						<span>Repeticiones máx. por serie</span>
+						<strong id="record-repeticiones">—</strong>
+					</div>
+					<div>
+						<span>Series máximas</span>
+						<strong id="record-series">—</strong>
+					</div>
+					<div>
+						<span>Volumen máximo</span>
+						<strong id="record-volumen">—</strong>
+					</div>
+				</div>
+			</section>
+
+			<section class="card" id="tarjeta-records-ultima-sesion">
+				<h2>🏆 Récords última sesión</h2>
+
+				<p class="card-text hidden" id="sin-nuevos-records">La última sesión no superó ningún récord anterior.</p>
+
+				<div class="stats">
+					<div id="record-ultimo-1pr-epley">
+						<span>Nuevo 1PR (Epley)</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultimo-peso">
+						<span>Mayor peso</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultimo-repeticiones">
+						<span>Más repeticiones por serie</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultimo-series">
+						<span>Más series</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultimo-volumen">
+						<span>Mayor volumen</span>
+						<strong>—</strong>
+					</div>
+				</div>
+			</section>
+
+			<section class="card" id="tarjeta-racha">
+				<h2>🔥 Racha</h2>
+				<div class="stats">
+					<div>
+						<span>Sesiones con mejora consecutivas</span>
+						<strong id="racha-sesiones-mejora">—</strong>
+					</div>
+					<div>
+						<span>Semanas consecutivas</span>
+						<strong id="racha-semanas">—</strong>
+					</div>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>

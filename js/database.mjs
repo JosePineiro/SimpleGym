@@ -1,87 +1,106 @@
-const DB_NAME = "fitnessDB",
-	STORE = "historico",
-	FILES_STORE = "archivos",
-	DB_VERSION = 3;
+const DB_NAME = "fitnessDB";
+const STORE_REGISTROS_EJERCICIO = "historico";
+const STORE_ARCHIVOS = "archivos";
+const DB_VERSION = 3;
+
 const EJERCICIOS_KEY = "ejercicios";
 
 let dbPromise = null;
 
-function openDB() {
+function abrirBaseDatos() {
 	if (!dbPromise) {
 		dbPromise = new Promise((resolve, reject) => {
-			const req = indexedDB.open(DB_NAME, DB_VERSION);
+			const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-			req.onupgradeneeded = (e) => {
-				const db = req.result;
-				if (!db.objectStoreNames.contains(STORE)) {
-					db.createObjectStore(STORE, { autoIncrement: true });
+			request.onupgradeneeded = () => {
+				const db = request.result;
+
+				if (!db.objectStoreNames.contains(STORE_REGISTROS_EJERCICIO)) {
+					db.createObjectStore(STORE_REGISTROS_EJERCICIO, {
+						autoIncrement: true,
+					});
 				}
-				if (!db.objectStoreNames.contains(FILES_STORE)) {
-					db.createObjectStore(FILES_STORE);
+
+				if (!db.objectStoreNames.contains(STORE_ARCHIVOS)) {
+					db.createObjectStore(STORE_ARCHIVOS);
 				}
 			};
-			req.onsuccess = () => resolve(req.result);
-			req.onerror = () => reject(req.error);
-			req.onblocked = () => console.warn("IndexedDB bloqueada por otra pestaña");
-		}).catch((err) => {
+
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+			request.onblocked = () => console.warn("IndexedDB bloqueada por otra pestaña");
+		}).catch((error) => {
 			dbPromise = null;
-			throw err;
+			throw error;
 		});
 	}
+
 	return dbPromise;
 }
 
-export async function dbAdd(item) {
-	const db = await openDB();
+export async function guardarRegistroEjercicio(registroEjercicio) {
+	const db = await abrirBaseDatos();
+
 	return new Promise((resolve, reject) => {
-		const tx = db.transaction(STORE, "readwrite");
-		tx.oncomplete = () => resolve(true);
-		tx.onabort = tx.onerror = () => {
-			console.error("TX abort/error:", tx.error);
-			reject(tx.error);
+		const transaction = db.transaction(STORE_REGISTROS_EJERCICIO, "readwrite");
+
+		transaction.oncomplete = () => resolve(true);
+
+		transaction.onabort = transaction.onerror = () => {
+			console.error("Error en la transacción:", transaction.error);
+			reject(transaction.error);
 		};
-		tx.objectStore(STORE).add(item).onsuccess = (e) => {
-			console.log("Añadido con key:", e.target.result);
-		};
+
+		transaction.objectStore(STORE_REGISTROS_EJERCICIO).add(registroEjercicio);
 	});
 }
 
-export async function dbAll() {
-	const db = await openDB();
+export async function cargarRegistrosEjercicio() {
+	const db = await abrirBaseDatos();
+
 	return new Promise((resolve, reject) => {
-		const r = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
-		r.onsuccess = () => resolve(r.result);
-		r.onerror = () => reject(r.error);
+		const request = db.transaction(STORE_REGISTROS_EJERCICIO, "readonly").objectStore(STORE_REGISTROS_EJERCICIO).getAll();
+
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
 	});
 }
 
-export async function dbClear() {
-	const db = await openDB();
+export async function borrarRegistrosEjercicio() {
+	const db = await abrirBaseDatos();
+
 	return new Promise((resolve, reject) => {
-		const tx = db.transaction(STORE, "readwrite");
-		tx.objectStore(STORE).clear();
-		tx.oncomplete = () => resolve();
-		tx.onabort = tx.onerror = () => reject(tx.error);
+		const transaction = db.transaction(STORE_REGISTROS_EJERCICIO, "readwrite");
+
+		transaction.objectStore(STORE_REGISTROS_EJERCICIO).clear();
+
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = transaction.onerror = () => reject(transaction.error);
 	});
 }
 
-// Guarda el archivo de ejercicios tal cual, en binario (Blob), en IndexedDB.
-export async function dbSaveExercises(blob) {
-	const db = await openDB();
+// Guarda el archivo de ejercicios como Blob en IndexedDB.
+export async function guardarEjercicios(blob) {
+	const db = await abrirBaseDatos();
+
 	return new Promise((resolve, reject) => {
-		const tx = db.transaction(FILES_STORE, "readwrite");
-		tx.objectStore(FILES_STORE).put(blob, EJERCICIOS_KEY);
-		tx.oncomplete = () => resolve();
-		tx.onabort = tx.onerror = () => reject(tx.error);
+		const transaction = db.transaction(STORE_ARCHIVOS, "readwrite");
+
+		transaction.objectStore(STORE_ARCHIVOS).put(blob, EJERCICIOS_KEY);
+
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = transaction.onerror = () => reject(transaction.error);
 	});
 }
 
-export async function dbLoadExercises() {
-	const db = await openDB();
+export async function cargarEjercicios() {
+	const db = await abrirBaseDatos();
+
 	const blob = await new Promise((resolve, reject) => {
-		const r = db.transaction(FILES_STORE, "readonly").objectStore(FILES_STORE).get(EJERCICIOS_KEY);
-		r.onsuccess = () => resolve(r.result ?? null);
-		r.onerror = () => reject(r.error);
+		const request = db.transaction(STORE_ARCHIVOS, "readonly").objectStore(STORE_ARCHIVOS).get(EJERCICIOS_KEY);
+
+		request.onsuccess = () => resolve(request.result ?? null);
+		request.onerror = () => reject(request.error);
 	});
 
 	if (!blob) {
@@ -89,8 +108,4 @@ export async function dbLoadExercises() {
 	}
 
 	return JSON.parse(await blob.text());
-}
-
-export function esMismoDia(fecha1, fecha2) {
-	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
 }

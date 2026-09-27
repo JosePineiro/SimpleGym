@@ -1,77 +1,69 @@
-import { dbLoadExercises } from "./database.mjs";
+import { cargarEjercicios } from "./database.mjs";
 
-/* ---------- Creación de tarjetas ---------- */
+/* =========================================================
+   Estadísticas por sesión
+   ========================================================= */
+
+/* ---------------- Creación de tarjetas ---------------- */
 
 function crearTarjetaSesion(numeroSesion) {
-	const enlace = document.createElement("a");
+	const tarjeta = document.createElement("a");
+	tarjeta.className = "card";
+	tarjeta.href = `estadisticas_sesion.html?numeroSesion=${encodeURIComponent(numeroSesion)}`;
+	tarjeta.setAttribute("aria-label", `Ver estadísticas de la sesión ${numeroSesion}`);
 
-	enlace.className = "card";
-	enlace.href = `progreso_volumen.html?sesion=${encodeURIComponent(numeroSesion)}`;
-	enlace.setAttribute("aria-label", `Ver progreso de volumen de la sesión ${numeroSesion}`);
+	const nombreSesion = document.createElement("div");
+	nombreSesion.className = "card-name";
+	nombreSesion.textContent = `Sesión ${numeroSesion}`;
 
-	const div = document.createElement("div");
-	div.className = "card-name";
-	div.textContent = `Sesión ${numeroSesion}`;
+	tarjeta.appendChild(nombreSesion);
 
-	enlace.appendChild(div);
-
-	return enlace;
+	return tarjeta;
 }
 
-/* ---------- Estado vacío ---------- */
+/* ---------------- Obtener sesiones ---------------- */
 
-function mostrarVacio(contenedor, mensaje) {
-	const vacio = document.createElement("div");
-
-	vacio.className = "empty-state";
-	vacio.textContent = mensaje;
-
-	contenedor.replaceWith(vacio);
-}
-
-/* ---------- Carga de datos ---------- */
-
-async function cargarSesiones() {
-	const ejercicios = await dbLoadExercises();
-
-	const sesiones = new Set();
+async function obtenerSesionesDisponibles() {
+	const ejercicios = await cargarEjercicios();
+	const numerosSesion = new Set();
 
 	for (const ejercicio of ejercicios) {
-		if (!Array.isArray(ejercicio.sesion)) continue;
-
-		for (const numeroSesion of ejercicio.sesion) {
-			sesiones.add(numeroSesion);
+		if (!Array.isArray(ejercicio.sesiones)) {
+			continue;
+		}
+		for (const numeroSesion of ejercicio.sesiones) {
+			numerosSesion.add(numeroSesion);
 		}
 	}
 
-	return [...sesiones].sort((a, b) => a - b);
+	return [...numerosSesion].sort((a, b) => a - b);
 }
 
-/* ---------- Inicialización ---------- */
+/* ---------------- Inicialización ---------------- */
 
-(async function init() {
-	const contenedor = document.getElementById("contenedorSesiones");
+async function inicializar() {
+	const contenedorSesiones = document.getElementById("contenedor-sesiones");
+	const subtitulo = document.getElementById("subtitulo");
 
 	try {
-		const sesiones = await cargarSesiones();
-
-		if (!sesiones.length) {
-			mostrarVacio(contenedor, "Todavía no hay sesiones registradas.");
-			return;
+		const sesiones = await obtenerSesionesDisponibles();
+		if (sesiones.length === 0) {
+			throw new Error("No hay sesiones configuradas.");
 		}
 
-		document.getElementById("subtituloPagina").textContent = `${sesiones.length} sesiones`;
+		subtitulo.textContent = `${sesiones.length} ${sesiones.length === 1 ? "sesión" : "sesiones"}`;
 
 		const fragmento = document.createDocumentFragment();
-
 		for (const numeroSesion of sesiones) {
 			fragmento.appendChild(crearTarjetaSesion(numeroSesion));
 		}
 
-		contenedor.appendChild(fragmento);
+		contenedorSesiones.appendChild(fragmento);
 	} catch (error) {
-		console.error("[estadisticas_sesiones]", error);
-
-		mostrarVacio(contenedor, "No se pudieron cargar las sesiones.");
+		console.error(error);
+		document.getElementById("titulo").textContent = "Error";
+		subtitulo.textContent = error.message || "No se pudieron cargar las sesiones.";
 	}
-})();
+}
+
+inicializar();

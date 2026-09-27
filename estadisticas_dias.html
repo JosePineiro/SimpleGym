@@ -3,19 +3,19 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>SIMPLEGYM - Días de entreno</title>
+		<title>SIMPLEGYM - Días de entrenamiento</title>
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 		<link rel="stylesheet" href="css/styles.css">
 		<script type="module" src="js/estadisticas_dias.mjs"></script>
 	</head>
 	<body>
 		<header class="topbar">
-			<h1>SIMPLEGYM · Días de entreno</h1>
-			<p class="session-info" id="subtituloPagina"></p>
+			<h1 id="titulo">SIMPLEGYM · Días de entrenamiento</h1>
+			<p class="session-info" id="subtitulo"></p>
 			<a class="topbar-link" href="index.html">Inicio</a>
 		</header>
 
-		<main class="container">
+		<main class="container" id="tarjetaCalendario">
 			<section class="card">
 				<div class="cal-toolbar">
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
@@ -34,7 +34,7 @@
 				<div class="cal-grid" id="calGrid"></div>
 			</section>
 
-			<section class="card">
+			<section class="card" id="tarjetaEstadisticas">
 				<ul class="cal-leyenda">
 					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Sesión incompleta</li>
 					<li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
@@ -42,7 +42,7 @@
 				</ul>
 			</section>
 
-			<section class="card">
+			<section class="card" id="tarjetaEstadisticas">
 				<h2>Resumen del mes</h2>
 				<div class="stats">
 					<div>
@@ -64,7 +64,7 @@
 				</div>
 			</section>
 
-			<section class="card" id="detalleDia">
+			<section class="card" id="tarjetaDetalle">
 				<h2 id="detalleTitulo">Detalle del día</h2>
 				<p class="card-text" id="detalleTexto"></p>
 				<div id="detalleContenido">
@@ -73,10 +73,9 @@
 							<thead>
 								<tr>
 									<th>Ejercicio</th>
-									<th>Series</th>
 									<th>Peso</th>
-									<th>Reps</th>
-									<th>Vol.</th>
+									<th>Reps.</th>
+									<th>1RM</th>
 								</tr>
 							</thead>
 							<tbody id="detalleFilas"></tbody>

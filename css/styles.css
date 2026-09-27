@@ -657,6 +657,10 @@ td {
 	background-color: #ff0000;
 	color: #470000;
 }
+.progreso-equal {
+	background-color: #9ca3af;
+	color: #1f2937;
+}
 
 /* =========================================================
    Estados :hover / :active (una sola media query)

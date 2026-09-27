@@ -1,24 +1,36 @@
-import { dbAll, dbLoadExercises, esMismoDia } from "./database.mjs";
+import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
 
 /* =========================================================
-   sesion.js
-   Muestra una ficha por cada máquina/ejercicio que hay en esa sesion.
-   La muestra desactivada si ya se ha realizado esa ficha.
-   Al pulsar una ficha → ejercicio.html?curSes=<sesion>&exId=<id>2&tot=<totales>
+   sesión de entrenamiento
+
+   Semana / ciclo
+   └── Sesión
+       └── Ejercicio
+           └── Registro de ejercicio
+               └── Series
+                   └── Repeticiones
+
+   Esta pantalla muestra un ejercicio por cada ejercicio programado para la sesión.
+   El ejercicio se muestra como completado si existe un registro de ejercicio realizado hoy.
    ========================================================= */
 
-const IMG_PLACEHOLDER = "images/placeholder.svg";
+const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
-function crearTarjeta(ejercicio, completado, sesionActual, totales, hechos) {
-	const img = document.createElement("img");
-	img.src = ejercicio.imagen || IMG_PLACEHOLDER;
-	img.alt = ejercicio.nombre;
-	img.loading = "lazy";
-	img.decoding = "async";
-	img.addEventListener(
+function esMismoDia(fecha1, fecha2) {
+	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
+}
+
+function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjerciciosSesion, numeroEjerciciosCompletados) {
+	const imagen = document.createElement("img");
+	imagen.src = ejercicio.imagen || IMAGEN_PLACEHOLDER;
+	imagen.alt = ejercicio.nombre;
+	imagen.loading = "lazy";
+	imagen.decoding = "async";
+
+	imagen.addEventListener(
 		"error",
 		() => {
-			img.src = IMG_PLACEHOLDER;
+			imagen.src = IMAGEN_PLACEHOLDER;
 		},
 		{ once: true },
 	);
@@ -27,65 +39,79 @@ function crearTarjeta(ejercicio, completado, sesionActual, totales, hechos) {
 	span.className = "card-name";
 	span.textContent = ejercicio.nombre;
 
-	const a = document.createElement("a");
-	a.href = `ejercicio.html?curSes=${sesionActual}&exId=${ejercicio.id}&tot=${totales}&made=${hechos}`;
-	a.className = completado ? "card completado" : "card";
-	if (completado) a.setAttribute("aria-label", `${ejercicio.nombre} (completado)`);
+	const tarjeta = document.createElement("a");
+	tarjeta.href =
+		`entrenar_ejercicio.html?numeroSesion=${numeroSesion}` +
+		`&idEjercicio=${ejercicio.id}` +
+		`&totalEjerciciosSesion=${totalEjerciciosSesion}` +
+		`&numeroEjerciciosCompletados=${numeroEjerciciosCompletados}`;
+	tarjeta.className = completado ? "card completado" : "card";
 
-	a.append(img, span);
-	return a;
+	if (completado) {
+		tarjeta.setAttribute("aria-label", `${ejercicio.nombre} (completado)`);
+	}
+
+	tarjeta.append(imagen, span);
+
+	return tarjeta;
 }
 
-async function inicializarPantalla() {
-	const titulo = document.getElementById("tituloSesion");
-	const subtitulo = document.getElementById("subtituloSesion");
-	const contenedor = document.getElementById("contenedorEjercicios");
-
-	const mostrarVacio = (texto) => {
-		const div = document.createElement("div");
-		div.className = "empty-state";
-		div.textContent = texto;
-		contenedor.replaceChildren(div);
-	};
+async function inicializar() {
+	const titulo = document.getElementById("titulo");
+	const subtitulo = document.getElementById("subtitulo");
 
 	try {
-		const sesion = parseInt(new URLSearchParams(location.search).get("sesion"), 10);
-		if (!(sesion > 0)) throw new Error("Falta el parámetro sesion o no es válido.");
-
-		const [ejerciciosDB, historial] = await Promise.all([dbLoadExercises(), dbAll()]);
-
+		const parametros = new URLSearchParams(location.search);
+		const numeroSesion = Number(parametros.get("numeroSesion"));
+		if (!(numeroSesion > 0)) {
+			throw new Error("Falta el parámetro 'numeroSesion' o no es válido.");
+		}
+		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const hoy = new Date();
-		const hechosHoy = new Set(historial.filter((h) => h.date && esMismoDia(h.date, hoy)).map((h) => h.exId));
+		const ejerciciosCompletadosHoy = new Set(
+			registros.filter((registro) => esMismoDia(registro.fecha, hoy)).map((registro) => registro.idEjercicio),
+		);
 
-		const ejerciciosDeHoy = ejerciciosDB
-			.filter((e) => e.sesion.includes(sesion))
+		const ejerciciosSesion = ejercicios
+			.filter((ejercicio) => ejercicio.sesiones.includes(numeroSesion))
 			.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || a.id - b.id);
 
-		const total = ejerciciosDeHoy.length;
-		const hechos = ejerciciosDeHoy.filter((e) => hechosHoy.has(e.id)).length;
+		const totalEjerciciosSesion = ejerciciosSesion.length;
+		const numeroEjerciciosCompletados = ejerciciosSesion.filter((ejercicio) => ejerciciosCompletadosHoy.has(ejercicio.id)).length;
 
-		titulo.textContent = `Sesión ${sesion}`;
+		titulo.textContent = `Sesión ${numeroSesion}`;
 
-		if (!total) {
-			subtitulo.textContent = "No hay ejercicios para esta sesión";
-			return mostrarVacio("No hay ejercicios que mostrar.");
+		if (totalEjerciciosSesion === 0) {
+			throw new Error("No hay ejercicios para esta sesión");
 		}
 
-		subtitulo.textContent = `${hechos} de ${total} ejercicios completados`;
+		subtitulo.textContent = `${numeroEjerciciosCompletados} de ` + `${totalEjerciciosSesion} ejercicios completados`;
 
-		contenedor.replaceChildren(...ejerciciosDeHoy.map((e) => crearTarjeta(e, hechosHoy.has(e.id), sesion, total, hechos)));
+		const tarjetasEjercicio = ejerciciosSesion.map((ejercicio) =>
+			crearTarjetaEjercicio(
+				ejercicio,
+				ejerciciosCompletadosHoy.has(ejercicio.id),
+				numeroSesion,
+				totalEjerciciosSesion,
+				numeroEjerciciosCompletados,
+			),
+		);
+
+		document.getElementById("contenedorEjercicios").replaceChildren(...tarjetasEjercicio);
 	} catch (error) {
 		console.error(error);
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "Error inicializando la sesión";
-		mostrarVacio("No se pudo cargar la sesión.");
 	}
 }
 
-// Al volver con "atrás" el navegador puede restaurar la página desde la bfcache
-// sin ejecutar el script, y el estado "completado" quedaría obsoleto.
-window.addEventListener("pageshow", (e) => {
-	if (e.persisted) inicializarPantalla();
+// Al volver con "atrás", el navegador puede restaurar
+// la página desde la bfcache sin volver a ejecutar el
+// script. En ese caso actualizamos el estado.
+window.addEventListener("pageshow", (evento) => {
+	if (evento.persisted) {
+		inicializar();
+	}
 });
 
-inicializarPantalla();
+inicializar();

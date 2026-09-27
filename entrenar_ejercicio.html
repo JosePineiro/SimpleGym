@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+		<meta name="description" content="Registro de ejercicios y progresión de entrenamiento">
+		<title>SIMPLEGYM - Entrenar ejercicio</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<script type="module" src="js/entrenar_ejercicio.mjs"></script>
+	</head>
+
+	<body>
+		<header class="topbar">
+			<h1 id="tituloEjercicio">Ejercicio</h1>
+			<p class="session-info" id="informacionSesion"></p>
+			<a class="topbar-link" id="enlaceSalir" href="index.html">Volver</a>
+		</header>
+
+		<main class="container">
+			<section class="card hero">
+				<img src="images/placeholder.svg" alt="Máquina de fitness" id="imagenEjercicio" class="exerciseImage">
+				<div>
+					<p id="descripcionEjercicio"></p>
+					<div class="stats">
+						<div>
+							<span>Series de trabajo</span>
+							<strong id="numeroSeriesEjercicio">—</strong>
+						</div>
+						<div>
+							<span>Rango de repeticiones</span>
+							<strong id="rangoRepeticionesEjercicio">—</strong>
+						</div>
+						<div>
+							<span>RIR</span>
+							<strong id="rirEjercicio">—</strong>
+						</div>
+						<div>
+							<span>Descanso</span>
+							<strong id="descansoEjercicio">—</strong>
+						</div>
+						<div>
+							<span>Repeticiones objetivo</span>
+							<strong id="repeticionesObjetivo">—</strong>
+						</div>
+						<div>
+							<span>Peso objetivo</span>
+							<strong id="pesoObjetivo">—</strong>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section id="tarjetaFinalizar" class="card hidden">
+				<div class="finish-form">
+					<label>
+						Peso utilizado
+						<input id="pesoFinal" type="number" min="5" step="0.5" inputmode="decimal" required>
+					</label>
+					<label>
+						Repeticiones alcanzadas
+						<input id="repeticionesFinal" type="number" min="1" max="50" step="1" inputmode="numeric" required>
+					</label>
+					<button type="button" id="botonGuardar" class="btn btn-primary">Guardar</button>
+				</div>
+			</section>
+
+			<button type="button" id="botonSerie" class="btn btn-primary btn-large">—</button>
+		</main>
+	</body>
+</html>

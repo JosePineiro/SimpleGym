@@ -1,63 +1,87 @@
-import { dbAdd, dbAll, dbClear, dbLoadExercises, dbSaveExercises, esMismoDia } from "./database.mjs";
+import {
+	borrarRegistrosEjercicio,
+	cargarEjercicios,
+	cargarRegistrosEjercicio,
+	guardarEjercicios,
+	guardarRegistroEjercicio,
+} from "./database.mjs";
+
+/*
+Definiciones:
+Semana / ciclo
+└── Sesión
+    └── Ejercicio
+        └── Registro de ejercicio
+            └── Series
+                └── Repeticiones
+*/
+
+function esMismoDia(fecha1, fecha2) {
+	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
+}
 
 // ---- Importar / Exportar historial en CSV ----
 
 function parseCSV(text) {
-	const lines = text
-		.replace(/^\uFEFF/, "") // BOM
+	const lineas = text
+		.replace(/^\uFEFF/, "")
 		.replaceAll("\r", "")
 		.replaceAll(",", ".")
 		.trim()
 		.split("\n");
 
-	// Saltar cabecera si existe
-	if (lines[0]?.toLowerCase().includes("id")) {
-		lines.shift();
+	// Saltar cabecera
+	if (lineas[0]?.toLowerCase().includes("id_ejercicio")) {
+		lineas.shift();
 	}
 
-	const rows = [];
-	let skipped = 0;
+	const registros = [];
+	let omitidos = 0;
 
-	for (const line of lines) {
-		const parts = line.split(";").map((p) => p.trim());
-		if (parts.length < 7) {
-			skipped++;
+	for (const linea of lineas) {
+		if (!linea.trim()) continue;
+
+		const partes = linea.split(";").map((parte) => parte.trim());
+
+		if (partes.length < 7) {
+			omitidos++;
 			continue;
 		}
 
-		const [exIdStr, sessionStr, totalsStr, dateStr, setsStr, weightStr, repsStr] = parts;
-		const exId = Number(exIdStr);
-		const session = Number(sessionStr);
-		const totals = Number(totalsStr);
-		const [year, month, day] = dateStr.split(/[/-]/).map(Number);
-		const date = new Date(year, month - 1, day);
-		const sets = Number(setsStr);
-		const weight = Number(weightStr);
-		const reps = Number(repsStr);
+		const [idEjercicioTexto, numeroSesionTexto, totalEjerciciosTexto, fechaTexto, numeroSeriesTexto, pesoTexto, repeticionesTexto] = partes;
+		const idEjercicio = Number(idEjercicioTexto);
+		const numeroSesion = Number(numeroSesionTexto);
+		const totalEjercicios = Number(totalEjerciciosTexto);
+		const [anio, mes, dia] = fechaTexto.split(/[/-]/).map(Number);
+		const fecha = new Date(anio, mes - 1, dia);
+		const numeroSeries = Number(numeroSeriesTexto);
+		const peso = Number(pesoTexto);
+		const repeticiones = Number(repeticionesTexto);
 
-		// Validación
-		if (
-			!exIdStr ||
-			Number.isNaN(exId) ||
-			!sessionStr ||
-			Number.isNaN(session) ||
-			!totalsStr ||
-			Number.isNaN(totals) ||
-			Number.isNaN(date.getTime()) ||
-			!setsStr ||
-			Number.isNaN(sets) ||
-			!weightStr ||
-			Number.isNaN(weight) ||
-			!repsStr ||
-			Number.isNaN(reps)
-		) {
-			skipped++;
+		const registroValido =
+			idEjercicioTexto &&
+			!Number.isNaN(idEjercicio) &&
+			numeroSesionTexto &&
+			!Number.isNaN(numeroSesion) &&
+			totalEjerciciosTexto &&
+			!Number.isNaN(totalEjercicios) &&
+			!Number.isNaN(fecha.getTime()) &&
+			numeroSeriesTexto &&
+			!Number.isNaN(numeroSeries) &&
+			pesoTexto &&
+			!Number.isNaN(peso) &&
+			repeticionesTexto &&
+			!Number.isNaN(repeticiones);
+
+		if (!registroValido) {
+			omitidos++;
 			continue;
 		}
 
-		rows.push({ exId, session, totals, date, sets, weight, reps });
+		registros.push({ idEjercicio, numeroSesion, totalEjercicios, fecha, numeroSeries, peso, repeticiones });
 	}
-	return { rows, skipped };
+
+	return { registros, omitidos };
 }
 
 async function importarCSV(event) {
@@ -66,17 +90,21 @@ async function importarCSV(event) {
 
 	try {
 		const text = await file.text();
-		const { rows, skipped } = parseCSV(text);
+		const { registros, omitidos } = parseCSV(text);
 
-		if (rows.length === 0) {
+		if (registros.length === 0) {
 			throw new Error("El CSV no contiene filas válidas.");
 		}
 
-		await dbClear();
-		for (const row of rows) await dbAdd(row);
-		alert(`${rows.length} ejercicios del historial importados${skipped ? `, ${skipped} saltados.` : "."}`);
+		await borrarRegistrosEjercicio();
 
-		await inicializarPantalla();
+		for (const registro of registros) {
+			await guardarRegistroEjercicio(registro);
+		}
+
+		alert(`${registros.length} registros de ejercicio importados${omitidos ? `, ${omitidos} omitidos.` : "."}`);
+
+		await inicializar();
 	} catch (error) {
 		alert(`Error al procesar el archivo CSV: ${error?.message || error}`);
 		console.error(error);
@@ -86,21 +114,34 @@ async function importarCSV(event) {
 }
 
 async function exportarCSV() {
-	const historialEjercicios = await dbAll();
-	if (historialEjercicios.length === 0) {
+	const registros = await cargarRegistrosEjercicio();
+
+	if (registros.length === 0) {
 		alert("No hay datos en el historial para exportar.");
 		return;
 	}
 
 	const filas = [
-		"id;sesion;totales;fecha;series;peso;repeticiones",
-		...historialEjercicios.map((row) => {
-			const fecha = `${row.date.getFullYear()}/${String(row.date.getMonth() + 1).padStart(2, "0")}/${String(row.date.getDate()).padStart(2, "0")}`;
-			return `${row.exId};${row.session};${row.totals};${fecha};${row.sets};${row.weight};${row.reps}`;
+		"id_ejercicio;numero_sesion;total_ejercicios;fecha;numero_series;peso;repeticiones",
+
+		...registros.map((registro) => {
+			const fecha = `${registro.fecha.getFullYear()}/${String(registro.fecha.getMonth() + 1).padStart(2, "0")}/${String(
+				registro.fecha.getDate(),
+			).padStart(2, "0")}`;
+
+			return [
+				registro.idEjercicio,
+				registro.numeroSesion,
+				registro.totalEjercicios,
+				fecha,
+				registro.numeroSeries,
+				registro.peso,
+				registro.repeticiones,
+			].join(";");
 		}),
 	];
 
-	const blob = new Blob(["\uFEFF" + filas.join("\n")], {
+	const blob = new Blob(["\uFEFF" + filas.join("\r\n")], {
 		type: "text/csv;charset=utf-8",
 	});
 
@@ -118,53 +159,54 @@ async function exportarCSV() {
 
 async function importarJSON(event) {
 	const file = event.target.files[0];
-	if (!file) {
-		throw new Error("Fichero inválido.");
-	}
+	if (!file) return;
+
 	try {
 		const text = await file.text();
 
-		// Validamos que sea un JSON de ejercicios correcto
-		let data;
+		let ejercicios;
+
 		try {
-			data = JSON.parse(text);
+			ejercicios = JSON.parse(text);
 		} catch {
 			throw new Error("El archivo no contiene un JSON válido.");
 		}
 
-		if (!Array.isArray(data) || data.length === 0) {
+		if (!Array.isArray(ejercicios) || ejercicios.length === 0) {
 			throw new Error("El JSON no contiene ningún ejercicio.");
 		}
 
-		if (
-			!data.every(
-				(e) =>
-					typeof e.id === "number" &&
-					typeof e.orden === "number" &&
-					typeof e.imagen === "string" &&
-					typeof e.nombre === "string" &&
-					e.nombre.trim() !== "" &&
-					typeof e.descripcion === "string" &&
-					typeof e.incremento_peso === "number" &&
-					typeof e.numero_series === "number" &&
-					typeof e.series_aproximacion === "number" &&
-					typeof e.repeticiones_minimas === "number" &&
-					typeof e.repeticiones_maximas === "number" &&
-					typeof e.rir === "number" &&
-					typeof e.segundos_descanso === "number" &&
-					Array.isArray(e.sesion) &&
-					e.sesion.every((s) => typeof s === "number"),
-			)
-		) {
+		const formatoValido = ejercicios.every(
+			(ejercicio) =>
+				typeof ejercicio.id === "number" &&
+				typeof ejercicio.orden === "number" &&
+				typeof ejercicio.imagen === "string" &&
+				typeof ejercicio.nombre === "string" &&
+				ejercicio.nombre.trim() !== "" &&
+				typeof ejercicio.descripcion === "string" &&
+				typeof ejercicio.incremento_peso === "number" &&
+				Array.isArray(ejercicio.sesiones) &&
+				ejercicio.sesiones.every((sesion) => typeof sesion === "number") &&
+				typeof ejercicio.series_trabajo === "number" &&
+				typeof ejercicio.series_aproximacion === "number" &&
+				typeof ejercicio.repeticiones_min === "number" &&
+				typeof ejercicio.repeticiones_max === "number" &&
+				typeof ejercicio.rir === "number" &&
+				typeof ejercicio.descanso === "number",
+		);
+
+		if (!formatoValido) {
 			throw new Error("El JSON no tiene el formato esperado.");
 		}
 
-		// Guardamos el archivo como binario (Blob), en IndexedDB
-		const blob = new Blob([text], { type: "application/json" });
-		await dbSaveExercises(blob);
+		const blob = new Blob([text], {
+			type: "application/json",
+		});
 
-		await inicializarPantalla();
-		alert(`Ejercicios importados correctamente (${data.length} ejercicios).`);
+		await guardarEjercicios(blob);
+		await inicializar();
+
+		alert(`${ejercicios.length} ejercicios importados correctamente.`);
 	} catch (error) {
 		alert(`Error al procesar el archivo JSON: ${error?.message || error}`);
 		console.error(error);
@@ -174,76 +216,76 @@ async function importarJSON(event) {
 }
 
 async function exportarJSON() {
-	let ejercicios;
 	try {
-		ejercicios = await dbLoadExercises();
-	} catch {
-		alert("No hay ejercicios guardados en el almacenamiento local para exportar.");
-		return;
+		const ejercicios = await cargarEjercicios();
+		const blob = new Blob([JSON.stringify(ejercicios, null, 2)], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = "ejercicios.json";
+		link.click();
+
+		setTimeout(() => URL.revokeObjectURL(url), 100);
+	} catch (error) {
+		alert(error?.message || error);
+		console.error(error);
+	}
+}
+
+// ---- Inicializar pantalla ----
+
+function getSesionActual(maxNumeroSesion, registros) {
+	if (!registros.length || !maxNumeroSesion) {
+		return 1;
 	}
 
-	const blob = new Blob([JSON.stringify(ejercicios, null, 2)], {
-		type: "application/json",
-	});
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement("a");
+	const ultimoRegistro = registros.reduce((a, b) => (a.fecha > b.fecha ? a : b));
 
-	link.href = url;
-	link.download = "ejercicios.json";
-	link.click();
+	// Si el último entrenamiento fue hoy, mantenemos la misma sesión.
+	if (esMismoDia(ultimoRegistro.fecha, new Date())) {
+		return ultimoRegistro.numeroSesion;
+	}
 
-	setTimeout(() => URL.revokeObjectURL(url), 100);
+	// Si fue otro día, avanzamos una sesión.
+	return (ultimoRegistro.numeroSesion % maxNumeroSesion) + 1;
 }
 
-// ---- Inicializar el formulario ----
+function getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesion) {
+	const ejerciciosHechosHoy = new Set(
+		registros.filter((registro) => esMismoDia(registro.fecha, new Date())).map((registro) => registro.idEjercicio),
+	);
 
-function getSesionActual(totalSessions, historialEjercicios) {
-	if (!historialEjercicios?.length || !totalSessions) return 1;
-
-	// Registro con la fecha más reciente (si hay empate da igual, misma sesión)
-	const last = historialEjercicios.reduce((a, b) => (a.date > b.date ? a : b));
-
-	// Si el último entrenamiento fue hoy → misma sesión
-	if (esMismoDia(last.date, new Date())) return last.session;
-
-	// Si fue antes de hoy, avanzamos una sesión (con wrap-around)
-	return (last.session % totalSessions) + 1;
+	return ejercicios.filter((ejercicio) => ejercicio.sesiones.includes(numeroSesion) && !ejerciciosHechosHoy.has(ejercicio.id)).length;
 }
 
-function getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesion) {
-	// Conjunto de IDs de ejercicios ya realizados hoy
-	const hechosHoy = new Set(historialEjercicios.filter((h) => esMismoDia(h.date, new Date())).map((h) => h.exId));
-
-	return ejerciciosDB.filter((e) => e.sesion.includes(sesion) && !hechosHoy.has(e.id)).length;
-}
-
-async function inicializarPantalla() {
+async function inicializar() {
 	try {
-		// Cargamos los ejercicios y el historial
-		const [ejerciciosDB, historialEjercicios] = await Promise.all([dbLoadExercises(), dbAll()]);
-
-		// Configuramos la ficha de entrenamiento
-		const totalSesiones = Math.max(1, ...ejerciciosDB.flatMap((e) => e.sesion || [])); // Sesión más alta definida en ejercicios.json
-		const sesionActual = getSesionActual(totalSesiones, historialEjercicios);
-		const btnSesion = document.getElementById("btnIrSesion");
-		btnSesion.textContent = `Comenzar Sesión ${sesionActual}`;
-		btnSesion.href = `sesion.html?sesion=${sesionActual}`;
+		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
+		const maxNumeroSesion = Math.max(1, ...ejercicios.flatMap((ejercicio) => ejercicio.sesiones));
+		const numeroSesionDeHoy = getSesionActual(maxNumeroSesion, registros);
+		const btnIrSesion = document.getElementById("btnIrSesion");
+		btnIrSesion.textContent = `Comenzar sesión ${numeroSesionDeHoy}`;
+		btnIrSesion.href = `sesion.html?numeroSesion=${numeroSesionDeHoy}`;
 
 		const infoSesion = document.getElementById("infoSesion");
-		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejerciciosDB, historialEjercicios, sesionActual);
+		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesionDeHoy);
 		if (numeroEjerciciosPendientes === 0) {
-			infoSesion.textContent = `Todos los ejercicios de hoy completados`;
+			infoSesion.textContent = "Todos los ejercicios de hoy completados";
 		} else {
 			infoSesion.textContent = `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`;
 		}
 	} catch (error) {
-		alert(`Error inicializando: ${error?.message || error}`);
 		console.error(error);
+		alert(`Error inicializando: ${error?.message || error}`);
 	}
 }
+
+// ---- Eventos ----
 
 document.getElementById("importarCSV").addEventListener("change", importarCSV);
 document.getElementById("exportarCSV").addEventListener("click", exportarCSV);
 document.getElementById("importarJSON").addEventListener("change", importarJSON);
 document.getElementById("exportarJSON").addEventListener("click", exportarJSON);
-inicializarPantalla();
+
+inicializar();

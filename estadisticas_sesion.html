@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>SIMPLEGYM - Estadísticas de la sesión</title>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+		<script type="module" src="js/estadisticas_sesion.mjs"></script>
+	</head>
+	<body>
+		<header class="topbar">
+			<h1 id="titulo">—</h1>
+			<p class="session-info" id="subtitulo"></p>
+			<a class="topbar-link" href="estadisticas_sesiones.html">Sesiones</a>
+		</header>
+		<main class="container">
+			<section class="card" id="tarjeta-grafico">
+				<h2>Volumen a lo largo del tiempo</h2>
+				<div class="chart-wrap">
+					<canvas id="grafico-volumen"></canvas>
+				</div>
+			</section>
+
+			<section class="card" id="tarjeta-estadisticas">
+				<h2>📊 Resumen</h2>
+				<div class="stats">
+					<div>
+						<span>Volumen actual</span>
+						<strong id="volumen-actual">—</strong>
+					</div>
+					<div>
+						<span>Último / mejor</span>
+						<strong id="porcentaje-mejor-volumen">—</strong>
+					</div>
+					<div>
+						<span>Frecuencia media</span>
+						<strong id="frecuencia-media">—</strong>
+					</div>
+					<div>
+						<span>Tendencia de volumen</span>
+						<strong id="tendencia-volumen">—</strong>
+					</div>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2>🏅 Récords históricos</h2>
+				<div class="stats">
+					<div>
+						<span>Número de ejercicios</span>
+						<strong id="record-ejercicios">—</strong>
+					</div>
+					<div>
+						<span>Número de series</span>
+						<strong id="record-series">—</strong>
+					</div>
+					<div>
+						<span>Número de repeticiones</span>
+						<strong id="record-repeticiones">—</strong>
+					</div>
+					<div>
+						<span>Volumen</span>
+						<strong id="record-volumen">—</strong>
+					</div>
+				</div>
+			</section>
+
+			<section class="card" id="records-ultima-sesion">
+				<h2>🏆 Récords última sesión</h2>
+
+				<p class="card-text hidden" id="sin-nuevos-records">La última realización no superó ningún récord anterior.</p>
+
+				<div class="stats">
+					<div id="record-ultima-sesion-volumen">
+						<span>Mayor volumen</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultima-sesion-series">
+						<span>Más series</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultima-sesion-repeticiones">
+						<span>Más repeticiones</span>
+						<strong>—</strong>
+					</div>
+					<div id="record-ultima-sesion-ejercicios">
+						<span>Más ejercicios</span>
+						<strong>—</strong>
+					</div>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2>🔥 Racha</h2>
+				<div class="stats">
+					<div>
+						<span>Sesiones completadas consecutivas</span>
+						<strong id="racha-sesiones-completadas">—</strong>
+					</div>
+					<div>
+						<span>Sesiones con mejora consecutivas</span>
+						<strong id="racha-sesiones-mejora">—</strong>
+					</div>
+					<div>
+						<span>Semanas consecutivas</span>
+						<strong id="racha-semanas">—</strong>
+					</div>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>
