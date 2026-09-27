@@ -176,27 +176,33 @@ async function importarJSON(event) {
 			throw new Error("El JSON no contiene ningún ejercicio.");
 		}
 
-		const formatoValido = ejercicios.every(
-			(ejercicio) =>
-				typeof ejercicio.id === "number" &&
-				typeof ejercicio.orden === "number" &&
-				typeof ejercicio.imagen === "string" &&
-				typeof ejercicio.nombre === "string" &&
-				ejercicio.nombre.trim() !== "" &&
-				typeof ejercicio.descripcion === "string" &&
-				typeof ejercicio.incremento_peso === "number" &&
-				Array.isArray(ejercicio.sesiones) &&
-				ejercicio.sesiones.every((sesion) => typeof sesion === "number") &&
-				typeof ejercicio.series_trabajo === "number" &&
-				typeof ejercicio.series_aproximacion === "number" &&
-				typeof ejercicio.repeticiones_min === "number" &&
-				typeof ejercicio.repeticiones_max === "number" &&
-				typeof ejercicio.rir === "number" &&
-				typeof ejercicio.descanso === "number",
-		);
+		const esValido = (ejercicio) =>
+			typeof ejercicio.id === "number" &&
+			typeof ejercicio.orden === "number" &&
+			typeof ejercicio.imagen === "string" &&
+			typeof ejercicio.nombre === "string" &&
+			ejercicio.nombre.trim() !== "" &&
+			typeof ejercicio.descripcion === "string" &&
+			typeof ejercicio.incremento_peso === "number" &&
+			Array.isArray(ejercicio.sesiones) &&
+			ejercicio.sesiones.every((sesion) => typeof sesion === "number") &&
+			typeof ejercicio.series_trabajo === "number" &&
+			typeof ejercicio.series_aproximacion === "number" &&
+			typeof ejercicio.repeticiones_min === "number" &&
+			typeof ejercicio.repeticiones_max === "number" &&
+			typeof ejercicio.rir === "number" &&
+			typeof ejercicio.descanso === "number";
 
-		if (!formatoValido) {
-			throw new Error("El JSON no tiene el formato esperado.");
+		const indiceInvalido = ejercicios.findIndex((ejercicio) => !esValido(ejercicio));
+
+		if (indiceInvalido !== -1) {
+			const ejercicio = ejercicios[indiceInvalido];
+			const id = ejercicio && typeof ejercicio.id !== "undefined"
+				? ejercicio.id
+				: `(posición ${indiceInvalido + 1})`;
+			throw new Error(
+				`El JSON no tiene el formato esperado. Ejercicio inválido con id: ${id}.`,
+			);
 		}
 
 		const blob = new Blob([text], {
@@ -214,7 +220,6 @@ async function importarJSON(event) {
 		event.target.value = "";
 	}
 }
-
 async function exportarJSON() {
 	try {
 		const ejercicios = await cargarEjercicios();
