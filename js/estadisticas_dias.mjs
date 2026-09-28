@@ -338,6 +338,7 @@ async function inicializar() {
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el historial.";
 		tarjetaCalendario.style.display = "none";
+		tarjetaLeyenda.style.display = "none";
 		tarjetaEstadisticas.style.display = "none";
 		tarjetaDetalle.style.display = "none";
 	}
