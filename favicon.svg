@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" stroke-width="6" stroke-linecap="round"><rect width="64" height="64" rx="14" fill="#112"/><path d="M2 30h60v4H2" fill="#f936"/><path d="M15 23v18m34 0V23" stroke="#fc1"/><path d="M9 27v10m46 0V27" stroke="#ea1"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" stroke-width="6" stroke-linecap="round">
+	<!-- Fondo redondeado -->
+	<rect width="64" height="64" rx="14" fill="#113"/>
+
+	<!-- Barra central -->
+	<path d="M2 30h60v4H2" fill="#F71"/>
+	
+	<!-- Discos internos (más altos) -->
+	<path d="M15 23v18m34 0V23" stroke="#fc2"/>
+	
+	<!-- Discos externos (más bajos) -->
+	<path d="M9 27v10m46 0V27" stroke="#fa1"/>
+</svg>
