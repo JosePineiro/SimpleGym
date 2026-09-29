@@ -5,10 +5,10 @@ import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
 
    Semana / ciclo
    └── Sesión
-       └── Ejercicio
-           └── Registro de ejercicio
-               └── Series
-                   └── Repeticiones
+	   └── Ejercicio
+		   └── Registro de ejercicio
+			   └── Series
+				   └── Repeticiones
 
    Esta pantalla muestra un ejercicio por cada ejercicio programado para la sesión.
    El ejercicio se muestra como completado si existe un registro de ejercicio realizado hoy.
@@ -20,7 +20,7 @@ function esMismoDia(fecha1, fecha2) {
 	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
 }
 
-function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjerciciosSesion, numeroEjerciciosCompletados) {
+function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjerciciosSesion) {
 	const imagen = document.createElement("img");
 	imagen.src = ejercicio.imagen || IMAGEN_PLACEHOLDER;
 	imagen.alt = ejercicio.nombre;
@@ -43,8 +43,7 @@ function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjercic
 	tarjeta.href =
 		`entrenar_ejercicio.html?numeroSesion=${numeroSesion}` +
 		`&idEjercicio=${ejercicio.id}` +
-		`&totalEjerciciosSesion=${totalEjerciciosSesion}` +
-		`&numeroEjerciciosCompletados=${numeroEjerciciosCompletados}`;
+		`&totalEjerciciosSesion=${totalEjerciciosSesion}`;
 	tarjeta.className = completado ? "card completado" : "card";
 
 	if (completado) {
@@ -66,6 +65,7 @@ async function inicializar() {
 		if (!(numeroSesion > 0)) {
 			throw new Error("Falta el parámetro 'numeroSesion' o no es válido.");
 		}
+
 		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const hoy = new Date();
 		const ejerciciosCompletadosHoy = new Set(
@@ -92,8 +92,7 @@ async function inicializar() {
 				ejercicio,
 				ejerciciosCompletadosHoy.has(ejercicio.id),
 				numeroSesion,
-				totalEjerciciosSesion,
-				numeroEjerciciosCompletados,
+				totalEjerciciosSesion
 			),
 		);
 

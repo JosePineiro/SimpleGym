@@ -11,15 +11,14 @@
 	<body>
 		<header class="topbar">
 			<h1 id="titulo">SIMPLEGYM · Días de entrenamiento</h1>
-			<p class="session-info" id="subtitulo"></p>
+			<p class="subtitulo" id="subtitulo"></p>
 			<a class="topbar-link" href="index.html">Inicio</a>
 		</header>
-
-		<main class="container" id="tarjetaCalendario">
+		<main class="container" id="main-container">
 			<section class="card">
 				<div class="cal-toolbar">
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
-					<h2 class="card-title cal-title" id="calTitulo">—</h2>
+					<h2 class="card-title cal-title" id="cal-titulo">—</h2>
 					<button type="button" class="btn btn-secondary cal-nav" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
 				</div>
 				<div class="cal-weekdays">
@@ -31,10 +30,10 @@
 					<span>S</span>
 					<span>D</span>
 				</div>
-				<div class="cal-grid" id="calGrid"></div>
+				<div class="cal-grid" id="cal-grid"></div>
 			</section>
 
-			<section class="card" id="tarjetaLeyenda">
+			<section class="card">
 				<ul class="cal-leyenda">
 					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Sesión incompleta</li>
 					<li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
@@ -42,7 +41,7 @@
 				</ul>
 			</section>
 
-			<section class="card" id="tarjetaEstadisticas">
+			<section class="card">
 				<h2>Resumen del mes</h2>
 				<div class="stats">
 					<div>
@@ -64,9 +63,9 @@
 				</div>
 			</section>
 
-			<section class="card" id="tarjetaDetalle">
+			<section class="card" id="tarjeta-detalle">
 				<h2 id="detalleTitulo">Detalle del día</h2>
-				<p class="card-text" id="detalleTexto"></p>
+				<p class="card-text" id="detalle-texto"></p>
 				<div id="detalleContenido">
 					<div class="table-wrap">
 						<table>
@@ -78,7 +77,7 @@
 									<th>1RM</th>
 								</tr>
 							</thead>
-							<tbody id="detalleFilas"></tbody>
+							<tbody id="detalle-filas"></tbody>
 						</table>
 					</div>
 				</div>

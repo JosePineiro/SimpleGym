@@ -25,9 +25,9 @@
 		"last 2 iOS versions"
 	],
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.14",
-		"html-validate": "^11.16.0",
+		"@biomejs/biome": "2.5.14",
 		"html-minifier-next": "8.6.0",
+		"html-validate": "^11.16.0",
 		"lightningcss-cli": "1.33.0",
 		"oxc-minify": "0.151.0",
 		"svgo": "4.1.0"

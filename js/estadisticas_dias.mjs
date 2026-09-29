@@ -152,8 +152,8 @@ function actualizarNavegacion() {
 /* ---------- Render calendario ---------- */
 
 function renderCalendario(mes) {
-	const grid = document.getElementById("calGrid");
-	const titulo = document.getElementById("calTitulo");
+	const grid = document.getElementById("cal-grid");
+	const titulo = document.getElementById("cal-titulo");
 
 	const y = mes.getFullYear();
 	const m = mes.getMonth();
@@ -244,7 +244,7 @@ function renderResumenMes(mes) {
 
 function renderDetalleDia(iso) {
 	const { estado, regs, sesion, detalles } = infoDia(iso);
-	const tarjetaDetalle = document.getElementById("tarjetaDetalle");
+	const tarjetaDetalle = document.getElementById("tarjeta-detalle");
 
 	if (estado === "none") {
 		tarjetaDetalle.hidden = true;
@@ -256,10 +256,10 @@ function renderDetalleDia(iso) {
 	document.getElementById("detalleTitulo").textContent =
 		`Detalle del ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
-	document.getElementById("detalleTexto").innerHTML =
+	document.getElementById("detalle-texto").innerHTML =
 		`Sesión: <strong>${sesion ?? "—"}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
 
-	document.getElementById("detalleFilas").innerHTML = regs
+	document.getElementById("detalle-filas").innerHTML = regs
 		.map((r) => {
 			const nombre = ejerciciosPorId.get(Number(r.exId)) ?? String(r.exId);
 
@@ -337,10 +337,7 @@ async function inicializar() {
 		console.error(error);
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el historial.";
-		tarjetaCalendario.style.display = "none";
-		tarjetaLeyenda.style.display = "none";
-		tarjetaEstadisticas.style.display = "none";
-		tarjetaDetalle.style.display = "none";
+		document.getElementById("main-container").style.display = "none";
 	}
 }
 

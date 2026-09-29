@@ -1,63 +1,53 @@
 import { cargarEjercicios, cargarRegistrosEjercicio, guardarRegistroEjercicio } from "./database.mjs";
 
-const EJERCICIOS_INICIO_SESION = 2;
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
 /* =========================================================
    Series de aproximación
    ========================================================= */
 
-function calcularSeriesAproximacion(ejercicio, pesoObjetivo, pesoUltimoRegistro, numeroEjerciciosCompletados) {
-	let numeroSeries = ejercicio.series_aproximacion;
+function calcularSeriesAproximacion(ejercicio, pesoObjetivo) {
+	const numeroSeries = ejercicio.series_aproximacion;
 
-	// Después de los primeros ejercicios de la sesión, si no subimos peso, hacemos una aproximación menos.
-	if (numeroEjerciciosCompletados >= EJERCICIOS_INICIO_SESION && pesoObjetivo <= pesoUltimoRegistro) {
-		numeroSeries--;
-	}
+	const series = [];
 
-	if (numeroSeries < 1) {
-		return [];
-	}
+	if (numeroSeries < 1) return series;
 
 	const limitar = (valor, minimo, maximo) => Math.min(Math.max(valor, minimo), maximo);
-
-	const calcularPeso = (porcentaje, redondear) =>
-		Math.max(
+	const calcularPeso = (porcentaje, redondear) => {
+		const peso = Math.max(
 			ejercicio.incremento_peso,
 			redondear((porcentaje * pesoObjetivo) / (100 * ejercicio.incremento_peso)) * ejercicio.incremento_peso,
 		);
-
-	const descanso = limitar(Math.round(ejercicio.descanso / 2), 60, 90);
-
-	const series = [];
+		return limitar(peso, ejercicio.incremento_peso, pesoObjetivo);
+	};
 
 	// Primera aproximación: 50 %.
 	const peso1 = calcularPeso(50, Math.trunc);
 
 	// Si el peso de la primera aproximación es mayor o igual al peso objetivo, no hacemos series de aproximación.
-	if (peso1 >= pesoObjetivo) {
-		return [];
-	}
+	if (peso1 >= pesoObjetivo) return series;
 
 	series.push({
 		peso: peso1,
-		repeticiones: limitar(Math.round((ejercicio.repeticiones_min + ejercicio.repeticiones_max) / 2), 8, 13) - 1,
-		descanso,
+		repeticiones: limitar(Math.round((ejercicio.repeticiones_min + ejercicio.repeticiones_max) / 2), 10, 12),
+		descanso: limitar(Math.round(ejercicio.descanso / 2), 45, 90),
 	});
 
-	// Segunda aproximación: 70 %.
-	if (numeroSeries >= 2) {
-		const peso2 = calcularPeso(70, Math.round);
+	// Si solo hay una serie, hemos acabado.
+	if (numeroSeries === 1) return series;
 
-		// Si el peso de la segunda aproximación es mayor o igual al peso objetivo o que el de la primera, no hacemos la segunda aproximación.
-		if (peso2 > peso1 && peso2 < pesoObjetivo) {
-			series.push({
-				peso: peso2,
-				repeticiones: limitar(Math.trunc(ejercicio.repeticiones_min / 2), 3, 5),
-				descanso,
-			});
-		}
-	}
+	// Segunda aproximación: 70 %.
+	const peso2 = calcularPeso(70, Math.round);
+
+	// Si el peso de la segunda aproximación es mayor o igual al peso objetivo o que el de la primera, no hacemos la segunda aproximación.
+	if (peso2 >= pesoObjetivo || peso1 >= peso2) return series;
+
+	series.push({
+		peso: peso2,
+		repeticiones: limitar(Math.trunc(ejercicio.repeticiones_min / 2), 4, 6),
+		descanso: limitar(Math.round(ejercicio.descanso * 0.8), 75, 150),
+	});
 
 	return series;
 }
@@ -77,20 +67,17 @@ function obtenerEjercicio(ejercicios, idEjercicio) {
 }
 
 function mostrarEjercicio(ejercicio) {
-	document.getElementById("tituloEjercicio").textContent = ejercicio.nombre;
-	document.getElementById("descripcionEjercicio").textContent = ejercicio.descripcion;
-
 	const imagen = document.getElementById("imagenEjercicio");
 	imagen.src = ejercicio.imagen || IMAGEN_PLACEHOLDER;
 	imagen.alt = ejercicio.nombre;
 	imagen.loading = "lazy";
 	imagen.decoding = "async";
-
 	imagen.onerror = () => {
 		imagen.onerror = null;
 		imagen.src = IMAGEN_PLACEHOLDER;
 	};
 
+	document.getElementById("descripcionEjercicio").textContent = ejercicio.descripcion;
 	document.getElementById("numeroSeriesEjercicio").textContent = ejercicio.series_trabajo;
 	document.getElementById("rangoRepeticionesEjercicio").textContent = `${ejercicio.repeticiones_min}-${ejercicio.repeticiones_max}`;
 	document.getElementById("rirEjercicio").textContent = ejercicio.rir;
@@ -107,7 +94,7 @@ function obtenerUltimoRegistro(registrosEjercicio, idEjercicio) {
 		.reduce((ultimo, registro) => (!ultimo || registro.fecha > ultimo.fecha ? registro : ultimo), null);
 }
 
-function calcularObjetivos(ejercicio, ultimoRegistro, numeroEjerciciosCompletados) {
+function calcularObjetivos(ejercicio, ultimoRegistro) {
 	let pesoObjetivo;
 	let repeticionesObjetivo;
 
@@ -117,25 +104,24 @@ function calcularObjetivos(ejercicio, ultimoRegistro, numeroEjerciciosCompletado
 		repeticionesObjetivo = ejercicio.repeticiones_min;
 	} else {
 		pesoObjetivo = Number(ultimoRegistro.peso);
-		repeticionesObjetivo = Number(ultimoRegistro.repeticiones) + 1; // Aumentamos las repeticiones en 1.
+		repeticionesObjetivo = Number(ultimoRegistro.repeticiones) + 1;
 
 		if (repeticionesObjetivo > ejercicio.repeticiones_max) {
 			// Hemos llegado al máximo de repeticiones, subimos el peso y reiniciamos las repeticiones al mínimo.
 			pesoObjetivo += ejercicio.incremento_peso;
 			repeticionesObjetivo = ejercicio.repeticiones_min;
-		} else if (repeticionesObjetivo < ejercicio.repeticiones_min - 1) {
+		} else if (repeticionesObjetivo < ejercicio.repeticiones_min) {
 			// las repeticiones del último registro son menores que el mínimo: Bajamos el peso y ponemos las repeticiones al máximo.
 			pesoObjetivo -= ejercicio.incremento_peso;
+			pesoObjetivo = Math.max(pesoObjetivo, ejercicio.incremento_peso);
 			repeticionesObjetivo = ejercicio.repeticiones_max;
 		}
 	}
 
-	const pesoUltimoRegistro = ultimoRegistro ? Number(ultimoRegistro.peso) : pesoObjetivo;
-
 	return {
 		pesoObjetivo,
 		repeticionesObjetivo,
-		seriesDeAproximacion: calcularSeriesAproximacion(ejercicio, pesoObjetivo, pesoUltimoRegistro, numeroEjerciciosCompletados),
+		seriesDeAproximacion: calcularSeriesAproximacion(ejercicio, pesoObjetivo),
 	};
 }
 
@@ -157,11 +143,16 @@ function obtenerTextoBotonSerie(estado, seriesDeAproximacion) {
 	return `Terminé la serie ${estado.numeroSeriesTrabajoTerminadas + 1}`;
 }
 
+// Muestra las repeticiones y el peso objetivo de la serie que toca a continuación.
 function mostrarObjetivoSerie(estado, objetivos) {
 	const serieAproximacion = obtenerSerieActual(objetivos.seriesDeAproximacion, estado.numeroSeriesAproximacionTerminadas);
 
 	document.getElementById("repeticionesObjetivo").textContent = serieAproximacion?.repeticiones ?? objetivos.repeticionesObjetivo;
-	document.getElementById("pesoObjetivo").textContent = `${serieAproximacion?.peso ?? objetivos.pesoObjetivo} kg`;
+	document.getElementById("pesoObjetivo").textContent = `${serieAproximacion?.peso ?? objetivos.pesoObjetivo}`;
+}
+
+// Restaura el texto del botón de la serie (al terminar el descanso).
+function mostrarTextoBotonSerie(estado, objetivos) {
 	document.getElementById("botonSerie").textContent = obtenerTextoBotonSerie(estado, objetivos.seriesDeAproximacion);
 }
 
@@ -217,11 +208,7 @@ function finalizarSerie(ejercicio, estado, objetivos) {
 	const repeticiones = serieAproximacion?.repeticiones ?? objetivos.repeticionesObjetivo;
 	const tiempoTranscurrido = Math.trunc((Date.now() - estado.inicioSerie) / 1000);
 
-	let tiempoObjetivo = repeticiones * 6;
-
-	if (serieAproximacion) {
-		tiempoObjetivo /= 2;
-	}
+	const tiempoObjetivo = repeticiones * 6;
 
 	if (tiempoTranscurrido < tiempoObjetivo) {
 		const diferencia = Math.trunc(tiempoObjetivo - tiempoTranscurrido);
@@ -233,9 +220,12 @@ function finalizarSerie(ejercicio, estado, objetivos) {
 	if (serieAproximacion) {
 		estado.numeroSeriesAproximacionTerminadas++;
 
+		// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
+		mostrarObjetivoSerie(estado, objetivos);
+
 		iniciarDescanso(serieAproximacion.descanso, () => {
 			estado.inicioSerie = Date.now();
-			mostrarObjetivoSerie(estado, objetivos);
+			mostrarTextoBotonSerie(estado, objetivos);
 		});
 
 		return;
@@ -249,9 +239,12 @@ function finalizarSerie(ejercicio, estado, objetivos) {
 		return;
 	}
 
+	// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
+	mostrarObjetivoSerie(estado, objetivos);
+
 	iniciarDescanso(ejercicio.descanso, () => {
 		estado.inicioSerie = Date.now();
-		mostrarObjetivoSerie(estado, objetivos);
+		mostrarTextoBotonSerie(estado, objetivos);
 	});
 }
 
@@ -260,12 +253,13 @@ function finalizarSerie(ejercicio, estado, objetivos) {
    ========================================================= */
 
 async function guardarResultado(ejercicio, numeroSesion, totalEjerciciosSesion) {
-	const peso = Number(document.getElementById("pesoFinal").value);
-	const repeticiones = Number(document.getElementById("repeticionesFinal").value);
-
-	if (!Number.isFinite(peso) || !Number.isFinite(repeticiones)) {
-		throw new Error("Introduce peso y repeticiones válidos.");
-	}
+	const pesoStr = document.getElementById("pesoFinal").value.trim();
+	const repStr = document.getElementById("repeticionesFinal").value.trim();
+	if (!pesoStr || !repStr) throw new Error("Introduce peso y repeticiones.");
+	const peso = Number(pesoStr);
+	const repeticiones = Number(repStr);
+	if (!Number.isFinite(peso) || peso <= 0) throw new Error("Peso inválido.");
+	if (!Number.isInteger(repeticiones) || repeticiones <= 0) throw new Error("Repeticiones inválidas.");
 
 	await guardarRegistroEjercicio({
 		idEjercicio: ejercicio.id,
@@ -289,16 +283,13 @@ function obtenerParametros() {
 	const idEjercicio = Number(parametros.get("idEjercicio"));
 	const numeroSesion = Number(parametros.get("numeroSesion"));
 	const totalEjerciciosSesion = Number(parametros.get("totalEjerciciosSesion"));
-	const numeroEjerciciosCompletados = Number(parametros.get("numeroEjerciciosCompletados"));
 
 	if (!Number.isInteger(idEjercicio) || idEjercicio <= 0) throw new Error("La URL debe incluir un idEjercicio válido.");
 	if (!Number.isInteger(numeroSesion) || numeroSesion <= 0) throw new Error("La URL debe incluir un numeroSesion válido.");
 	if (!Number.isInteger(totalEjerciciosSesion) || totalEjerciciosSesion < 0)
 		throw new Error("La URL debe incluir un totalEjerciciosSesion válido.");
-	if (!Number.isInteger(numeroEjerciciosCompletados) || numeroEjerciciosCompletados < 0)
-		throw new Error("La URL debe incluir un numeroEjerciciosCompletados válido.");
 
-	return { idEjercicio, numeroSesion, totalEjerciciosSesion, numeroEjerciciosCompletados };
+	return { idEjercicio, numeroSesion, totalEjerciciosSesion };
 }
 
 /* =========================================================
@@ -306,14 +297,24 @@ function obtenerParametros() {
    ========================================================= */
 
 async function inicializar() {
+	const titulo = document.getElementById("titulo");
+	const subtitulo = document.getElementById("subtitulo");
+
 	try {
 		const parametros = obtenerParametros();
+
+		// ---------- Salir ----------
+		document.getElementById("enlaceSalir").href = `sesion.html?numeroSesion=${parametros.numeroSesion}`;
+
 		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const ejercicio = obtenerEjercicio(ejercicios, parametros.idEjercicio);
+
+		titulo.textContent = ejercicio.nombre;
+
 		mostrarEjercicio(ejercicio);
 
 		const ultimoRegistro = obtenerUltimoRegistro(registrosEjercicio, ejercicio.id);
-		const objetivos = calcularObjetivos(ejercicio, ultimoRegistro, parametros.numeroEjerciciosCompletados);
+		const objetivos = calcularObjetivos(ejercicio, ultimoRegistro);
 		document.getElementById("pesoFinal").value = objetivos.pesoObjetivo;
 		document.getElementById("repeticionesFinal").value = objetivos.repeticionesObjetivo;
 
@@ -323,6 +324,7 @@ async function inicializar() {
 			inicioSerie: Date.now(),
 		};
 		mostrarObjetivoSerie(estado, objetivos);
+		mostrarTextoBotonSerie(estado, objetivos);
 
 		/* ---------- Botón de serie ---------- */
 		const botonSerie = document.getElementById("botonSerie");
@@ -344,12 +346,11 @@ async function inicializar() {
 				alert(error?.message || error);
 			}
 		});
-
-		/* ---------- Salir ---------- */
-		document.getElementById("enlaceSalir").href = `sesion.html?numeroSesion=${parametros.numeroSesion}`;
 	} catch (error) {
 		console.error(error);
-		alert(`Error al iniciar: ${error?.message || error}`);
+		titulo.textContent = "Error";
+		subtitulo.textContent = error.message || "No se pudo cargar el ejercicio.";
+		document.getElementById("main-container").style.display = "none";
 	}
 }
 
