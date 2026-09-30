@@ -4,16 +4,16 @@
 
 :root {
 	/* Paleta */
-	--bg-color: #f4f5f7;
+	--bg-color: #eee;
 	--text-color: #333;
 	--card-bg: #fff;
-	--primary-color: #007bff;
-	--primary-hover: #0056b3;
+	--primary-color: #08f;
+	--primary-hover: #05b;
 	--muted-color: #666;
 
-	--topbar-bg: #18202a;
+	--topbar-bg: #223;
 	--topbar-text: #fff;
-	--topbar-muted: #aab4bf;
+	--topbar-muted: #abc;
 
 	/* Espaciado y medidas */
 	--radius: 12px;
@@ -33,13 +33,13 @@
 	--font-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 
 	/* Calendario */
-	--day-none: #e7ebef;
-	--day-some: #9ec5fe;
-	--day-all: #2e9e5b;
-	--day-best: #f2b705;
-	--day-best-text: #3a2a00;
-	--day-text: #18202a;
-	--day-border: #d6dbe1;
+	--day-none: #eff;
+	--day-some: #acf;
+	--day-all: #3a6;
+	--day-best: #fb0;
+	--day-best-text: #430;
+	--day-text: #123;
+	--day-border: #dee;
 }
 
 /* ---------- Reset básico ---------- */
@@ -80,6 +80,7 @@ input {
 .btn:focus-visible,
 .grid .card:focus-visible,
 .finish-form input:focus-visible,
+/* unused-css-ignore */
 .cal-day:focus-visible {
 	outline: var(--focus-ring);
 	outline-offset: var(--focus-offset);
@@ -100,7 +101,7 @@ input {
 	padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
 	background: var(--topbar-bg);
 	color: var(--topbar-text);
-	box-shadow: 0 2px 8px #0002;
+	box-shadow: 0 2px 8px #000;
 }
 
 .topbar h1 {
@@ -168,7 +169,7 @@ input {
 .card {
 	background-color: var(--card-bg);
 	border-radius: var(--radius);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 4px 6px #ccc;
 	padding: var(--card-pad);
 	min-width: 0;
 }
@@ -224,6 +225,7 @@ input {
 	display: block;
 }
 
+/* unused-css-ignore */
 .card-name {
 	padding: 12px;
 	text-align: center;
@@ -231,21 +233,6 @@ input {
 	font-size: clamp(0.85rem, 3.5vw, 0.95rem);
 	line-height: 1.3;
 	overflow-wrap: break-word;
-}
-
-.completado {
-	opacity: 0.4;
-	filter: grayscale(80%);
-}
-
-.empty-state {
-	width: 100%;
-	background-color: var(--card-bg);
-	border-radius: var(--radius);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	padding: 24px;
-	text-align: center;
-	color: var(--muted-color);
 }
 
 /* Tarjeta hero (ejercicio.html) */
@@ -317,7 +304,7 @@ dl.stats {
 	width: 100%;
 	margin-top: 5px;
 	padding: 12px;
-	border: 1px solid #cdd3d9;
+	border: 1px solid #dee;
 	border-radius: 8px;
 	font-family: inherit;
 	font-size: 1rem;
@@ -369,9 +356,9 @@ dl.stats {
 	--btn-hover: var(--primary-hover);
 }
 .btn-secondary {
-	--btn-bg: #e7ebef;
-	--btn-fg: #18202a;
-	--btn-hover: #d6dbe1;
+	--btn-bg: #eee;
+	--btn-fg: #222;
+	--btn-hover: #ddd;
 }
 
 .btn-large {
@@ -379,6 +366,8 @@ dl.stats {
 	font-size: 1.05rem;
 	padding: 14px;
 }
+
+/* unused-css-ignore */
 .btn-disabled {
 	opacity: 0.5;
 	pointer-events: none;
@@ -420,7 +409,7 @@ th,
 td {
 	text-align: left;
 	padding: 9px;
-	border-bottom: 1px solid #e5e8eb;
+	border-bottom: 1px solid #eff;
 	white-space: nowrap;
 }
 
@@ -440,63 +429,11 @@ td {
 }
 
 /* =========================================================
-   Progreso (peso / esfuerzo)
-   ========================================================= */
-.stats-progreso {
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-}
-.stats-progreso .stats {
-	gap: 12px;
-}
-.stats-progreso .stats--minis {
-	grid-template-columns: var(--grid-3);
-}
-
-/* Héroes (peso actual / mejor marca) */
-.stats-progreso .stat-hero {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 6px;
-	text-align: left;
-	background: linear-gradient(135deg, #e8f1ff, #f7faff);
-	border: 1px solid #d6e6ff;
-}
-.stats-progreso .stat-hero strong {
-	margin-top: 0;
-	font-size: clamp(1.4rem, 5.5vw, 1.75rem);
-	letter-spacing: -0.02em;
-	color: var(--primary-color);
-}
-
-/* Píldora de tendencia / fecha */
-.stats-progreso .stat-trend {
-	display: inline-block;
-	padding: 3px 9px;
-	border-radius: 999px;
-	font-style: normal;
-	font-size: 0.72rem;
-	font-weight: 700;
-	line-height: 1.2;
-	background: #e7ebef;
-	color: #5a6470;
-}
-.stats-progreso .stat-trend.up {
-	background: #d1f5dd;
-	color: #0a5f2a;
-}
-.stats-progreso .stat-trend.down {
-	background: #ffdad6;
-	color: #7a1a0e;
-}
-
-/* =========================================================
-   Calendario (estadisticas_dias.html)
+   Calendario (estadisticas-dias.html)
    ========================================================= */
 
 /* Estados → solo definen variables de color */
+/* unused-css-ignore */
 .cal-day--none {
 	--cd-bg: var(--day-none);
 	--cd-fg: var(--muted-color);
@@ -504,21 +441,22 @@ td {
 }
 .cal-day--some {
 	--cd-bg: var(--day-some);
-	--cd-fg: #0b2e5c;
-	--cd-bd: #7fb0f5;
+	--cd-fg: #136;
+	--cd-bd: #8bf;
 }
 .cal-day--all {
 	--cd-bg: var(--day-all);
 	--cd-fg: #fff;
-	--cd-bd: #248049;
+	--cd-bd: #285;
 }
 .cal-day--best {
 	--cd-bg: var(--day-best);
 	--cd-fg: var(--day-best-text);
-	--cd-bd: #cf9c04;
+	--cd-bd: #da0;
 }
 
 /* Base compartida día / muestra de leyenda */
+/* unused-css-ignore */
 .cal-day,
 .cal-swatch {
 	background: var(--cd-bg, #fff);
@@ -565,6 +503,7 @@ td {
 	gap: 4px;
 }
 
+/* unused-css-ignore */
 .cal-day {
 	position: relative;
 	aspect-ratio: 1 / 1;
@@ -582,9 +521,11 @@ td {
 		transform 0.15s ease,
 		box-shadow 0.15s ease;
 }
+/* unused-css-ignore */
 .cal-day:focus-visible {
 	z-index: 2;
 }
+/* unused-css-ignore */
 .cal-day--empty {
 	background: transparent;
 	border-color: transparent;
@@ -598,14 +539,16 @@ td {
 	right: 4px;
 	font-size: 0.65rem;
 	line-height: 1;
-	color: #7a5600;
+	color: #850;
 }
+/* unused-css-ignore */
 .cal-day--hoy {
 	outline: 2px dashed var(--primary-color);
 	outline-offset: -3px;
 }
+/* unused-css-ignore */
 .cal-day--sel {
-	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.55);
+	box-shadow: 0 0 0 3px #7bf;
 	z-index: 1;
 }
 
@@ -645,6 +588,7 @@ td {
 	padding: 8px;
 }
 
+/* unused-css-ignore */
 .progreso-badge {
 	display: inline-block;
 	background: var(--day-best);
@@ -656,17 +600,20 @@ td {
 	margin-left: 6px;
 	vertical-align: middle;
 }
+/* unused-css-ignore */
 .progreso-up {
-	background-color: #00ff4c;
-	color: #004431;
+	background-color: #0f5;
+	color: #043;
 }
+/* unused-css-ignore */
 .progreso-down {
-	background-color: #ff0000;
-	color: #470000;
+	background-color: #f00;
+	color: #400;
 }
+/* unused-css-ignore */
 .progreso-equal {
-	background-color: #9ca3af;
-	color: #1f2937;
+	background-color: #aab;
+	color: #233;
 }
 
 /* =========================================================
@@ -689,15 +636,16 @@ td {
 
 	.grid .card:hover {
 		transform: translateY(-4px);
-		box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 6px 12px #ddd;
 	}
 	.grid .card:active {
 		transform: translateY(-1px);
 	}
 
+	/* unused-css-ignore */
 	.cal-day:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 4px 8px #ddd;
 	}
 }
 
@@ -753,6 +701,7 @@ td {
 @media (prefers-reduced-motion: reduce) {
 	.btn,
 	.grid .card,
+	/* unused-css-ignore */
 	.cal-day {
 		transition: none;
 	}
@@ -760,6 +709,7 @@ td {
 	.btn:active,
 	.grid .card:hover,
 	.grid .card:active,
+	/* unused-css-ignore */
 	.cal-day:hover {
 		transform: none;
 	}
