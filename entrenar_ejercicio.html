@@ -9,57 +9,55 @@
 		<link rel="stylesheet" href="css/styles.css">
 		<script type="module" src="js/entrenar_ejercicio.mjs"></script>
 	</head>
-
 	<body>
 		<header class="topbar">
 			<h1 id="titulo">Ejercicio</h1>
 			<p class="subtitulo" id="subtitulo"></p>
-			<a class="topbar-link" id="enlaceSalir" href="index.html">Volver</a>
+			<a class="topbar-link" id="enlace-salir" href="index.html">Volver</a>
 		</header>
-
 		<main class="container" id="main-container">
 			<section class="card hero">
-				<img src="images/placeholder.svg" alt="Máquina de fitness" id="imagenEjercicio" class="exerciseImage">
+				<img src="images/placeholder.svg" alt="Máquina de fitness" id="imagen-ejercicio" class="exerciseImage">
 				<div>
-					<p id="descripcionEjercicio"></p>
+					<p id="descripcion-ejercicio"></p>
 					<dl class="stats">
 						<div>
 							<dt>Series de trabajo</dt>
-							<dd id="numeroSeriesEjercicio">—</dd>
+							<dd id="series-trabajo">—</dd>
 						</div>
 						<div>
 							<dt>Rango de repeticiones</dt>
-							<dd id="rangoRepeticionesEjercicio">—</dd>
+							<dd id="rango-repeticiones">—</dd>
 						</div>
 						<div>
 							<dt>RIR</dt>
-							<dd id="rirEjercicio">—</dd>
+							<dd id="rir">—</dd>
 						</div>
 						<div>
 							<dt>Descanso</dt>
-							<dd id="descansoEjercicio">—</dd>
+							<dd id="descanso">—</dd>
 						</div>
 						<div>
 							<dt>Repeticiones objetivo</dt>
-							<dd id="repeticionesObjetivo">—</dd>
+							<dd id="repeticiones-objetivo">—</dd>
 						</div>
 						<div>
 							<dt>Peso objetivo</dt>
-							<dd id="pesoObjetivo">—</dd>
+							<dd id="peso-objetivo">—</dd>
 						</div>
 					</dl>
 				</div>
 			</section>
-			<section id="tarjetaFinalizar" class="card hidden">
-				<form id="formFinalizar" class="finish-form">
+			<section id="tarjeta-finalizar" class="card hidden">
+				<form class="finish-form">
 					<label>
 						Peso utilizado
-						<input id="pesoFinal" name="pesoFinal" type="number" min="2.5" step="2.5" inputmode="decimal" required>
+						<input id="peso-final" name="pesoFinal" type="number" min="2.5" step="2.5" inputmode="decimal" required>
 					</label>
 					<label>
 						Repeticiones alcanzadas
 						<input
-							id="repeticionesFinal"
+							id="repeticiones-final"
 							name="repeticionesFinal"
 							type="number"
 							min="1"
@@ -69,10 +67,10 @@
 							required
 						>
 					</label>
-					<button type="submit" id="botonGuardar" class="btn btn-primary">Guardar</button>
+					<button type="submit" id="btn-guardar" class="btn btn-primary">Guardar</button>
 				</form>
 			</section>
-			<button type="button" id="botonSerie" class="btn btn-primary btn-large">—</button>
+			<button type="button" id="btn-serie" class="btn btn-primary btn-large">—</button>
 		</main>
 	</body>
 </html>

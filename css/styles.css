@@ -20,7 +20,7 @@
 	--gap: 20px;
 	--max-width: 900px;
 	--pad-x: clamp(12px, 4vw, 24px);
-	--card-pad: clamp(16px, 4vw, 24px);
+	--card-pad: clamp(8px, 4vw, 24px);
 
 	/* Foco */
 	--focus-ring: 3px solid rgba(0, 123, 255, 0.4);
@@ -277,10 +277,16 @@ input {
 	gap: 8px;
 }
 .stats > div {
-	background: #f0f3f6;
+	background: #ddd;
 	border-radius: 10px;
 	padding: 10px;
 	min-width: 0;
+}
+dl.stats {
+	display: grid;
+	grid-template-columns: var(--grid-2);
+	gap: 8px;
+	margin-bottom: 0;
 }
 .stats dt {
 	display: block;
@@ -289,8 +295,8 @@ input {
 }
 .stats dd {
 	display: block;
-	margin-top: 3px;
-	color: #18202a;
+	margin: 3px 0 0 0;
+	color: #111;
 	overflow-wrap: break-word;
 	font-weight: bold;
 }

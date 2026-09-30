@@ -11,119 +11,113 @@
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 		<script type="module" src="js/estadisticas_ejercicio.mjs"></script>
 	</head>
-
 	<body>
 		<header class="topbar">
 			<h1 id="titulo">Ejercicio</h1>
 			<p class="subtitulo" id="subtitulo"></p>
 			<a class="topbar-link" href="estadisticas_ejercicios.html">Ejercicios</a>
 		</header>
-		<main class="container">
-			<section class="card" id="tarjeta-grafico">
+		<main class="container" id="main-container">
+			<section class="card">
 				<h2>Evolución del peso 1PR (Epley)</h2>
 				<div class="chart-wrap">
 					<canvas id="grafico-peso"></canvas>
 				</div>
 			</section>
-			<section class="card" id="tarjeta-estadisticas">
+			<section class="card">
 				<h2>📊 Resumen</h2>
-				<div class="stats-progreso">
-					<div class="stats">
-						<div>
-							<span>Peso 1PR actual</span>
-							<strong id="peso-estimado-actual">—</strong>
-						</div>
-						<div>
-							<span>Último / mejor 1PR</span>
-							<strong id="porcentaje-mejor-1pr">—</strong>
-						</div>
-						<div>
-							<span>Frecuencia media</span>
-							<strong id="frecuencia-media">—</strong>
-						</div>
-						<div>
-							<span>Tendencia</span>
-							<strong id="tendencia-ejercicio">—</strong>
-						</div>
-						<div>
-							<span>Volumen total acumulado</span>
-							<strong id="volumen-total">—</strong>
-						</div>
-						<div>
-							<span>Repeticiones totales acumuladas</span>
-							<strong id="repeticiones-totales">—</strong>
-						</div>
+				<dl class="stats">
+					<div>
+						<dt>Peso 1PR actual</dt>
+						<dd id="peso-estimado-actual">—</dd>
 					</div>
-				</div>
+					<div>
+						<dt>Último / mejor 1PR</dt>
+						<dd id="porcentaje-mejor-1pr">—</dd>
+					</div>
+					<div>
+						<dt>Frecuencia media</dt>
+						<dd id="frecuencia-media">—</dd>
+					</div>
+					<div>
+						<dt>Tendencia</dt>
+						<dd id="tendencia-ejercicio">—</dd>
+					</div>
+					<div>
+						<dt>Volumen total acumulado</dt>
+						<dd id="volumen-total">—</dd>
+					</div>
+					<div>
+						<dt>Repeticiones totales acumuladas</dt>
+						<dd id="repeticiones-totales">—</dd>
+					</div>
+				</dl>
 			</section>
-
-			<section class="card" id="tarjeta-records-historicos">
+			<section class="card">
 				<h2>🏅 Récords históricos</h2>
-				<div class="stats">
+				<dl class="stats">
 					<div>
-						<span>Peso 1PR (Epley)</span>
-						<strong id="record-1pr-epley">—</strong>
+						<dt>Peso 1PR (Epley)</dt>
+						<dd id="record-1pr-epley">—</dd>
 					</div>
 					<div>
-						<span>Peso</span>
-						<strong id="record-peso">—</strong>
+						<dt>Peso</dt>
+						<dd id="record-peso">—</dd>
 					</div>
 					<div>
-						<span>Repeticiones máx. por serie</span>
-						<strong id="record-repeticiones">—</strong>
+						<dt>Repeticiones máx. por serie</dt>
+						<dd id="record-repeticiones">—</dd>
 					</div>
 					<div>
-						<span>Series máximas</span>
-						<strong id="record-series">—</strong>
+						<dt>Series máximas</dt>
+						<dd id="record-series">—</dd>
 					</div>
 					<div>
-						<span>Volumen máximo</span>
-						<strong id="record-volumen">—</strong>
+						<dt>Volumen máximo</dt>
+						<dd id="record-volumen">—</dd>
 					</div>
-				</div>
+				</dl>
 			</section>
-
-			<section class="card" id="tarjeta-records-ultima-sesion">
+			<section class="card">
 				<h2>🏆 Récords última sesión</h2>
 
 				<p class="card-text hidden" id="sin-nuevos-records">La última sesión no superó ningún récord anterior.</p>
 
-				<div class="stats">
+				<dl class="stats">
 					<div id="record-ultimo-1pr-epley">
-						<span>Nuevo 1PR (Epley)</span>
-						<strong>—</strong>
+						<dt>Nuevo 1PR (Epley)</dt>
+						<dd>—</dd>
 					</div>
 					<div id="record-ultimo-peso">
-						<span>Mayor peso</span>
-						<strong>—</strong>
+						<dt>Mayor peso</dt>
+						<dd>—</dd>
 					</div>
 					<div id="record-ultimo-repeticiones">
-						<span>Más repeticiones por serie</span>
-						<strong>—</strong>
+						<dt>Más repeticiones por serie</dt>
+						<dd>—</dd>
 					</div>
 					<div id="record-ultimo-series">
-						<span>Más series</span>
-						<strong>—</strong>
+						<dt>Más series</dt>
+						<dd>—</dd>
 					</div>
 					<div id="record-ultimo-volumen">
-						<span>Mayor volumen</span>
-						<strong>—</strong>
+						<dt>Mayor volumen</dt>
+						<dd>—</dd>
 					</div>
-				</div>
+				</dl>
 			</section>
-
-			<section class="card" id="tarjeta-racha">
+			<section class="card">
 				<h2>🔥 Racha</h2>
-				<div class="stats">
+				<dl class="stats">
 					<div>
-						<span>Sesiones con mejora consecutivas</span>
+						<dt>Sesiones con mejora consecutivas</dt>
 						<strong id="racha-sesiones-mejora">—</strong>
 					</div>
 					<div>
-						<span>Semanas consecutivas</span>
+						<dt>Semanas consecutivas</dt>
 						<strong id="racha-semanas">—</strong>
 					</div>
-				</div>
+				</dl>
 			</section>
 		</main>
 	</body>

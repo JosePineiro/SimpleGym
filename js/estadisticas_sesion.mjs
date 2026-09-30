@@ -30,9 +30,9 @@ function formatearFechaCorta(fecha) {
 function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
 	return Number.isFinite(valor)
 		? valor.toLocaleString("es-ES", {
-				maximumFractionDigits: maximoDecimales,
-				minimumFractionDigits: minimoDecimales,
-			})
+			maximumFractionDigits: maximoDecimales,
+			minimumFractionDigits: minimoDecimales,
+		})
 		: "—";
 }
 
@@ -171,7 +171,7 @@ function calcularTendenciaVolumen(realizaciones) {
 	const denominador = numeroRealizaciones * sumaXX - sumaX * sumaX;
 	const pendiente = denominador === 0 ? 0 : (numeroRealizaciones * sumaXY - sumaX * sumaY) / denominador;
 
-	return `${pendiente >= 0 ? "+" : ""}${formatearNumero(pendiente)} kg/sesión`;
+	return `${pendiente >= 0 ? "+" : ""}${formatearNumero(pendiente)} por sesión`;
 }
 
 function calcularRachaSesionesCompletadas(realizaciones) {
@@ -275,11 +275,11 @@ function calcularRecordsAnteriores(realizaciones) {
 	return realizaciones.length > 1
 		? calcularRecordsHistoricos(realizaciones.slice(0, -1))
 		: {
-				numeroEjercicios: 0,
-				numeroSeries: 0,
-				repeticiones: 0,
-				volumen: 0,
-			};
+			numeroEjercicios: 0,
+			numeroSeries: 0,
+			repeticiones: 0,
+			volumen: 0,
+		};
 }
 
 function calcularNuevosRecordsUltimaRealizacion(realizaciones) {
@@ -321,7 +321,7 @@ function mostrarNuevosRecords(nuevosRecords) {
 		{
 			id: "record-ultima-sesion-volumen",
 			valor: nuevosRecords.volumen,
-			formatear: (valor) => `${formatearNumero(valor)} kg`,
+			formatear: (valor) => `${formatearNumero(valor)}`,
 		},
 		{
 			id: "record-ultima-sesion-series",
@@ -347,7 +347,7 @@ function mostrarNuevosRecords(nuevosRecords) {
 
 		if (record.valor !== null) {
 			elemento.classList.remove("hidden");
-			elemento.querySelector("strong").textContent = record.formatear(record.valor);
+			elemento.querySelector("dd").textContent = record.formatear(record.valor);
 			numeroRecordsNuevos++;
 		} else {
 			elemento.classList.add("hidden");
@@ -497,8 +497,6 @@ function crearGraficoVolumen(realizaciones) {
 async function inicializar() {
 	const titulo = document.getElementById("titulo");
 	const subtitulo = document.getElementById("subtitulo");
-	const tarjetaGrafico = document.getElementById("tarjeta-grafico");
-	const tarjetaEstadisticas = document.getElementById("tarjeta-estadisticas");
 
 	try {
 		// Leee los parámetros de la URL para obtener el número de sesión
@@ -515,9 +513,8 @@ async function inicializar() {
 			throw new Error("No hay histórico de la sesión.");
 		}
 
-		subtitulo.textContent = `${realizaciones.length} ${
-			realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"
-		}`;
+		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"
+			}`;
 		crearGraficoVolumen(realizaciones);
 
 		const estadisticas = calcularEstadisticasSesion(realizaciones);
@@ -526,8 +523,7 @@ async function inicializar() {
 		console.error(error);
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el progreso de volumen.";
-		tarjetaGrafico.style.display = "none";
-		tarjetaEstadisticas.style.display = "none";
+		document.getElementById("main-container").style.display = "none";
 	}
 }
 

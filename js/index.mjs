@@ -10,10 +10,10 @@ import {
 Definiciones:
 Semana / ciclo
 └── Sesión
-    └── Ejercicio
-        └── Registro de ejercicio
-            └── Series
-                └── Repeticiones
+	└── Ejercicio
+		└── Registro de ejercicio
+			└── Series
+				└── Repeticiones
 */
 
 function esMismoDia(fecha1, fecha2) {
@@ -269,11 +269,11 @@ async function inicializar() {
 		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const maxNumeroSesion = Math.max(1, ...ejercicios.flatMap((ejercicio) => ejercicio.sesiones));
 		const numeroSesionDeHoy = getSesionActual(maxNumeroSesion, registros);
-		const btnIrSesion = document.getElementById("btnIrSesion");
+		const btnIrSesion = document.getElementById("btn-ir-sesion");
 		btnIrSesion.textContent = `Comenzar sesión ${numeroSesionDeHoy}`;
 		btnIrSesion.href = `sesion.html?numeroSesion=${numeroSesionDeHoy}`;
 
-		const infoSesion = document.getElementById("infoSesion");
+		const infoSesion = document.getElementById("info-sesion");
 		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesionDeHoy);
 		if (numeroEjerciciosPendientes === 0) {
 			infoSesion.textContent = "Todos los ejercicios de hoy completados";
@@ -288,9 +288,9 @@ async function inicializar() {
 
 // ---- Eventos ----
 
-document.getElementById("importarCSV").addEventListener("change", importarCSV);
-document.getElementById("exportarCSV").addEventListener("click", exportarCSV);
-document.getElementById("importarJSON").addEventListener("change", importarJSON);
-document.getElementById("exportarJSON").addEventListener("click", exportarJSON);
+document.getElementById("btn-importar-CSV").addEventListener("change", importarCSV);
+document.getElementById("btn-exportar-CSV").addEventListener("click", exportarCSV);
+document.getElementById("btn-importar-JSON").addEventListener("change", importarJSON);
+document.getElementById("btn-exportar-JSON").addEventListener("click", exportarJSON);
 
 inicializar();

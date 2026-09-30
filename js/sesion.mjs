@@ -96,7 +96,7 @@ async function inicializar() {
 			),
 		);
 
-		document.getElementById("contenedorEjercicios").replaceChildren(...tarjetasEjercicio);
+		document.getElementById("contenedor-ejercicios").replaceChildren(...tarjetasEjercicio);
 	} catch (error) {
 		console.error(error);
 		titulo.textContent = "Error";

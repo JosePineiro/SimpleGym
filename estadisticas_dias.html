@@ -17,9 +17,9 @@
 		<main class="container" id="main-container">
 			<section class="card">
 				<div class="cal-toolbar">
-					<button type="button" class="btn btn-secondary cal-nav" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
+					<button type="button" class="btn btn-secondary cal-nav" id="btn-mes-anterior" aria-label="Mes anterior">‹</button>
 					<h2 class="card-title cal-title" id="cal-titulo">—</h2>
-					<button type="button" class="btn btn-secondary cal-nav" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
+					<button type="button" class="btn btn-secondary cal-nav" id="btn-mes-siguiente" aria-label="Mes siguiente">›</button>
 				</div>
 				<div class="cal-weekdays">
 					<span>L</span>
@@ -43,44 +43,40 @@
 
 			<section class="card">
 				<h2>Resumen del mes</h2>
-				<div class="stats">
+				<dl class="stats">
 					<div>
-						<span>Sin entreno</span>
-						<strong id="descanso"></strong>
+						<dt>Sin entreno</dt>
+						<dd id="descanso"></dd>
 					</div>
 					<div>
-						<span>Parcial</span>
-						<strong id="parcial"></strong>
+						<dt>Parcial</dt>
+						<dd id="parcial"></dd>
 					</div>
 					<div>
-						<span>Completo</span>
-						<strong id="completo"></strong>
+						<dt>Completo</dt>
+						<dd id="completo"></dd>
 					</div>
 					<div>
-						<span>Con progreso</span>
-						<strong id="progreso"></strong>
+						<dt>Con progreso</dt>
+						<dd id="progreso"></dd>
 					</div>
-				</div>
+				</dl>
 			</section>
 
 			<section class="card" id="tarjeta-detalle">
-				<h2 id="detalleTitulo">Detalle del día</h2>
+				<h2 id="detalle-titulo">—</h2>
 				<p class="card-text" id="detalle-texto"></p>
-				<div id="detalleContenido">
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>Ejercicio</th>
-									<th>Peso</th>
-									<th>Reps.</th>
-									<th>1RM</th>
-								</tr>
-							</thead>
-							<tbody id="detalle-filas"></tbody>
-						</table>
-					</div>
-				</div>
+				<table class="table-wrap">
+					<thead>
+						<tr>
+							<th>Ejercicio</th>
+							<th>Peso</th>
+							<th>Reps.</th>
+							<th>1RM</th>
+						</tr>
+					</thead>
+					<tbody id="detalle-filas"></tbody>
+				</table>
 			</section>
 		</main>
 	</body>

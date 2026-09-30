@@ -3,10 +3,10 @@ import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
 /*
 Semana / ciclo
 └── Sesión
-    └── Ejercicio
-        └── Registro de ejercicio
-            └── Serie
-                └── Repetición
+	└── Ejercicio
+		└── Registro de ejercicio
+			└── Serie
+				└── Repetición
 */
 
 const MILISEGUNDOS_DIA = 24 * 60 * 60 * 1000;
@@ -212,7 +212,7 @@ function mostrarNuevosRecords(nuevosRecords) {
 
 		el.classList.toggle("hidden", ocultar);
 		if (!ocultar) {
-			el.querySelector("strong").textContent = formatear ? formatear(valor) : String(valor);
+			el.querySelector("dd").textContent = formatear ? formatear(valor) : String(valor);
 			numeroRecordsNuevos++;
 		}
 	}
@@ -448,11 +448,7 @@ async function inicializar() {
 		console.error(error);
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el histórico.";
-		document.getElementById("tarjeta-grafico").style.display = "none";
-		document.getElementById("tarjeta-estadisticas").style.display = "none";
-		document.getElementById("tarjeta-records-historicos").style.display = "none";
-		document.getElementById("tarjeta-records-ultima-sesion").style.display = "none";
-		document.getElementById("tarjeta-racha").style.display = "none";
+		document.getElementById("main-container").style.display = "none";
 	}
 }
 

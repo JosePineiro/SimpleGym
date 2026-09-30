@@ -1,9 +1,9 @@
 import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
 
 let ejerciciosPorId = new Map();
-let mesActual = new Date();
+let fechaActual = new Date();
 let diaSeleccionado = null; // ISO "YYYY-MM-DD"
-let cacheDias = new Map();
+const cacheDias = new Map();
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -59,9 +59,6 @@ function normalizarFila(r) {
 /* ---------- Cálculo de días ---------- */
 
 function construirCache(historial) {
-	cacheDias = new Map();
-	if (!historial.length) return;
-
 	// Agrupar por fecha ISO.
 	const regsPorFecha = new Map();
 	for (const r of historial) {
@@ -140,8 +137,8 @@ function esMesFuturo(fecha) {
 }
 
 function actualizarNavegacion() {
-	const btn = document.getElementById("btnMesSiguiente");
-	const siguiente = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 1);
+	const btn = document.getElementById("btn-mes-siguiente");
+	const siguiente = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 1);
 	const bloqueado = esMesFuturo(siguiente);
 
 	btn.disabled = bloqueado;
@@ -196,8 +193,8 @@ function renderCalendario(mes) {
 		} else {
 			btn.addEventListener("click", () => {
 				diaSeleccionado = iso;
-				mesActual = parseISO(iso);
-				renderCalendario(mesActual);
+				fechaActual = parseISO(iso);
+				renderCalendario(fechaActual);
 				renderDetalleDia(diaSeleccionado);
 			});
 		}
@@ -253,7 +250,7 @@ function renderDetalleDia(iso) {
 	tarjetaDetalle.hidden = false;
 
 	const date = parseISO(iso);
-	document.getElementById("detalleTitulo").textContent =
+	document.getElementById("detalle-titulo").textContent =
 		`Detalle del ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
 	document.getElementById("detalle-texto").innerHTML =
@@ -271,34 +268,34 @@ function renderDetalleDia(iso) {
 			return `
 				<tr>
 					<td><a href="estadisticas_ejercicio.html?idEjercicio=${encodeURIComponent(r.exId)}">${nombre}</a></td>
-					${getTD(antes.weight, r.weight)}
-					${getTD(antes.reps, r.reps)}
-					${getTD(epley(antes.weight, antes.reps), epley(r.weight, r.reps))}
+					${getTD(antes.weight, r.weight, 1)}
+					${getTD(antes.reps, r.reps, 0)}
+					${getTD(epley(antes.weight, antes.reps), epley(r.weight, r.reps), 1)}
 				</tr>
 			`;
 		})
 		.join("");
 }
 
-const getTD = (anterior, actual) => {
+const getTD = (anterior, actual, decimales) => {
 	const arrow = anterior < actual ? "↑" : anterior > actual ? "↓" : "=";
 	const tipo = anterior < actual ? "up" : anterior > actual ? "down" : "equal";
-	return `<td><span class="progreso-badge progreso-${tipo}">${arrow}</span> ${Math.round(actual)}</td>`;
+	return `<td><span class="progreso-badge progreso-${tipo}">${arrow}</span> ${actual.toFixed(decimales)}</td>`;
 };
 
 /* ---------- Navegación ---------- */
 
 function irMes(delta) {
-	const destino = new Date(mesActual.getFullYear(), mesActual.getMonth() + delta, 1);
+	const destino = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + delta, 1);
 	if (delta > 0 && esMesFuturo(destino)) return;
 
-	mesActual = destino;
+	fechaActual = destino;
 
-	const prefijo = `${mesActual.getFullYear()}-${pad(mesActual.getMonth() + 1)}-`;
+	const prefijo = `${fechaActual.getFullYear()}-${pad(fechaActual.getMonth() + 1)}-`;
 	diaSeleccionado = [...cacheDias.keys()].filter((iso) => iso.startsWith(prefijo)).at(-1) ?? prefijo + "01";
 
-	renderCalendario(mesActual);
-	renderResumenMes(mesActual);
+	renderCalendario(fechaActual);
+	renderResumenMes(fechaActual);
 	renderDetalleDia(diaSeleccionado);
 	actualizarNavegacion();
 }
@@ -324,15 +321,15 @@ async function inicializar() {
 		construirCache(historial);
 
 		diaSeleccionado = historial.at(-1)?.fecha ?? toISO(new Date());
-		mesActual = parseISO(diaSeleccionado);
+		fechaActual = parseISO(diaSeleccionado);
 
-		renderCalendario(mesActual);
-		renderResumenMes(mesActual);
+		renderCalendario(fechaActual);
+		renderResumenMes(fechaActual);
 		renderDetalleDia(diaSeleccionado);
 		actualizarNavegacion();
 
-		document.getElementById("btnMesAnterior").addEventListener("click", () => irMes(-1));
-		document.getElementById("btnMesSiguiente").addEventListener("click", () => irMes(+1));
+		document.getElementById("btn-mes-anterior").addEventListener("click", () => irMes(-1));
+		document.getElementById("btn-mes-siguiente").addEventListener("click", () => irMes(+1));
 	} catch (error) {
 		console.error(error);
 		titulo.textContent = "Error";
