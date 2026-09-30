@@ -160,6 +160,66 @@ function mostrarEjercicioCompletado(elementosDom) {
 }
 
 /* =========================================================
+   Sonido y vibración
+   ========================================================= */
+
+let audioContexto = null;
+
+function reproducirPitido() {
+	try {
+		// Creamos el contexto de audio sólo la primera vez (los navegadores
+		// requieren que se cree tras una interacción del usuario).
+		if (!audioContexto) {
+			audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+		}
+
+		// Reanudamos el contexto por si el navegador lo suspendió.
+		if (audioContexto.state === "suspended") {
+			audioContexto.resume();
+		}
+
+		const ahora = audioContexto.currentTime;
+
+		// Tres pitidos cortos (más audible que uno solo).
+		const pitidos = [0, 0.25, 0.5];
+
+		for (const retardo of pitidos) {
+			const oscilador = audioContexto.createOscillator();
+			const ganancia = audioContexto.createGain();
+
+			oscilador.type = "sine";
+			oscilador.frequency.value = 880; // La 5 (A5), agradable y clara.
+
+			// Envolvente para que no haga "clic" al empezar/terminar.
+			const inicio = ahora + retardo;
+			const fin = inicio + 0.15;
+
+			ganancia.gain.setValueAtTime(0, inicio);
+			ganancia.gain.linearRampToValueAtTime(0.3, inicio + 0.01);
+			ganancia.gain.linearRampToValueAtTime(0, fin);
+
+			oscilador.connect(ganancia);
+			ganancia.connect(audioContexto.destination);
+
+			oscilador.start(inicio);
+			oscilador.stop(fin + 0.02);
+
+			// navigator.vibrate sólo existe en navegadores móviles compatibles
+			// (Chrome Android, Firefox Android, Edge Android, Samsung Internet...).
+			// En iOS Safari NO existe, así que simplemente no hace nada.
+			if (navigator.vibrate) {
+				// Patrón: 3 pulsos de 200 ms separados por 100 ms de silencio.
+				// Coincide con los 3 pitidos para que se sientan sincronizados.
+				navigator.vibrate([200, 100, 200, 100, 200]);
+			}
+		}
+	} catch (error) {
+		// Si falla el audio, no queremos romper el flujo de la app.
+		console.warn("No se pudo reproducir el pitido:", error);
+	}
+}
+
+/* =========================================================
    Descanso
    ========================================================= */
 
@@ -182,6 +242,7 @@ function iniciarDescanso(elementosDom, segundos, estado, objetivos) {
 			btnSerie.disabled = false;
 			estado.inicioSerie = Date.now();
 			mostrarTextoBotonSerie(elementosDom, estado, objetivos);
+			reproducirPitido();
 			return;
 		}
 

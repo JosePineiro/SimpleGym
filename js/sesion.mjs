@@ -26,7 +26,6 @@ function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjercic
 	imagen.alt = ejercicio.nombre;
 	imagen.loading = "lazy";
 	imagen.decoding = "async";
-
 	imagen.addEventListener(
 		"error",
 		() => {
