@@ -41,7 +41,7 @@ function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjercic
 
 	const tarjeta = document.createElement("a");
 	tarjeta.href =
-		`entrenar_ejercicio.html?numeroSesion=${numeroSesion}` +
+		`entrenar-ejercicio.html?numeroSesion=${numeroSesion}` +
 		`&idEjercicio=${ejercicio.id}` +
 		`&totalEjerciciosSesion=${totalEjerciciosSesion}`;
 	tarjeta.className = completado ? "card completado" : "card";

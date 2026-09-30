@@ -11,7 +11,7 @@ const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 function crearTarjetaEjercicio(ejercicio) {
 	const tarjeta = document.createElement("a");
 	tarjeta.className = "card";
-	tarjeta.href = `estadisticas_ejercicio.html?idEjercicio=${encodeURIComponent(ejercicio.id)}`;
+	tarjeta.href = `estadisticas-ejercicio.html?idEjercicio=${encodeURIComponent(ejercicio.id)}`;
 	tarjeta.setAttribute("aria-label", `Ver estadísticas de ${ejercicio.nombre}`);
 
 	const imagen = document.createElement("img");

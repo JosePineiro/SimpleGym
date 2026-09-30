@@ -9,7 +9,7 @@ import { cargarEjercicios } from "./database.mjs";
 function crearTarjetaSesion(numeroSesion) {
 	const tarjeta = document.createElement("a");
 	tarjeta.className = "card";
-	tarjeta.href = `estadisticas_sesion.html?numeroSesion=${encodeURIComponent(numeroSesion)}`;
+	tarjeta.href = `estadisticas-sesion.html?numeroSesion=${encodeURIComponent(numeroSesion)}`;
 	tarjeta.setAttribute("aria-label", `Ver estadísticas de la sesión ${numeroSesion}`);
 
 	const nombreSesion = document.createElement("div");

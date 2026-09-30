@@ -267,7 +267,7 @@ function renderDetalleDia(iso) {
 
 			return `
 				<tr>
-					<td><a href="estadisticas_ejercicio.html?idEjercicio=${encodeURIComponent(r.exId)}">${nombre}</a></td>
+					<td><a href="estadisticas-ejercicio.html?idEjercicio=${encodeURIComponent(r.exId)}">${nombre}</a></td>
 					${getTD(antes.weight, r.weight, 1)}
 					${getTD(antes.reps, r.reps, 0)}
 					${getTD(epley(antes.weight, antes.reps), epley(r.weight, r.reps), 1)}
