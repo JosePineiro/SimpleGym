@@ -1,12 +1,14 @@
 import { cargarRegistrosEjercicio } from "./database.mjs";
+import { formatearFecha, formatearFechaCorta, obtenerParametrosURL } from "./utils.mjs";
 
-// Definiciones:
-// Semana / ciclo
-// └── Sesión
-//     └── Ejercicio
-//         └── Registro de ejercicio
-//             └── Series
-//                 └── Repeticiones
+/*
+Semana / ciclo
+└── Sesión
+	└── Ejercicio
+		└── Registro de ejercicio
+			└── Serie
+				└── Repetición
+*/
 
 const MILISEGUNDOS_DIA = 24 * 60 * 60 * 1000;
 const MILISEGUNDOS_SEMANA = 7 * MILISEGUNDOS_DIA;
@@ -15,18 +17,6 @@ const MILISEGUNDOS_SEMANA = 7 * MILISEGUNDOS_DIA;
 // Formateo
 // ---------------------------------------------------------
 
-function dosDigitos(valor) {
-	return String(valor).padStart(2, "0");
-}
-
-function formatearFecha(fecha) {
-	return `${dosDigitos(fecha.getDate())}/${dosDigitos(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
-}
-
-function formatearFechaCorta(fecha) {
-	return `${dosDigitos(fecha.getDate())}/${dosDigitos(fecha.getMonth() + 1)}/${String(fecha.getFullYear()).slice(-2)}`;
-}
-
 function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
 	return Number.isFinite(valor)
 		? valor.toLocaleString("es-ES", {
@@ -34,6 +24,10 @@ function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
 			minimumFractionDigits: minimoDecimales,
 		})
 		: "—";
+}
+
+function dosDigitos(valor) {
+	return String(valor).padStart(2, "0");
 }
 
 function obtenerClaveFecha(fecha) {
@@ -499,12 +493,7 @@ async function inicializar() {
 	const subtitulo = document.getElementById("subtitulo");
 
 	try {
-		// Leee los parámetros de la URL para obtener el número de sesión
-		const parametros = new URLSearchParams(location.search);
-		const numeroSesion = Number(parametros.get("numeroSesion"));
-		if (!Number.isInteger(numeroSesion) || numeroSesion <= 0) {
-			throw new Error("La URL debe incluir un 'numeroSesion' válido.");
-		}
+		const [numeroSesion] = obtenerParametrosURL({ clave: "numeroSesion", validar: (n) => n > 0 });
 		titulo.textContent = `Sesion ${numeroSesion}`;
 		document.title = `SIMPLEGYM - Sesion ${numeroSesion}`;
 

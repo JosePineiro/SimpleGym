@@ -1,4 +1,5 @@
 import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
+import { formatearFecha, formatearFechaCorta, obtenerParametrosURL } from "./utils.mjs";
 
 /*
 Semana / ciclo
@@ -15,14 +16,6 @@ const MILISEGUNDOS_SEMANA = 7 * MILISEGUNDOS_DIA;
 // ---------------------------------------------------------
 // Utilidades
 // ---------------------------------------------------------
-
-function formatearFecha(fecha) {
-	return Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }).format(fecha);
-}
-
-function formatearFechaCorta(fecha) {
-	return Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" }).format(fecha);
-}
 
 function formatearPeso(peso) {
 	return `${peso.toFixed(1)} kg`;
@@ -415,12 +408,7 @@ async function inicializar() {
 	const subtitulo = document.getElementById("subtitulo");
 
 	try {
-		const parametros = new URLSearchParams(location.search);
-		const idEjercicio = Number(parametros.get("idEjercicio"));
-		if (!Number.isInteger(idEjercicio) || idEjercicio <= 0) {
-			throw new Error("La URL debe incluir un 'idEjercicio' válido.");
-		}
-
+		const [idEjercicio] = obtenerParametrosURL({ clave: "idEjercicio", validar: (n) => n > 0 });
 		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const ejercicio = (Array.isArray(ejercicios) ? ejercicios : []).find((item) => item.id === idEjercicio);
 		if (!ejercicio) {

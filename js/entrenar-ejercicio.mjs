@@ -1,4 +1,5 @@
 import { cargarEjercicios, cargarRegistrosEjercicio, guardarRegistroEjercicio } from "./database.mjs";
+import { obtenerParametrosURL } from "./utils.mjs";
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
@@ -312,23 +313,6 @@ async function guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjer
 	location.href = `sesion.html?numeroSesion=${numeroSesion}`;
 }
 
-/* =========================================================
-   Parámetros de la URL
-   ========================================================= */
-
-function obtenerParametros() {
-	const parametros = new URLSearchParams(location.search);
-	const idEjercicio = Number(parametros.get("idEjercicio"));
-	const numeroSesion = Number(parametros.get("numeroSesion"));
-	const totalEjerciciosSesion = Number(parametros.get("totalEjerciciosSesion"));
-
-	if (!Number.isInteger(idEjercicio) || idEjercicio <= 0) throw new Error("La URL debe incluir un idEjercicio válido.");
-	if (!Number.isInteger(numeroSesion) || numeroSesion <= 0) throw new Error("La URL debe incluir un numeroSesion válido.");
-	if (!Number.isInteger(totalEjerciciosSesion) || totalEjerciciosSesion < 0)
-		throw new Error("La URL debe incluir un totalEjerciciosSesion válido.");
-
-	return { idEjercicio, numeroSesion, totalEjerciciosSesion };
-}
 
 /* =========================================================
    Inicialización
@@ -360,13 +344,17 @@ async function inicializar() {
 	const elementosDom = obtenerElementosDom();
 
 	try {
-		const parametros = obtenerParametros();
+		const [idEjercicio, numeroSesion, totalEjerciciosSesion] = obtenerParametrosURL(
+			{ clave: "idEjercicio", validar: (n) => n > 0 },
+			{ clave: "numeroSesion", validar: (n) => n > 0 },
+			{ clave: "totalEjerciciosSesion", validar: (n) => n >= 0 }
+		);
 
 		// ---------- Salir ----------
-		elementosDom.enlaceSalir.href = `sesion.html?numeroSesion=${parametros.numeroSesion}`;
+		elementosDom.enlaceSalir.href = `sesion.html?numeroSesion=${numeroSesion}`;
 
 		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
-		const ejercicio = obtenerEjercicio(ejercicios, parametros.idEjercicio);
+		const ejercicio = obtenerEjercicio(ejercicios, idEjercicio);
 
 		elementosDom.titulo.textContent = ejercicio.nombre;
 
@@ -396,7 +384,7 @@ async function inicializar() {
 		elementosDom.btnGuardar.addEventListener("click", async () => {
 			elementosDom.btnGuardar.disabled = true;
 			try {
-				await guardarResultado(elementosDom, ejercicio, parametros.numeroSesion, parametros.totalEjerciciosSesion);
+				await guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjerciciosSesion);
 			} catch (error) {
 				elementosDom.btnGuardar.disabled = false;
 				console.error(error);

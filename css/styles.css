@@ -235,6 +235,12 @@ input {
 	overflow-wrap: break-word;
 }
 
+/* unused-css-ignore */
+.completado {
+	opacity: 0.4;
+	filter: grayscale(80%);
+}
+
 /* Tarjeta hero (ejercicio.html) */
 .hero {
 	display: block;

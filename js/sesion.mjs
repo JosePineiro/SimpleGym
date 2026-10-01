@@ -1,4 +1,5 @@
 import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
+import { esMismoDia, obtenerParametrosURL } from "./utils.mjs";
 
 /* =========================================================
    sesión de entrenamiento
@@ -15,10 +16,6 @@ import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
    ========================================================= */
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
-
-function esMismoDia(fecha1, fecha2) {
-	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
-}
 
 function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjerciciosSesion) {
 	const imagen = document.createElement("img");
@@ -59,12 +56,7 @@ async function inicializar() {
 	const subtitulo = document.getElementById("subtitulo");
 
 	try {
-		const parametros = new URLSearchParams(location.search);
-		const numeroSesion = Number(parametros.get("numeroSesion"));
-		if (!(numeroSesion > 0)) {
-			throw new Error("Falta el parámetro 'numeroSesion' o no es válido.");
-		}
-
+		const [numeroSesion] = obtenerParametrosURL({ clave: "numeroSesion", validar: (n) => n > 0 });
 		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
 		const hoy = new Date();
 		const ejerciciosCompletadosHoy = new Set(
@@ -76,13 +68,11 @@ async function inicializar() {
 			.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || a.id - b.id);
 
 		const totalEjerciciosSesion = ejerciciosSesion.length;
+		if (totalEjerciciosSesion === 0) throw new Error("No hay ejercicios para esta sesión");
+
 		const numeroEjerciciosCompletados = ejerciciosSesion.filter((ejercicio) => ejerciciosCompletadosHoy.has(ejercicio.id)).length;
 
 		titulo.textContent = `Sesión ${numeroSesion}`;
-
-		if (totalEjerciciosSesion === 0) {
-			throw new Error("No hay ejercicios para esta sesión");
-		}
 
 		subtitulo.textContent = `${numeroEjerciciosCompletados} de ` + `${totalEjerciciosSesion} ejercicios completados`;
 

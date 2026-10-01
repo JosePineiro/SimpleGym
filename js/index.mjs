@@ -5,6 +5,7 @@ import {
 	guardarEjercicios,
 	guardarRegistroEjercicio,
 } from "./database.mjs";
+import { esMismoDia } from "./utils.mjs";
 
 /*
 Definiciones:
@@ -15,10 +16,6 @@ Semana / ciclo
 			└── Series
 				└── Repeticiones
 */
-
-function esMismoDia(fecha1, fecha2) {
-	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
-}
 
 // ---- Importar / Exportar historial en CSV ----
 
@@ -141,18 +138,15 @@ async function exportarCSV() {
 		}),
 	];
 
-	const blob = new Blob(["\uFEFF" + filas.join("\r\n")], {
-		type: "text/csv;charset=utf-8",
-	});
-
+	const blob = new Blob([`\uFEFF{filas.join("\r\n")`], { type: "text/csv;charset=utf-8", });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
-
 	link.href = url;
 	link.download = "historico.csv";
 	link.click();
 
-	setTimeout(() => URL.revokeObjectURL(url), 100);
+	// libera la memoria (borra la URL) a los 200 ms de iniciar la descarga.
+	setTimeout(() => URL.revokeObjectURL(url), 200);
 }
 
 // ---- Importar / Exportar ejercicios en JSON ----
