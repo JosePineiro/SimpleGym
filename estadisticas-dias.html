@@ -32,15 +32,13 @@
 				</div>
 				<div class="cal-grid" id="cal-grid"></div>
 			</section>
-
 			<section class="card">
 				<ul class="cal-leyenda">
 					<li><span class="cal-swatch cal-day--some" aria-hidden="true"></span> Sesión incompleta</li>
 					<li><span class="cal-swatch cal-day--all" aria-hidden="true"></span> Sesión completa</li>
-					<li><span class="cal-swatch cal-day--best" aria-hidden="true"></span> Sesión completa + progreso (★)</li>
+					<li><span class="cal-swatch cal-day--best" aria-hidden="true"></span> Sesión completa con progreso</li>
 				</ul>
 			</section>
-
 			<section class="card">
 				<h2>Resumen del mes</h2>
 				<dl class="stats">
@@ -49,11 +47,11 @@
 						<dd id="descanso"></dd>
 					</div>
 					<div>
-						<dt>Parcial</dt>
+						<dt>Incompleta</dt>
 						<dd id="parcial"></dd>
 					</div>
 					<div>
-						<dt>Completo</dt>
+						<dt>Completa</dt>
 						<dd id="completo"></dd>
 					</div>
 					<div>
@@ -62,7 +60,6 @@
 					</div>
 				</dl>
 			</section>
-
 			<section class="card" id="tarjeta-detalle">
 				<h2 id="detalle-titulo">—</h2>
 				<p class="card-text" id="detalle-texto"></p>
@@ -70,9 +67,9 @@
 					<thead>
 						<tr>
 							<th>Ejercicio</th>
-							<th>Peso</th>
-							<th>Reps.</th>
-							<th>1RM</th>
+							<th class="numero">Peso</th>
+							<th class="numero">Reps.</th>
+							<th class="numero">1RM</th>
 						</tr>
 					</thead>
 					<tbody id="detalle-filas"></tbody>

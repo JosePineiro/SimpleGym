@@ -33,13 +33,8 @@
 	--font-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 
 	/* Calendario */
-	--day-none: #eff;
-	--day-some: #acf;
-	--day-all: #3a6;
-	--day-best: #fb0;
-	--day-best-text: #430;
 	--day-text: #123;
-	--day-border: #dee;
+	--day-best-text: #430;
 }
 
 /* ---------- Reset básico ---------- */
@@ -414,9 +409,14 @@ table {
 th,
 td {
 	text-align: left;
-	padding: 9px;
+	padding: 9px 3px;
 	border-bottom: 1px solid #eff;
 	white-space: nowrap;
+}
+
+/* unused-css-ignore */
+.numero {
+	text-align: right;
 }
 
 /* =========================================================
@@ -438,27 +438,23 @@ td {
    Calendario (estadisticas-dias.html)
    ========================================================= */
 
-/* Estados → solo definen variables de color */
+/* Estados → mapa de calor en tonos azules (3 dígitos) */
 /* unused-css-ignore */
 .cal-day--none {
-	--cd-bg: var(--day-none);
-	--cd-fg: var(--muted-color);
-	--cd-bd: var(--day-border);
+	--cd-bg: #eef;
+	--cd-fg: #223;
 }
 .cal-day--some {
-	--cd-bg: var(--day-some);
-	--cd-fg: #136;
-	--cd-bd: #8bf;
+	--cd-bg: #ace;
+	--cd-fg: #123;
 }
 .cal-day--all {
-	--cd-bg: var(--day-all);
+	--cd-bg: #37c;
 	--cd-fg: #fff;
-	--cd-bd: #285;
 }
 .cal-day--best {
-	--cd-bg: var(--day-best);
-	--cd-fg: var(--day-best-text);
-	--cd-bd: #da0;
+	--cd-bg: #136;
+	--cd-fg: #fff;
 }
 
 /* Base compartida día / muestra de leyenda */
@@ -467,7 +463,7 @@ td {
 .cal-swatch {
 	background: var(--cd-bg, #fff);
 	color: var(--cd-fg, var(--day-text));
-	border: 1px solid var(--cd-bd, var(--day-border));
+	border: 1px solid #eee;
 }
 
 /* Barra de navegación del mes */
@@ -538,15 +534,7 @@ td {
 	pointer-events: none;
 	cursor: default;
 }
-.cal-day--best::after {
-	content: "★";
-	position: absolute;
-	top: 2px;
-	right: 4px;
-	font-size: 0.65rem;
-	line-height: 1;
-	color: #850;
-}
+
 /* unused-css-ignore */
 .cal-day--hoy {
 	outline: 2px dashed var(--primary-color);

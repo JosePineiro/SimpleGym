@@ -280,7 +280,7 @@ function renderDetalleDia(iso) {
 const getTD = (anterior, actual, decimales) => {
 	const arrow = anterior < actual ? "↑" : anterior > actual ? "↓" : "=";
 	const tipo = anterior < actual ? "up" : anterior > actual ? "down" : "equal";
-	return `<td><span class="progreso-badge progreso-${tipo}">${arrow}</span> ${actual.toFixed(decimales)}</td>`;
+	return `<td class="numero">${actual.toFixed(decimales)}<span class="progreso-badge progreso-${tipo}">${arrow}</span></td>`;
 };
 
 /* ---------- Navegación ---------- */
