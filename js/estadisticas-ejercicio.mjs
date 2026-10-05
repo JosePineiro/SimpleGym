@@ -118,7 +118,7 @@ function mostrarEstadisticasEjercicio(puntosEjercicio) {
 	const elementoTendencia = document.getElementById("tendencia-ejercicio");
 
 	document.getElementById("peso-estimado-actual").textContent = formatearPeso(pesoEstimadoActual);
-	document.getElementById("porcentaje-mejor-1pr").textContent = `${(pesoEstimadoActual / mejorPesoEstimado) * 100}%`;
+	document.getElementById("porcentaje-mejor-1pr").textContent = `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100)}%`;
 	document.getElementById("frecuencia-media").textContent = calcularFrecuenciaMedia(puntosEjercicio);
 	document.getElementById("volumen-total").textContent = calcularVolumenTotal(puntosEjercicio);
 	document.getElementById("repeticiones-totales").textContent = calcularRepeticionesTotales(puntosEjercicio);
