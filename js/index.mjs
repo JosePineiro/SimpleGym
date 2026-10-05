@@ -138,7 +138,7 @@ async function exportarCSV() {
 		}),
 	];
 
-	const blob = new Blob([`\uFEFF{filas.join("\r\n")`], { type: "text/csv;charset=utf-8", });
+	const blob = new Blob([`\uFEFF${filas.join("\r\n")}`], { type: "text/csv;charset=utf-8", });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
