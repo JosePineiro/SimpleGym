@@ -330,11 +330,12 @@ async function inicializar() {
 
 		document.getElementById("btn-mes-anterior").addEventListener("click", () => irMes(-1));
 		document.getElementById("btn-mes-siguiente").addEventListener("click", () => irMes(+1));
+		document.getElementById("main-container").hidden = false;
 	} catch (error) {
-		console.error(error);
+		document.getElementById("main-container").hidden = true;
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el historial.";
-		document.getElementById("main-container").style.display = "none";
+		console.error(error);
 	}
 }
 

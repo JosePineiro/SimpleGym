@@ -494,25 +494,25 @@ async function inicializar() {
 
 	try {
 		const [numeroSesion] = obtenerParametrosURL({ clave: "numeroSesion", validar: (n) => n > 0 });
-		titulo.textContent = `Sesion ${numeroSesion}`;
-		document.title = `SIMPLEGYM - Sesion ${numeroSesion}`;
 
 		const realizaciones = await obtenerRealizacionesSesion(numeroSesion);
 		if (!realizaciones.length) {
 			throw new Error("No hay histórico de la sesión.");
 		}
 
-		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"
-			}`;
+		titulo.textContent = `Sesion ${numeroSesion}`;
+		document.title = `SIMPLEGYM - Sesion ${numeroSesion}`;
+		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"}`;
 		crearGraficoVolumen(realizaciones);
 
 		const estadisticas = calcularEstadisticasSesion(realizaciones);
 		mostrarEstadisticas(estadisticas);
+		document.getElementById("main-container").hidden = false;
 	} catch (error) {
-		console.error(error);
+		document.getElementById("main-container").hidden = true;
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el progreso de volumen.";
-		document.getElementById("main-container").style.display = "none";
+		console.error(error);
 	}
 }
 
