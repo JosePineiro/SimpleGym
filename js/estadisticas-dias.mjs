@@ -1,9 +1,9 @@
-import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
+import { cargarEjercicios, cargarHistorial } from "./database.mjs";
 
 let ejerciciosPorId = new Map();
 let fechaActual = new Date();
-let diaSeleccionado = null; // ISO "YYYY-MM-DD"
-const cacheDias = new Map();
+let diaSeleccionado = null; // timestamp (medianoche local)
+const cacheDias = new Map(); // clave: timestamp, valor: { estado, regs, sesion, detalles }
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -22,105 +22,78 @@ function epley(peso, repeticiones) {
 /* ---------- Utilidades de fecha ---------- */
 
 const pad = (n) => String(n).padStart(2, "0");
-const toISO = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
-const parseISO = (iso) => {
-	const [y, m, d] = iso.split("-").map(Number);
-	return new Date(y, m - 1, d);
-};
-
-/* ---------- Historial ---------- */
-
-/**
- * Adapta un registro de IndexedDB al formato interno.
- *
- * Formato actual de la BD (definido en database.mjs / importador del CSV):
- *   { idEjercicio, fecha, peso, repeticiones, numeroSeries, numeroSesion, totalEjercicios }
- */
-function normalizarFila(r) {
-	if (!r || !(r.fecha instanceof Date) || Number.isNaN(r.fecha.getTime())) {
-		return null;
-	}
-
-	const exId = r.idEjercicio ?? r.exId;
-	if (exId == null) return null;
-
-	return {
-		fecha: toISO(r.fecha),
-		exId: Number(exId),
-		weight: r.peso,
-		reps: r.repeticiones,
-		sesion: r.numeroSesion ?? r.sesion ?? r.session ?? null,
-		totals: r.totalEjercicios ?? r.total_ejercicios ?? r.totals ?? null,
-		sets: r.numeroSeries ?? r.series ?? r.sets,
-	};
-}
+// Las fechas del historial ya son Date a medianoche LOCAL (ver diasAFecha en
+// database.mjs). Su getTime() coincide con el de new Date(y, m, d) para el
+// mismo día, así que lo usamos como clave sin ninguna conversión de formato.
+const claveDe = (year, month, day) => new Date(year, month, day).getTime();
+const claveHoy = () => new Date().setHours(0, 0, 0, 0);
 
 /* ---------- Cálculo de días ---------- */
 
 function construirCache(historial) {
-	// Agrupar por fecha ISO.
-	const regsPorFecha = new Map();
-	for (const r of historial) {
-		if (!regsPorFecha.has(r.fecha)) regsPorFecha.set(r.fecha, []);
-		regsPorFecha.get(r.fecha).push(r);
-	}
+	cacheDias.clear();
 
-	// Último registro por ejercicio (para detectar progreso).
-	const ultimoPorEj = new Map();
-	const fechas = [...regsPorFecha.keys()].sort();
+	const ultimoPorEj = new Map(); // último mejor registro por ejercicio
 
-	for (const iso of fechas) {
-		const regs = regsPorFecha.get(iso);
+	let i = 0;
+	while (i < historial.length) {
+		// Agrupar los registros consecutivos que comparten fecha.
+		const clave = +historial[i].fecha;
+		const regs = [];
 
-		/* 1) Mejor serie del día por ejercicio */
+		while (i < historial.length && +historial[i].fecha === clave) {
+			regs.push(historial[i]);
+			i++;
+		}
+
+		/* 1) Mejor serie del día por ejercicio (mayor 1RM estimado). */
 		const mejorPorEj = new Map();
 		for (const r of regs) {
-			const prev = mejorPorEj.get(r.exId);
-			if (!prev || r.weight > prev.weight || (r.weight === prev.weight && r.reps > prev.reps)) {
-				mejorPorEj.set(r.exId, r);
+			const prev = mejorPorEj.get(r.idEjercicio);
+			if (!prev || epley(r.peso, r.repeticiones) > epley(prev.peso, prev.repeticiones)) {
+				mejorPorEj.set(r.idEjercicio, r);
 			}
 		}
 
-		/* 2) Detectar mejoras y descensos */
+		/* 2) Detectar mejoras y descensos. Solo cuenta como "progreso" un "up". */
 		const detalles = new Map();
+		let hayProgreso = false;
+
 		for (const [exId, r] of mejorPorEj) {
 			const ant = ultimoPorEj.get(exId);
 			if (!ant) continue;
 
-			const actual = epley(r.weight, r.reps);
-			const anterior = epley(ant.weight, ant.reps);
+			const actual = epley(r.peso, r.repeticiones);
+			const anterior = epley(ant.peso, ant.repeticiones);
 			const tipo = actual > anterior ? "up" : actual < anterior ? "down" : null;
 
 			if (tipo) {
-				detalles.set(exId, {
-					antes: { ...ant },
-					ahora: { weight: r.weight, reps: r.reps },
-					tipo,
-				});
+				detalles.set(exId, { antes: ant, ahora: r, tipo });
+				if (tipo === "up") hayProgreso = true;
 			}
 		}
 
 		/* 3) Sesión y completitud */
-		const { sesion, totals } = regs[0];
-		const ejerciciosRealizados = new Set(regs.map((r) => r.exId)).size;
-		const sesionCompleta = totals != null ? ejerciciosRealizados >= totals : true;
+		const { numeroSesion, totalEjercicios } = regs[0];
+		const ejerciciosRealizados = new Set(regs.map((r) => r.idEjercicio)).size;
+		const sesionCompleta = ejerciciosRealizados >= totalEjercicios;
 
 		/* 4) Estado del día */
-		const estado = !sesionCompleta ? "some" : detalles.size ? "best" : "all";
+		const estado = !sesionCompleta ? "some" : hayProgreso ? "best" : "all";
 
-		cacheDias.set(iso, { estado, regs, sesion, detalles });
+		cacheDias.set(clave, { estado, regs, sesion: numeroSesion, detalles });
 
 		/* 5) Actualizar últimos valores */
 		for (const [exId, r] of mejorPorEj) {
-			ultimoPorEj.set(exId, { weight: r.weight, reps: r.reps });
+			ultimoPorEj.set(exId, r);
 		}
 	}
 }
 
-function infoDia(iso) {
+function infoDia(clave) {
 	return (
-		cacheDias.get(iso) || {
+		cacheDias.get(clave) || {
 			estado: "none",
 			regs: [],
 			sesion: null,
@@ -133,7 +106,10 @@ function infoDia(iso) {
 
 function esMesFuturo(fecha) {
 	const hoy = new Date();
-	return fecha.getFullYear() > hoy.getFullYear() || (fecha.getFullYear() === hoy.getFullYear() && fecha.getMonth() > hoy.getMonth());
+	return (
+		fecha.getFullYear() > hoy.getFullYear() ||
+		(fecha.getFullYear() === hoy.getFullYear() && fecha.getMonth() > hoy.getMonth())
+	);
 }
 
 function actualizarNavegacion() {
@@ -163,7 +139,7 @@ function renderCalendario(mes) {
 	if (offset < 0) offset = 6;
 
 	const diasEnMes = new Date(y, m + 1, 0).getDate();
-	const hoy = toISO(new Date());
+	const hoy = claveHoy();
 
 	for (let i = 0; i < offset; i++) {
 		const c = document.createElement("div");
@@ -172,28 +148,28 @@ function renderCalendario(mes) {
 	}
 
 	for (let d = 1; d <= diasEnMes; d++) {
-		const iso = toISO(new Date(y, m, d));
-		const { estado } = infoDia(iso);
+		const clave = claveDe(y, m, d);
+		const { estado } = infoDia(clave);
 
 		const btn = document.createElement("button");
 		btn.type = "button";
 		btn.className = `cal-day cal-day--${estado}`;
 
-		if (iso === hoy) btn.classList.add("cal-day--hoy");
-		if (iso === diaSeleccionado) btn.classList.add("cal-day--sel");
+		if (clave === hoy) btn.classList.add("cal-day--hoy");
+		if (clave === diaSeleccionado) btn.classList.add("cal-day--sel");
 
 		btn.textContent = d;
-		btn.dataset.fecha = iso;
+		btn.dataset.clave = clave;
 		btn.setAttribute("aria-label", `${d} de ${MESES[m]} de ${y}: ${ETIQUETA_ESTADO[estado]}`);
 
-		if (iso > hoy) {
+		if (clave > hoy) {
 			btn.disabled = true;
 			btn.classList.add("btn-disabled");
 			btn.setAttribute("aria-disabled", "true");
 		} else {
 			btn.addEventListener("click", () => {
-				diaSeleccionado = iso;
-				fechaActual = parseISO(iso);
+				diaSeleccionado = clave;
+				fechaActual = new Date(y, m, d);
 				renderCalendario(fechaActual);
 				renderDetalleDia(diaSeleccionado);
 			});
@@ -218,15 +194,15 @@ function renderResumenMes(mes) {
 	const year = mes.getFullYear();
 	const month = mes.getMonth();
 	const diasEnMes = new Date(year, month + 1, 0).getDate();
-	const hoy = toISO(new Date());
+	const hoy = claveHoy();
 
 	const cuenta = { none: 0, some: 0, all: 0, best: 0 };
 
 	for (let d = 1; d <= diasEnMes; d++) {
-		const iso = toISO(new Date(year, month, d));
-		const est = infoDia(iso).estado;
+		const clave = claveDe(year, month, d);
+		const est = infoDia(clave).estado;
 
-		if (iso > hoy && est === "none") continue;
+		if (clave > hoy && est === "none") continue;
 
 		cuenta[est]++;
 	}
@@ -239,8 +215,8 @@ function renderResumenMes(mes) {
 
 /* ---------- Detalle del día ---------- */
 
-function renderDetalleDia(iso) {
-	const { estado, regs, sesion, detalles } = infoDia(iso);
+function renderDetalleDia(clave) {
+	const { estado, regs, sesion, detalles } = infoDia(clave);
 	const tarjetaDetalle = document.getElementById("tarjeta-detalle");
 
 	if (estado === "none") {
@@ -249,7 +225,7 @@ function renderDetalleDia(iso) {
 	}
 	tarjetaDetalle.hidden = false;
 
-	const date = parseISO(iso);
+	const date = new Date(clave);
 	document.getElementById("detalle-titulo").textContent =
 		`Detalle del ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
@@ -258,19 +234,18 @@ function renderDetalleDia(iso) {
 
 	document.getElementById("detalle-filas").innerHTML = regs
 		.map((r) => {
-			const nombre = ejerciciosPorId.get(Number(r.exId)) ?? String(r.exId);
+			const nombre = ejerciciosPorId.get(Number(r.idEjercicio)) ?? String(r.idEjercicio);
 
-			// Si no hay entrada en `detalles`, usamos los valores actuales
-			// como "antes" para que se muestre "=" en lugar de una flecha falsa.
-			const det = detalles.get(r.exId);
-			const antes = det?.antes ?? { weight: r.weight, reps: r.reps };
+			// Si no hay entrada en `detalles`, usamos el propio registro como "antes"
+			// para que se muestre "=" en lugar de una flecha falsa.
+			const antes = detalles.get(r.idEjercicio)?.antes ?? r;
 
 			return `
 				<tr>
-					<td><a href="estadisticas-ejercicio.html?idEjercicio=${encodeURIComponent(r.exId)}">${nombre}</a></td>
-					${getTD(antes.weight, r.weight, 1)}
-					${getTD(antes.reps, r.reps, 0)}
-					${getTD(epley(antes.weight, antes.reps), epley(r.weight, r.reps), 1)}
+					<td><a href="estadisticas-ejercicio.html?idEjercicio=${encodeURIComponent(r.idEjercicio)}">${nombre}</a></td>
+					${getTD(antes.peso, r.peso, 1)}
+					${getTD(antes.repeticiones, r.repeticiones, 0)}
+					${getTD(epley(antes.peso, antes.repeticiones), epley(r.peso, r.repeticiones), 1)}
 				</tr>
 			`;
 		})
@@ -291,8 +266,13 @@ function irMes(delta) {
 
 	fechaActual = destino;
 
-	const prefijo = `${fechaActual.getFullYear()}-${pad(fechaActual.getMonth() + 1)}-`;
-	diaSeleccionado = [...cacheDias.keys()].filter((iso) => iso.startsWith(prefijo)).at(-1) ?? prefijo + "01";
+	const y = fechaActual.getFullYear();
+	const m = fechaActual.getMonth();
+	const inicioMes = claveDe(y, m, 1);
+	const inicioSig = claveDe(y, m + 1, 1);
+
+	const clavesDelMes = [...cacheDias.keys()].filter((c) => c >= inicioMes && c < inicioSig).sort((a, b) => a - b);
+	diaSeleccionado = clavesDelMes.at(-1) ?? inicioMes;
 
 	renderCalendario(fechaActual);
 	renderResumenMes(fechaActual);
@@ -304,24 +284,16 @@ function irMes(delta) {
 
 async function inicializar() {
 	try {
-		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
-		if (registrosEjercicio.length === 0) {
+		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
+		if (historial.length === 0) {
 			throw new Error(`No hay historial de entrenamiento`);
 		}
 
-		ejerciciosPorId = new Map(
-			(Array.isArray(ejercicios) ? ejercicios : []).filter((e) => e.id != null).map((e) => [Number(e.id), e.nombre]),
-		);
+		ejerciciosPorId = new Map(ejercicios.map((e) => [e.id, e.nombre]));
+		construirCache(Array.isArray(historial) ? historial : []);
 
-		const historial = (Array.isArray(registrosEjercicio) ? registrosEjercicio : [])
-			.map(normalizarFila)
-			.filter(Boolean)
-			.sort((a, b) => a.fecha.localeCompare(b.fecha));
-
-		construirCache(historial);
-
-		diaSeleccionado = historial.at(-1)?.fecha ?? toISO(new Date());
-		fechaActual = parseISO(diaSeleccionado);
+		diaSeleccionado = [...cacheDias.keys()].sort((a, b) => a - b).at(-1);
+		fechaActual = new Date(diaSeleccionado);
 
 		renderCalendario(fechaActual);
 		renderResumenMes(fechaActual);
@@ -333,8 +305,8 @@ async function inicializar() {
 		document.getElementById("main-container").hidden = false;
 	} catch (error) {
 		document.getElementById("main-container").hidden = true;
-		titulo.textContent = "Error";
-		subtitulo.textContent = error.message || "No se pudo cargar el historial.";
+		document.getElementById("titulo").textContent = "Error";
+		document.getElementById("subtitulo").textContent = error.message || "No se pudo cargar el historial.";
 		console.error(error);
 	}
 }

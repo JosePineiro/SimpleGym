@@ -60,9 +60,9 @@ async function inicializar() {
 
 		contenedorSesiones.appendChild(fragmento);
 	} catch (error) {
-		console.error(error);
 		document.getElementById("titulo").textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudieron cargar las sesiones.";
+		console.error(error);
 	}
 }
 

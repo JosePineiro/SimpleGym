@@ -1,9 +1,10 @@
 import {
-	borrarRegistrosEjercicio,
+	alCambiarSesion,
 	cargarEjercicios,
-	cargarRegistrosEjercicio,
+	cargarHistorial,
 	guardarEjercicios,
-	guardarRegistroEjercicio,
+	guardarHistorial,
+	iniciarSesion,
 } from "./database.mjs";
 import { esMismoDia } from "./utils.mjs";
 
@@ -45,7 +46,8 @@ function parseCSV(text) {
 			continue;
 		}
 
-		const [idEjercicioTexto, numeroSesionTexto, totalEjerciciosTexto, fechaTexto, numeroSeriesTexto, pesoTexto, repeticionesTexto] = partes;
+		const [idEjercicioTexto, numeroSesionTexto, totalEjerciciosTexto, fechaTexto, numeroSeriesTexto, pesoTexto, repeticionesTexto] =
+			partes;
 		const idEjercicio = Number(idEjercicioTexto);
 		const numeroSesion = Number(numeroSesionTexto);
 		const totalEjercicios = Number(totalEjerciciosTexto);
@@ -93,11 +95,7 @@ async function importarCSV(event) {
 			throw new Error("El CSV no contiene filas válidas.");
 		}
 
-		await borrarRegistrosEjercicio();
-
-		for (const registro of registros) {
-			await guardarRegistroEjercicio(registro);
-		}
+		await guardarHistorial(registros);
 
 		alert(`${registros.length} registros de ejercicio importados${omitidos ? `, ${omitidos} omitidos.` : "."}`);
 
@@ -111,7 +109,7 @@ async function importarCSV(event) {
 }
 
 async function exportarCSV() {
-	const registros = await cargarRegistrosEjercicio();
+	const registros = await cargarHistorial();
 
 	if (registros.length === 0) {
 		alert("No hay datos en el historial para exportar.");
@@ -138,11 +136,11 @@ async function exportarCSV() {
 		}),
 	];
 
-	const blob = new Blob([`\uFEFF${filas.join("\r\n")}`], { type: "text/csv;charset=utf-8", });
+	const blob = new Blob([`\uFEFF${filas.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
-	link.download = "historico.csv";
+	link.download = "Historial.csv";
 	link.click();
 
 	// libera la memoria (borra la URL) a los 200 ms de iniciar la descarga.
@@ -159,7 +157,6 @@ async function importarJSON(event) {
 		const text = await file.text();
 
 		let ejercicios;
-
 		try {
 			ejercicios = JSON.parse(text);
 		} catch {
@@ -191,19 +188,11 @@ async function importarJSON(event) {
 
 		if (indiceInvalido !== -1) {
 			const ejercicio = ejercicios[indiceInvalido];
-			const id = ejercicio && typeof ejercicio.id !== "undefined"
-				? ejercicio.id
-				: `(posición ${indiceInvalido + 1})`;
-			throw new Error(
-				`El JSON no tiene el formato esperado. Ejercicio inválido con id: ${id}.`,
-			);
+			const id = ejercicio && typeof ejercicio.id !== "undefined" ? ejercicio.id : `(posición ${indiceInvalido + 1})`;
+			throw new Error(`El JSON no tiene el formato esperado. Ejercicio inválido con id: ${id}.`);
 		}
 
-		const blob = new Blob([text], {
-			type: "application/json",
-		});
-
-		await guardarEjercicios(blob);
+		await guardarEjercicios(ejercicios);
 		await inicializar();
 
 		alert(`${ejercicios.length} ejercicios importados correctamente.`);
@@ -214,6 +203,7 @@ async function importarJSON(event) {
 		event.target.value = "";
 	}
 }
+
 async function exportarJSON() {
 	try {
 		const ejercicios = await cargarEjercicios();
@@ -260,15 +250,15 @@ function getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesion) {
 
 async function inicializar() {
 	try {
-		const [ejercicios, registros] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
+		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
 		const maxNumeroSesion = Math.max(1, ...ejercicios.flatMap((ejercicio) => ejercicio.sesiones));
-		const numeroSesionDeHoy = getSesionActual(maxNumeroSesion, registros);
+		const numeroSesionDeHoy = getSesionActual(maxNumeroSesion, historial);
 		const btnIrSesion = document.getElementById("btn-ir-sesion");
 		btnIrSesion.textContent = `Comenzar sesión ${numeroSesionDeHoy}`;
 		btnIrSesion.href = `sesion.html?numeroSesion=${numeroSesionDeHoy}`;
 
 		const infoSesion = document.getElementById("info-sesion");
-		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesionDeHoy);
+		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, historial, numeroSesionDeHoy);
 		if (numeroEjerciciosPendientes === 0) {
 			infoSesion.textContent = "Todos los ejercicios de hoy completados";
 		} else {
@@ -280,11 +270,28 @@ async function inicializar() {
 	}
 }
 
+// ---- Sesión y pantalla principal ----
+async function alCambiarEstadoSesion(usuario) {
+	const validado = Boolean(usuario);
+
+	// Sin validación: se oculta la pantalla principal y se muestra la de validación.
+	document.getElementById("main-section").hidden = !validado;
+	document.getElementById("validation-section").hidden = validado;
+
+	// Abortamos la inicialización hasta que haya sesión vigente.
+	if (!validado) return;
+
+	// Sesión válida: (re)tomamos la inicialización.
+	await inicializar();
+}
+
 // ---- Eventos ----
 
 document.getElementById("btn-importar-CSV").addEventListener("change", importarCSV);
 document.getElementById("btn-exportar-CSV").addEventListener("click", exportarCSV);
 document.getElementById("btn-importar-JSON").addEventListener("change", importarJSON);
 document.getElementById("btn-exportar-JSON").addEventListener("click", exportarJSON);
+document.getElementById("btn-validar-google").addEventListener("click", () => iniciarSesion("google"));
+document.getElementById("btn-validar-microsoft").addEventListener("click", () => iniciarSesion("microsoft"));
 
-inicializar();
+alCambiarSesion(alCambiarEstadoSesion);

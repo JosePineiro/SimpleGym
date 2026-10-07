@@ -42,7 +42,7 @@ async function inicializar() {
 	const contenedorEjercicios = document.getElementById("contenedor-ejercicios");
 
 	try {
-		const ejercicios = [...(await cargarEjercicios())].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+		const ejercicios = (await cargarEjercicios()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 		if (ejercicios.length === 0) {
 			throw new Error("No hay ejercicios registrados.");
 		}
@@ -51,9 +51,9 @@ async function inicializar() {
 
 		contenedorEjercicios.replaceChildren(...ejercicios.map(crearTarjetaEjercicio));
 	} catch (error) {
-		console.error(error);
 		document.getElementById("titulo").textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudieron cargar los ejercicios.";
+		console.error(error);
 	}
 }
 

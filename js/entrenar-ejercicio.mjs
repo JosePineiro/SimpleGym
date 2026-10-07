@@ -1,4 +1,4 @@
-import { cargarEjercicios, cargarRegistrosEjercicio, guardarRegistroEjercicio } from "./database.mjs";
+import { cargarEjercicios, cargarHistorial, guardarHistorial } from "./database.mjs";
 import { obtenerParametrosURL } from "./utils.mjs";
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
@@ -89,11 +89,11 @@ function mostrarEjercicio(elementosDom, ejercicio) {
    Histórico y objetivos
    ========================================================= */
 
-function obtenerUltimoRegistro(registrosEjercicio, idEjercicio) {
-	return registrosEjercicio.reduce((ultimo, registro) => {
-		if (registro.idEjercicio !== idEjercicio) return ultimo;
-		return !ultimo || registro.fecha > ultimo.fecha ? registro : ultimo;
-	}, null);
+function obtenerUltimoRegistro(historial, idEjercicio) {
+	// El histórico está ordenado por fecha ascendente, así que el último registro
+	// coincidente es el más reciente (aunque haya varios con la misma fecha, que es
+	// lo habitual porque la fecha solo guarda el día).
+	return historial.findLast((r) => r.idEjercicio === idEjercicio) ?? null;
 }
 
 function calcularObjetivos(ejercicio, ultimoRegistro) {
@@ -128,22 +128,40 @@ function calcularObjetivos(ejercicio, ultimoRegistro) {
 }
 
 /* =========================================================
+   Fase actual (aproximación o trabajo)
+   ========================================================= */
+
+function obtenerFase(estado, objetivos, ejercicio) {
+	const aprox = objetivos.seriesDeAproximacion[estado.numeroSeriesAproximacionTerminadas];
+
+	return aprox
+		? {
+			esAproximacion: true,
+			peso: aprox.peso,
+			repeticiones: aprox.repeticiones,
+			descanso: aprox.descanso,
+		}
+		: {
+			esAproximacion: false,
+			peso: objetivos.pesoObjetivo,
+			repeticiones: objetivos.repeticionesObjetivo,
+			descanso: ejercicio.descanso,
+		};
+}
+
+/* =========================================================
    Interfaz de la serie
    ========================================================= */
 
 // Muestra las repeticiones y el peso objetivo de la serie que toca a continuación.
-function mostrarObjetivoSerie(elementosDom, estado, objetivos) {
-	const serieAproximacion = objetivos.seriesDeAproximacion[estado.numeroSeriesAproximacionTerminadas];
-
-	elementosDom.repeticionesObjetivo.textContent = serieAproximacion?.repeticiones ?? objetivos.repeticionesObjetivo;
-	elementosDom.pesoObjetivo.textContent = `${serieAproximacion?.peso ?? objetivos.pesoObjetivo}`;
+function mostrarObjetivoSerie(elementosDom, fase) {
+	elementosDom.repeticionesObjetivo.textContent = fase.repeticiones;
+	elementosDom.pesoObjetivo.textContent = fase.peso;
 }
 
 // Restaura el texto del botón de la serie (al terminar el descanso).
-function mostrarTextoBotonSerie(elementosDom, estado, objetivos) {
-	const serieAproximacion = objetivos.seriesDeAproximacion[estado.numeroSeriesAproximacionTerminadas];
-
-	elementosDom.btnSerie.textContent = serieAproximacion
+function mostrarTextoBotonSerie(elementosDom, estado, fase) {
+	elementosDom.btnSerie.textContent = fase.esAproximacion
 		? `Terminé la serie de aproximación ${estado.numeroSeriesAproximacionTerminadas + 1}`
 		: `Terminé la serie ${estado.numeroSeriesTrabajoTerminadas + 1}`;
 }
@@ -155,9 +173,8 @@ function mostrarTextoBotonSerie(elementosDom, estado, objetivos) {
 function mostrarEjercicioCompletado(elementosDom) {
 	const { btnSerie, tarjetaFinalizar } = elementosDom;
 	btnSerie.disabled = true;
-	btnSerie.classList.add("hidden");
-
-	tarjetaFinalizar.classList.remove("hidden");
+	btnSerie.hidden = true;
+	tarjetaFinalizar.hidden = false;
 }
 
 /* =========================================================
@@ -204,15 +221,15 @@ function reproducirPitido() {
 
 			oscilador.start(inicio);
 			oscilador.stop(fin + 0.02);
+		}
 
-			// navigator.vibrate sólo existe en navegadores móviles compatibles
-			// (Chrome Android, Firefox Android, Edge Android, Samsung Internet...).
-			// En iOS Safari NO existe, así que simplemente no hace nada.
-			if (navigator.vibrate) {
-				// Patrón: 3 pulsos de 200 ms separados por 100 ms de silencio.
-				// Coincide con los 3 pitidos para que se sientan sincronizados.
-				navigator.vibrate([200, 100, 200, 100, 200]);
-			}
+		// navigator.vibrate sólo existe en navegadores móviles compatibles
+		// (Chrome Android, Firefox Android, Edge Android, Samsung Internet...).
+		// En iOS Safari NO existe, así que simplemente no hace nada.
+		if (navigator.vibrate) {
+			// Patrón: 3 pulsos de 200 ms separados por 100 ms de silencio.
+			// Coincide con los 3 pitidos para que se sientan sincronizados.
+			navigator.vibrate([200, 100, 200, 100, 200]);
 		}
 	} catch (error) {
 		// Si falla el audio, no queremos romper el flujo de la app.
@@ -224,33 +241,26 @@ function reproducirPitido() {
    Descanso
    ========================================================= */
 
-function iniciarDescanso(elementosDom, segundos, estado, objetivos) {
+function iniciarDescanso(elementosDom, segundos, estado, objetivos, ejercicio) {
 	const { btnSerie } = elementosDom;
 	const finDescanso = Date.now() + segundos * 1000;
 
 	btnSerie.classList.add("btn-disabled");
 	btnSerie.disabled = true;
 
-	function actualizar() {
-		const segundosRestantes = Math.max(0, Math.ceil((finDescanso - Date.now()) / 1000));
-		const minutos = Math.floor(segundosRestantes / 60);
-		const segundos = segundosRestantes % 60;
+	const intervalo = setInterval(() => {
+		const restantes = Math.max(0, Math.ceil((finDescanso - Date.now()) / 1000));
+		btnSerie.textContent = `${String(Math.floor(restantes / 60)).padStart(2, "0")}:${String(restantes % 60).padStart(2, "0")}`;
 
-		btnSerie.textContent = `${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`;
-
-		if (segundosRestantes === 0) {
+		if (restantes === 0) {
+			clearInterval(intervalo);
 			btnSerie.classList.remove("btn-disabled");
 			btnSerie.disabled = false;
 			estado.inicioSerie = Date.now();
-			mostrarTextoBotonSerie(elementosDom, estado, objetivos);
+			mostrarTextoBotonSerie(elementosDom, estado, obtenerFase(estado, objetivos, ejercicio));
 			reproducirPitido();
-			return;
 		}
-
-		setTimeout(actualizar, 200);
-	}
-
-	actualizar();
+	}, 200);
 }
 
 /* =========================================================
@@ -258,40 +268,39 @@ function iniciarDescanso(elementosDom, segundos, estado, objetivos) {
    ========================================================= */
 
 function finalizarSerie(elementosDom, ejercicio, estado, objetivos) {
-	const serieAproximacion = objetivos.seriesDeAproximacion[estado.numeroSeriesAproximacionTerminadas];
-	const repeticiones = serieAproximacion?.repeticiones ?? objetivos.repeticionesObjetivo;
+	// Fase que acabamos de terminar (antes de tocar los contadores).
+	const faseTerminada = obtenerFase(estado, objetivos, ejercicio);
+
 	const tiempoTranscurrido = Math.trunc((Date.now() - estado.inicioSerie) / 1000);
-	const tiempoObjetivo = repeticiones * 6;
+	const tiempoObjetivo = faseTerminada.repeticiones * 6;
 
 	if (tiempoTranscurrido < tiempoObjetivo) {
 		const diferencia = Math.trunc(tiempoObjetivo - tiempoTranscurrido);
 		alert(`Has ido ${diferencia} segundo${diferencia !== 1 ? "s" : ""} demasiado rápido.`);
 	}
 
-	// Determinamos qué serie acabamos de terminar y cuánto descansar.
-	let descanso;
-	if (serieAproximacion) {
+	// Avanzamos el contador correspondiente.
+	if (faseTerminada.esAproximacion) {
 		estado.numeroSeriesAproximacionTerminadas++;
-		descanso = serieAproximacion.descanso;
 	} else {
 		estado.numeroSeriesTrabajoTerminadas++;
+
 		if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
 			mostrarEjercicioCompletado(elementosDom);
 			return;
 		}
-		descanso = ejercicio.descanso;
 	}
 
 	// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
-	mostrarObjetivoSerie(elementosDom, estado, objetivos);
-	iniciarDescanso(elementosDom, descanso, estado, objetivos);
+	mostrarObjetivoSerie(elementosDom, obtenerFase(estado, objetivos, ejercicio));
+	iniciarDescanso(elementosDom, faseTerminada.descanso, estado, objetivos, ejercicio);
 }
 
 /* =========================================================
    Guardar registro de ejercicio
    ========================================================= */
 
-async function guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjerciciosSesion) {
+async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion) {
 	const pesoStr = elementosDom.pesoFinal.value.trim();
 	const repStr = elementosDom.repeticionesFinal.value.trim();
 	if (!pesoStr || !repStr) throw new Error("Introduce peso y repeticiones.");
@@ -300,7 +309,8 @@ async function guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjer
 	if (!Number.isFinite(peso) || peso <= 0) throw new Error("Peso inválido.");
 	if (!Number.isInteger(repeticiones) || repeticiones <= 0) throw new Error("Repeticiones inválidas.");
 
-	await guardarRegistroEjercicio({
+	// El nuevo registro va al final: el histórico queda ordenado por fecha ascendente.
+	historial.push({
 		idEjercicio: ejercicio.id,
 		numeroSesion,
 		totalEjercicios: totalEjerciciosSesion,
@@ -310,9 +320,11 @@ async function guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjer
 		repeticiones,
 	});
 
+	// Guardamos el historial completo
+	await guardarHistorial(historial);
+
 	location.href = `sesion.html?numeroSesion=${numeroSesion}`;
 }
-
 
 /* =========================================================
    Inicialización
@@ -322,7 +334,7 @@ function obtenerElementosDom() {
 	return {
 		titulo: document.getElementById("titulo"),
 		subtitulo: document.getElementById("subtitulo"),
-		enlaceSalir: document.getElementById("enlace-salir"),
+		enlaceVolver: document.getElementById("enlace-volver"),
 		imagenEjercicio: document.getElementById("imagen-ejercicio"),
 		descripcionEjercicio: document.getElementById("descripcion-ejercicio"),
 		seriesTrabajo: document.getElementById("series-trabajo"),
@@ -337,6 +349,7 @@ function obtenerElementosDom() {
 		pesoFinal: document.getElementById("peso-final"),
 		repeticionesFinal: document.getElementById("repeticiones-final"),
 		mainContainer: document.getElementById("main-container"),
+		formFinalizar: document.getElementById("form-finalizar"),
 	};
 }
 
@@ -350,17 +363,17 @@ async function inicializar() {
 			{ clave: "totalEjerciciosSesion", validar: (n) => n >= 0 }
 		);
 
-		// ---------- Salir ----------
-		elementosDom.enlaceSalir.href = `sesion.html?numeroSesion=${numeroSesion}`;
+		// ---------- Volver ----------
+		elementosDom.enlaceVolver.href = `sesion.html?numeroSesion=${numeroSesion}`;
 
-		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
+		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
 		const ejercicio = obtenerEjercicio(ejercicios, idEjercicio);
 
 		elementosDom.titulo.textContent = ejercicio.nombre;
 
 		mostrarEjercicio(elementosDom, ejercicio);
 
-		const ultimoRegistro = obtenerUltimoRegistro(registrosEjercicio, ejercicio.id);
+		const ultimoRegistro = obtenerUltimoRegistro(historial, ejercicio.id);
 		const objetivos = calcularObjetivos(ejercicio, ultimoRegistro);
 		elementosDom.pesoFinal.value = objetivos.pesoObjetivo;
 		elementosDom.repeticionesFinal.value = objetivos.repeticionesObjetivo;
@@ -370,8 +383,10 @@ async function inicializar() {
 			numeroSeriesTrabajoTerminadas: 0,
 			inicioSerie: Date.now(),
 		};
-		mostrarObjetivoSerie(elementosDom, estado, objetivos);
-		mostrarTextoBotonSerie(elementosDom, estado, objetivos);
+
+		const faseInicial = obtenerFase(estado, objetivos, ejercicio);
+		mostrarObjetivoSerie(elementosDom, faseInicial);
+		mostrarTextoBotonSerie(elementosDom, estado, faseInicial);
 
 		/* ---------- Botón de serie ---------- */
 		elementosDom.btnSerie.addEventListener("click", () => {
@@ -380,11 +395,14 @@ async function inicializar() {
 			finalizarSerie(elementosDom, ejercicio, estado, objetivos);
 		});
 
-		/* ---------- Botón guardar ---------- */
-		elementosDom.btnGuardar.addEventListener("click", async () => {
+		/* ---------- Formulario de guardado ---------- */
+		elementosDom.formFinalizar.addEventListener("submit", async (evento) => {
+			// Sin esto, el navegador recarga la página y cancela el guardado asíncrono.
+			evento.preventDefault();
+
 			elementosDom.btnGuardar.disabled = true;
 			try {
-				await guardarResultado(elementosDom, ejercicio, numeroSesion, totalEjerciciosSesion);
+				await guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion);
 			} catch (error) {
 				elementosDom.btnGuardar.disabled = false;
 				console.error(error);
@@ -392,10 +410,10 @@ async function inicializar() {
 			}
 		});
 	} catch (error) {
-		console.error(error);
+		elementosDom.mainContainer.hidden = true;
 		elementosDom.titulo.textContent = "Error";
 		elementosDom.subtitulo.textContent = error.message || "No se pudo cargar el ejercicio.";
-		elementosDom.mainContainer.style.display = "none";
+		console.error(error);
 	}
 }
 

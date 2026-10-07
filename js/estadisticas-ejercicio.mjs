@@ -1,4 +1,4 @@
-import { cargarEjercicios, cargarRegistrosEjercicio } from "./database.mjs";
+import { cargarEjercicios, cargarHistorial } from "./database.mjs";
 import { formatearFecha, formatearFechaCorta, obtenerParametrosURL } from "./utils.mjs";
 
 /*
@@ -29,40 +29,30 @@ function obtenerMaximo(puntos, propiedad) {
 	return Math.max(...puntos.map((punto) => punto[propiedad]));
 }
 
-function detectarNuevoRecord(valor, recordAnterior) {
-	return valor > recordAnterior ? valor : null;
+function epley(peso, repeticiones) {
+	return peso * (1 + Math.min(repeticiones, 30) / 30);
 }
 
-function epley(peso, repeticiones) {
-	if (repeticiones > 29) repeticiones = 30;
-	return peso * (1 + repeticiones / 30);
-}
+const setText = (id, valor) => {
+	document.getElementById(id).textContent = valor;
+};
 
 // ---------------------------------------------------------
 // Serie temporal
 // ---------------------------------------------------------
 
 function construirPuntosEjercicio(ejercicioId, registrosEjercicio) {
+	// historial ya viene ordenado por fecha ascendente; filter conserva el orden
 	return registrosEjercicio
 		.filter((registroEjercicio) => registroEjercicio.idEjercicio === ejercicioId)
-		.map((registroEjercicio) => {
-			const fecha = registroEjercicio.fecha;
-			const peso = registroEjercicio.peso;
-			const repeticiones = registroEjercicio.repeticiones;
-			const numeroSeries = registroEjercicio.numeroSeries;
-			const pesoEpley = epley(peso, repeticiones);
-
-			return {
-				fecha,
-				peso,
-				repeticiones,
-				numeroSeries,
-				pesoEpley,
-				volumen: peso * numeroSeries * repeticiones,
-			};
-		})
-		.filter(Boolean)
-		.sort((a, b) => a.fecha - b.fecha);
+		.map(({ fecha, peso, repeticiones, numeroSeries }) => ({
+			fecha,
+			peso,
+			repeticiones,
+			numeroSeries,
+			pesoEpley: epley(peso, repeticiones),
+			volumen: peso * numeroSeries * repeticiones,
+		}));
 }
 
 // ---------------------------------------------------------
@@ -72,34 +62,25 @@ function construirPuntosEjercicio(ejercicioId, registrosEjercicio) {
 function calcularFrecuenciaMedia(puntosEjercicio) {
 	if (puntosEjercicio.length < 2) return "Primera sesión";
 
-	let sumaDias = 0;
-
-	for (let indice = 1; indice < puntosEjercicio.length; indice++) {
-		const diferencia = puntosEjercicio[indice].fecha - puntosEjercicio[indice - 1].fecha;
-		sumaDias += diferencia / MILISEGUNDOS_DIA;
-	}
-
-	const mediaDias = sumaDias / (puntosEjercicio.length - 1);
-
+	const mediaDias = (puntosEjercicio.at(-1).fecha - puntosEjercicio[0].fecha) / MILISEGUNDOS_DIA / (puntosEjercicio.length - 1);
 	return `cada ${formatearNumero(mediaDias)} días`;
 }
 
 function calcularPendienteEpley(puntosEjercicio) {
 	const numeroPuntos = puntosEjercicio.length;
-	let sumaX = 0;
+	if (numeroPuntos < 2) return 0;
+
+	const sumaX = ((numeroPuntos - 1) * numeroPuntos) / 2;
+	const sumaXX = ((numeroPuntos - 1) * numeroPuntos * (2 * numeroPuntos - 1)) / 6;
 	let sumaY = 0;
 	let sumaXY = 0;
-	let sumaXX = 0;
 
 	puntosEjercicio.forEach((punto, indice) => {
-		sumaX += indice;
 		sumaY += punto.pesoEpley;
 		sumaXY += indice * punto.pesoEpley;
-		sumaXX += indice * indice;
 	});
 
 	const denominador = numeroPuntos * sumaXX - sumaX * sumaX;
-
 	return denominador === 0 ? 0 : (numeroPuntos * sumaXY - sumaX * sumaY) / denominador;
 }
 
@@ -112,16 +93,16 @@ function calcularRepeticionesTotales(puntosEjercicio) {
 }
 
 function mostrarEstadisticasEjercicio(puntosEjercicio) {
-	const ultimoPunto = puntosEjercicio[puntosEjercicio.length - 1];
+	const ultimoPunto = puntosEjercicio.at(-1);
 	const pesoEstimadoActual = ultimoPunto.pesoEpley;
 	const mejorPesoEstimado = obtenerMaximo(puntosEjercicio, "pesoEpley");
 	const elementoTendencia = document.getElementById("tendencia-ejercicio");
 
-	document.getElementById("peso-estimado-actual").textContent = formatearPeso(pesoEstimadoActual);
-	document.getElementById("porcentaje-mejor-1pr").textContent = `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100)}%`;
-	document.getElementById("frecuencia-media").textContent = calcularFrecuenciaMedia(puntosEjercicio);
-	document.getElementById("volumen-total").textContent = calcularVolumenTotal(puntosEjercicio);
-	document.getElementById("repeticiones-totales").textContent = calcularRepeticionesTotales(puntosEjercicio);
+	setText("peso-estimado-actual", formatearPeso(pesoEstimadoActual));
+	setText("porcentaje-mejor-1pr", `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100)}%`);
+	setText("frecuencia-media", calcularFrecuenciaMedia(puntosEjercicio));
+	setText("volumen-total", calcularVolumenTotal(puntosEjercicio));
+	setText("repeticiones-totales", calcularRepeticionesTotales(puntosEjercicio));
 
 	if (puntosEjercicio.length === 1) {
 		elementoTendencia.textContent = "Primera sesión";
@@ -130,13 +111,22 @@ function mostrarEstadisticasEjercicio(puntosEjercicio) {
 
 	const pendienteEpley = calcularPendienteEpley(puntosEjercicio);
 	const signo = pendienteEpley > 0 ? "+" : "";
-
 	elementoTendencia.textContent = `${signo}${formatearNumero(pendienteEpley)} kg/sesión`;
 }
 
 // ---------------------------------------------------------
 // Récords históricos y de la última sesión
 // ---------------------------------------------------------
+
+const CAMPOS_RECORD = ["pesoEpley", "peso", "repeticiones", "numeroSeries", "volumen"];
+
+const CONFIG_RECORDS = [
+	{ id: "1pr-epley", campo: "pesoEpley", formatear: formatearPeso },
+	{ id: "peso", campo: "peso", formatear: formatearPeso },
+	{ id: "repeticiones", campo: "repeticiones" },
+	{ id: "series", campo: "numeroSeries" },
+	{ id: "volumen", campo: "volumen" },
+];
 
 function calcularRecordsHistoricos(puntosEjercicio) {
 	return {
@@ -148,64 +138,36 @@ function calcularRecordsHistoricos(puntosEjercicio) {
 	};
 }
 
-function calcularRecordsAnteriores(puntosEjercicio) {
-	if (puntosEjercicio.length <= 1) {
-		return null;
-	}
-
-	return calcularRecordsHistoricos(puntosEjercicio.slice(0, -1));
-}
-
 function calcularNuevosRecordsUltimoRegistro(puntosEjercicio) {
+	const recordsAnteriores = puntosEjercicio.length > 1 ? calcularRecordsHistoricos(puntosEjercicio.slice(0, -1)) : null;
 	const ultimoPunto = puntosEjercicio.at(-1);
-	const recordsAnteriores = calcularRecordsAnteriores(puntosEjercicio);
 
-	if (!recordsAnteriores) {
-		// en la primera sesión todo es "récord"
-		return {
-			pesoEpley: ultimoPunto.pesoEpley,
-			peso: ultimoPunto.peso,
-			repeticiones: ultimoPunto.repeticiones,
-			numeroSeries: ultimoPunto.numeroSeries,
-			volumen: ultimoPunto.volumen,
-		};
-	}
-
-	return {
-		pesoEpley: detectarNuevoRecord(ultimoPunto.pesoEpley, recordsAnteriores.pesoEpley),
-		peso: detectarNuevoRecord(ultimoPunto.peso, recordsAnteriores.peso),
-		repeticiones: detectarNuevoRecord(ultimoPunto.repeticiones, recordsAnteriores.repeticiones),
-		numeroSeries: detectarNuevoRecord(ultimoPunto.numeroSeries, recordsAnteriores.numeroSeries),
-		volumen: detectarNuevoRecord(ultimoPunto.volumen, recordsAnteriores.volumen),
-	};
+	return Object.fromEntries(
+		CAMPOS_RECORD.map((campo) => [
+			campo,
+			!recordsAnteriores || ultimoPunto[campo] > recordsAnteriores[campo] ? ultimoPunto[campo] : null,
+		]),
+	);
 }
 
 function mostrarRecordsHistoricos(recordsHistoricos) {
-	document.getElementById("record-1pr-epley").textContent = formatearPeso(recordsHistoricos.pesoEpley);
-	document.getElementById("record-peso").textContent = formatearPeso(recordsHistoricos.peso);
-	document.getElementById("record-repeticiones").textContent = recordsHistoricos.repeticiones;
-	document.getElementById("record-series").textContent = recordsHistoricos.numeroSeries;
-	document.getElementById("record-volumen").textContent = recordsHistoricos.volumen;
+	for (const { id, campo, formatear } of CONFIG_RECORDS) {
+		const valor = recordsHistoricos[campo];
+		setText(`record-${id}`, formatear ? formatear(valor) : valor);
+	}
 }
 
 function mostrarNuevosRecords(nuevosRecords) {
-	const CONFIG_RECORDS = [
-		{ id: "record-ultimo-1pr-epley", key: "pesoEpley", formatear: formatearPeso },
-		{ id: "record-ultimo-peso", key: "peso", formatear: formatearPeso },
-		{ id: "record-ultimo-repeticiones", key: "repeticiones" },
-		{ id: "record-ultimo-series", key: "numeroSeries" },
-		{ id: "record-ultimo-volumen", key: "volumen" },
-	];
 	let numeroRecordsNuevos = 0;
 
-	for (const { id, key, formatear } of CONFIG_RECORDS) {
-		const valor = nuevosRecords[key];
-		const el = document.getElementById(id);
+	for (const { id, campo, formatear } of CONFIG_RECORDS) {
+		const valor = nuevosRecords[campo];
+		const el = document.getElementById(`record-ultimo-${id}`);
 		const ocultar = valor === null;
 
 		el.classList.toggle("hidden", ocultar);
 		if (!ocultar) {
-			el.querySelector("dd").textContent = formatear ? formatear(valor) : String(valor);
+			el.querySelector("dd").textContent = formatear ? formatear(valor) : valor;
 			numeroRecordsNuevos++;
 		}
 	}
@@ -221,9 +183,7 @@ function calcularRachaMejora(puntosEjercicio) {
 	let racha = 0;
 
 	for (let indice = puntosEjercicio.length - 1; indice > 0; indice--) {
-		if (puntosEjercicio[indice].pesoEpley <= puntosEjercicio[indice - 1].pesoEpley) {
-			break;
-		}
+		if (puntosEjercicio[indice].pesoEpley <= puntosEjercicio[indice - 1].pesoEpley) break;
 
 		racha++;
 	}
@@ -233,14 +193,8 @@ function calcularRachaMejora(puntosEjercicio) {
 
 function obtenerInicioSemana(fecha) {
 	const inicioSemana = new Date(fecha);
-
 	inicioSemana.setHours(0, 0, 0, 0);
-
-	const diaSemana = inicioSemana.getDay();
-	const diasDesdeLunes = (diaSemana + 6) % 7;
-
-	inicioSemana.setDate(inicioSemana.getDate() - diasDesdeLunes);
-
+	inicioSemana.setDate(inicioSemana.getDate() - ((inicioSemana.getDay() + 6) % 7));
 	return inicioSemana.getTime();
 }
 
@@ -256,18 +210,16 @@ function calcularRachaSemanas(puntosEjercicio) {
 		return 0;
 	}
 
-	const semanas = new Set(puntosEjercicio.map((punto) => obtenerInicioSemana(punto.fecha)));
-	const semanasOrdenadas = [...semanas].sort((a, b) => a - b);
+	// puntosEjercicio está ordenado por fecha, así que las semanas ya salen ordenadas
+	const semanas = [...new Set(puntosEjercicio.map((punto) => obtenerInicioSemana(punto.fecha)))];
 
 	let racha = 1;
-	let semanaActual = semanasOrdenadas.at(-1);
+	let semanaActual = semanas.at(-1);
 
-	for (let indice = semanasOrdenadas.length - 2; indice >= 0; indice--) {
-		const semanaAnterior = semanasOrdenadas[indice];
+	for (let indice = semanas.length - 2; indice >= 0; indice--) {
+		const semanaAnterior = semanas[indice];
 
-		if (semanaActual - semanaAnterior !== MILISEGUNDOS_SEMANA) {
-			break;
-		}
+		if (semanaActual - semanaAnterior !== MILISEGUNDOS_SEMANA) break;
 
 		racha++;
 		semanaActual = semanaAnterior;
@@ -277,8 +229,8 @@ function calcularRachaSemanas(puntosEjercicio) {
 }
 
 function mostrarRacha(puntosEjercicio) {
-	document.getElementById("racha-sesiones-mejora").textContent = calcularRachaMejora(puntosEjercicio);
-	document.getElementById("racha-semanas").textContent = calcularRachaSemanas(puntosEjercicio);
+	setText("racha-sesiones-mejora", calcularRachaMejora(puntosEjercicio));
+	setText("racha-semanas", calcularRachaSemanas(puntosEjercicio));
 }
 
 // ---------------------------------------------------------
@@ -300,7 +252,6 @@ function crearGraficoPeso(puntosEjercicio) {
 
 	graficoPeso = new Chart(document.getElementById("grafico-peso"), {
 		type: "line",
-
 		data: {
 			datasets: [
 				{
@@ -344,7 +295,6 @@ function crearGraficoPeso(puntosEjercicio) {
 						},
 					},
 				},
-
 				zoom: {
 					pan: {
 						enabled: true,
@@ -408,9 +358,14 @@ async function inicializar() {
 	const subtitulo = document.getElementById("subtitulo");
 
 	try {
+		const referrer = document.referrer;
+		if (referrer && new URL(referrer).origin === window.location.origin) {
+			document.getElementById("enlace-volver").href = referrer;
+		}
+
 		const [idEjercicio] = obtenerParametrosURL({ clave: "idEjercicio", validar: (n) => n > 0 });
-		const [ejercicios, registrosEjercicio] = await Promise.all([cargarEjercicios(), cargarRegistrosEjercicio()]);
-		const ejercicio = (Array.isArray(ejercicios) ? ejercicios : []).find((item) => item.id === idEjercicio);
+		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
+		const ejercicio = ejercicios.find((item) => item.id === idEjercicio);
 		if (!ejercicio) {
 			throw new Error(`No se encontró el ejercicio con id "${idEjercicio}".`);
 		}
@@ -419,7 +374,7 @@ async function inicializar() {
 		titulo.textContent = `${nombreEjercicio}`;
 		document.title = `SIMPLEGYM - ${nombreEjercicio}`;
 
-		const puntosEjercicio = construirPuntosEjercicio(ejercicio.id, registrosEjercicio);
+		const puntosEjercicio = construirPuntosEjercicio(ejercicio.id, historial);
 
 		if (puntosEjercicio.length === 0) {
 			throw new Error(`No hay historial para ${nombreEjercicio}.`);
@@ -433,10 +388,10 @@ async function inicializar() {
 		mostrarNuevosRecords(calcularNuevosRecordsUltimoRegistro(puntosEjercicio));
 		mostrarRacha(puntosEjercicio);
 	} catch (error) {
-		console.error(error);
+		document.getElementById("main-container").hidden = true;
 		titulo.textContent = "Error";
 		subtitulo.textContent = error.message || "No se pudo cargar el histórico.";
-		document.getElementById("main-container").style.display = "none";
+		console.error(error);
 	}
 }
 
