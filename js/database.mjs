@@ -1,51 +1,24 @@
-// database.mjs — almacenamiento en la nube (Firebase Auth + Cloud Firestore) con copia local.
+// database.mjs — Firebase Auth + Firestore con caché persistente.
 //
-// Funciona así:
-//  - Al validarse (iniciarSesion) se descarga TODO de la nube y se sustituye la copia local
-//    (IndexedDB). Es la única sincronización de lectura.
-//  - Todas las lecturas (cargar...) se hacen sobre la copia local: sin red y sin coste.
-//  - Cada guardado se envía a la nube en el momento de solicitarse y también a la copia local.
-//  - La validación caduca a medianoche (hora local). Después hay que volver a validarse,
-//    lo que vuelve a sincronizar.
+//  - iniciarSesion() valida y refresca la caché desde la nube (única lectura de red).
+//  - cargar*() leen de la caché local (getDocFromCache): sin red ni coste.
+//  - guardar*() usan setDoc: actualizan la caché al instante y encolan la subida.
+//  - La validación caduca a medianoche; al primer acceso tras la caducidad, se cierra.
+//  - Si la validación falla (p. ej. al abrir sin conexión), se reintenta al volver la red
+//    o en la siguiente llamada a iniciarSesion()/cargar*()/guardar*().
 //
-// Funciones de datos:
-//   guardarHistorial(registros), cargarHistorial(), guardarEjercicios(blob), cargarEjercicios()
-//
-// guardarHistorial recibe el array COMPLETO del histórico (array de objetos) y lo guarda
-// en un único documento en formato binario (ver empaquetarHistorial/desempaquetarHistorial).
-//
-// Funciones de sesión:
-//   iniciarSesion(firebaseConfig, proveedor), cerrarSesion(), obtenerUsuario(),
-//   alCambiarSesion(callback), sincronizar()  (esta última es opcional: refresco manual)
-//
-// Estructura en Firestore (un documento por dato, bajo el uid del usuario; máx. 1 MiB cada uno):
-//   users/{uid}/registros/Historial -> { datos: <Bytes empaquetados> }
-//   users/{uid}/ejercicios/archivo  -> { texto: "<JSON de ejercicios>" }
-//
-// La REGIÓN de Firestore (p. ej. eur3 / europe-west) se elige al crear la base de datos
-// en la consola de Firebase; no se configura desde el código.
+// Datos:    guardarHistorial(registros) / cargarHistorial()
+//           guardarEjercicios(obj)      / cargarEjercicios()
+// Sesión:   iniciarSesion(proveedor) / cerrarSesion()
+//           alCambiarSesion(callback)
 
 import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 import {
-	GithubAuthProvider,
-	GoogleAuthProvider,
-	getAuth,
-	getRedirectResult,
-	OAuthProvider,
-	onAuthStateChanged,
-	signInWithPopup,
-	signInWithRedirect,
-	signOut,
+	GoogleAuthProvider, getAuth, getRedirectResult, OAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut,
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-	Bytes,
-	doc,
-	getDocFromServer,
-	initializeFirestore,
-	persistentLocalCache,
-	persistentMultipleTabManager,
-	setDoc,
-	waitForPendingWrites,
+	Bytes, doc, getDocFromCache, getDocFromServer, initializeFirestore,
+	persistentLocalCache, persistentMultipleTabManager, setDoc, waitForPendingWrites,
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -55,14 +28,10 @@ const firebaseConfig = {
 	storageBucket: "simplegym-8e10e.firebasestorage.app",
 	messagingSenderId: "1086535851954",
 	appId: "1:1086535851954:web:5eb50586ba1db2c9498eab",
-	idCliente: "1086535851954-eq056gas9v59s07k7g6svm96v6l1rst0.apps.googleusercontent.com"
 };
 
-const CLAVE_CONFIG = "fitnessDB.firebaseConfig";
 const CLAVE_SESION_DIA = "fitnessDB.sesionDia";
-
-const MSG_SIN_SESION = "Sesión no iniciada. Llama a iniciarSesion(firebaseConfig, proveedor) desde un botón.";
-const MSG_CADUCADA = "La sesión ha caducado (fin del día). Vuelve a validarte con iniciarSesion().";
+const MSG_SIN_SESION = "Sesión no iniciada. Llama a iniciarSesion(proveedor) desde un botón.";
 const MSG_SIN_CONEXION = "Esta operación necesita conexión a internet.";
 
 const COL_USUARIOS = "users";
@@ -71,626 +40,320 @@ const COL_EJERCICIOS = "ejercicios";
 const ID_HISTORIAL = "Historial";
 const ID_EJERCICIOS = "archivo";
 
-// Límite de Firestore: 1 MiB (1.048.576 bytes) por documento. Se deja margen.
 const MAX_BYTES_DOCUMENTO = 1_000_000;
-
-// Tiempo máximo esperando la confirmación del servidor antes de dar la escritura por buena
-// (queda en la cola local de Firestore y se sube sola cuando haya conexión).
-const ESPERA_ESCRITURA_MS = 5000;
-
 const CODIGOS_USAR_REDIRECCION = ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"];
 
-// Copia local (IndexedDB): un único almacén clave-valor.
-const DB_LOCAL = "fitnessCloudCache";
-const DB_LOCAL_VERSION = 1;
-const STORE_ARCHIVOS = "archivos";
-const EJERCICIOS_KEY = "ejercicios";
-const REGISTROS_KEY = "registros"; // histórico empaquetado (Uint8Array)
-
-// Estado interno (no sale del módulo).
-let contexto = null; // { auth, db }
-let ultimaSesion; // undefined = aún no resuelta; null = sin sesión; objeto = usuario
-let preparacion = null; // validación/sincronización en curso
-let temporizadorCaducidad = null;
-let dbLocalPromise = null;
-const oyentes = new Set();
+const PROVEEDORES = {
+	google: () => new GoogleAuthProvider(),
+	microsoft: () => new OAuthProvider("microsoft.com"),
+};
 
 /* ------------------------------------------------------------------ */
-/* Formato empaquetado del histórico                                  */
+/* Firebase (constantes de módulo)                                    */
+/* ------------------------------------------------------------------ */
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, {
+	localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+	ignoreUndefinedProperties: true,
+});
+
+getRedirectResult(auth).catch((e) => console.error("Error al completar el inicio de sesión:", e));
+
+/* ------------------------------------------------------------------ */
+/* Empaquetado binario del histórico                                  */
 /* ------------------------------------------------------------------ */
 
 // Layout (big-endian): 1 byte de versión + 9 bytes por registro:
 //   +0 idEjercicio  +1 numeroSesion  +2 totalEjercicios  +3..4 fecha (días, uint16)
 //   +5 numeroSeries +6..7 peso (decagramos, uint16)  +8 repeticiones
 // La fecha se guarda como día del calendario local (se pierde la hora).
-const VERSION_FORMATO = 1;
-const BYTES_CABECERA = 1;
-const BYTES_REGISTRO = 9;
-const MS_DIA = 86_400_000;
+// Rangos: bytes 0-255; fecha 1970-2149; peso 0 a 655.35 (kg).
+const VERSION_FORMATO = 1, BYTES_CABECERA = 1, BYTES_REGISTRO = 9, MS_DIA = 86_400_000;
 
-function leerByte(registro, campo, indice) {
-	const valor = registro?.[campo];
-
-	if (!Number.isInteger(valor) || valor < 0 || valor > 255) {
-		throw new RangeError(`Registro ${indice}: "${campo}" debe ser un entero entre 0 y 255 (valor: ${valor}).`);
-	}
-
+// Valida que `valor` sea un entero entre 0 y `max` (NaN también se rechaza).
+// `original` es el valor que se muestra en el error cuando se ha transformado (peso, fecha).
+function entero(valor, max, campo, indice, original = valor) {
+	if (!Number.isInteger(valor) || valor < 0 || valor > max)
+		throw new RangeError(`Registro ${indice}: "${campo}" no es válido o está fuera de rango (valor: ${original}).`);
 	return valor;
 }
 
-function pesoADecagramos(peso, indice) {
-	const n = Number(peso);
-
-	if (!Number.isFinite(n)) {
-		throw new TypeError(`peso inválido en registro ${indice}: ${peso}`);
-	}
-
-	const decimas = Math.round(n * 100);
-
-	// Uint16: 0 .. 65535 -> 0.0 .. 655.35 kg
-	if (decimas < 0 || decimas > 0xFFFF) {
-		throw new RangeError(`peso fuera de rango en registro ${indice}: ${peso}. Rango permitido: 0.0 a 655.35`);
-	}
-
-	return decimas;
-}
-
-function fechaADias(fecha, indice) {
-	if (!(fecha instanceof Date) || Number.isNaN(fecha.getTime())) {
-		throw new TypeError(`Registro ${indice}: "fecha" debe ser un Date válido.`);
-	}
-
-	const dias = Math.round(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) / MS_DIA);
-
-	if (dias < 0 || dias > 65535) {
-		throw new RangeError(`Registro ${indice}: "fecha" fuera del rango admitido (1970-2149).`);
-	}
-
-	return dias;
-}
+const fechaADias = (fecha) =>
+	fecha instanceof Date ? Math.round(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) / MS_DIA) : NaN;
 
 function diasAFecha(dias) {
 	const utc = new Date(dias * MS_DIA);
-
-	return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate()); // medianoche local
+	return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
 }
 
-// Array de objetos -> Uint8Array. Valida los rangos (un Uint8 truncaría sin avisar).
 function empaquetarHistorial(registros) {
 	const tamano = BYTES_CABECERA + registros.length * BYTES_REGISTRO;
-
-	if (tamano > MAX_BYTES_DOCUMENTO) {
+	if (tamano > MAX_BYTES_DOCUMENTO)
 		throw new RangeError(`El histórico (${registros.length} registros) supera el límite de un documento de Firestore.`);
-	}
 
 	const buffer = new Uint8Array(tamano);
 	const vista = new DataView(buffer.buffer);
-
 	buffer[0] = VERSION_FORMATO;
 
-	registros.forEach((registro, indice) => {
-		const o = BYTES_CABECERA + indice * BYTES_REGISTRO;
-
-		buffer[o] = leerByte(registro, "idEjercicio", indice);
-		buffer[o + 1] = leerByte(registro, "numeroSesion", indice);
-		buffer[o + 2] = leerByte(registro, "totalEjercicios", indice);
-		vista.setUint16(o + 3, fechaADias(registro.fecha, indice));
-		buffer[o + 5] = leerByte(registro, "numeroSeries", indice);
-		vista.setUint16(o + 6, pesoADecagramos(registro.peso, indice));
-		buffer[o + 8] = leerByte(registro, "repeticiones", indice);
+	registros.forEach((r, i) => {
+		const o = BYTES_CABECERA + i * BYTES_REGISTRO;
+		buffer[o] = entero(r?.idEjercicio, 255, "idEjercicio", i);
+		buffer[o + 1] = entero(r.numeroSesion, 255, "numeroSesion", i);
+		buffer[o + 2] = entero(r.totalEjercicios, 255, "totalEjercicios", i);
+		vista.setUint16(o + 3, entero(fechaADias(r.fecha), 65535, "fecha", i, r.fecha));
+		buffer[o + 5] = entero(r.numeroSeries, 255, "numeroSeries", i);
+		vista.setUint16(o + 6, entero(Math.round(Number(r.peso) * 100), 65535, "peso", i, r.peso));
+		buffer[o + 8] = entero(r.repeticiones, 255, "repeticiones", i);
 	});
 
 	return buffer;
 }
 
-// Uint8Array -> array de objetos.
 function desempaquetarHistorial(buffer) {
 	if (!buffer || buffer.length === 0) return [];
-
-	if (buffer[0] !== VERSION_FORMATO) {
+	if (buffer[0] !== VERSION_FORMATO)
 		throw new Error(`Versión del formato del histórico no soportada: ${buffer[0]}.`);
-	}
-
-	if ((buffer.length - BYTES_CABECERA) % BYTES_REGISTRO !== 0) {
+	if ((buffer.length - BYTES_CABECERA) % BYTES_REGISTRO !== 0)
 		throw new Error("El histórico almacenado está dañado (tamaño no válido).");
-	}
 
 	const vista = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 	const registros = new Array((buffer.length - BYTES_CABECERA) / BYTES_REGISTRO);
 
 	for (let i = 0; i < registros.length; i++) {
 		const o = BYTES_CABECERA + i * BYTES_REGISTRO;
-
 		registros[i] = {
-			idEjercicio: buffer[o],
-			numeroSesion: buffer[o + 1],
-			totalEjercicios: buffer[o + 2],
-			fecha: diasAFecha(vista.getUint16(o + 3)),
-			numeroSeries: buffer[o + 5],
-			peso: vista.getUint16(o + 6) / 100, // centésimas a kg
-			repeticiones: buffer[o + 8],
+			idEjercicio: buffer[o], numeroSesion: buffer[o + 1], totalEjercicios: buffer[o + 2],
+			fecha: diasAFecha(vista.getUint16(o + 3)), numeroSeries: buffer[o + 5],
+			peso: vista.getUint16(o + 6) / 100, repeticiones: buffer[o + 8],
 		};
 	}
-
 	return registros;
 }
 
 /* ------------------------------------------------------------------ */
-/* Copia local (IndexedDB)                                            */
+/* Estado interno                                                     */
 /* ------------------------------------------------------------------ */
 
-function abrirBaseLocal() {
-	if (!dbLocalPromise) {
-		dbLocalPromise = new Promise((resolve, reject) => {
-			const request = indexedDB.open(DB_LOCAL, DB_LOCAL_VERSION);
+let sesionLista = Promise.resolve(null); // Promise<usuario validado | null>
+let ultimoResumen; // undefined = aún no resuelta; null = sin sesión o validación fallida; objeto = usuario
+const oyentes = new Set();
 
-			request.onupgradeneeded = () => {
-				const db = request.result;
-
-				if (!db.objectStoreNames.contains(STORE_ARCHIVOS)) {
-					db.createObjectStore(STORE_ARCHIVOS);
-				}
-			};
-
-			request.onsuccess = () => resolve(request.result);
-			request.onerror = () => reject(request.error);
-			request.onblocked = () => console.warn("IndexedDB bloqueada por otra pestaña");
-		}).catch((error) => {
-			dbLocalPromise = null;
-			throw error;
-		});
+// Devuelve el usuario si su sesión es válida hoy, o null si no hay sesión o la validación falla.
+async function resolverUsuario(usuario) {
+	if (!usuario) return null;
+	try {
+		await validarDia(usuario);
+		return usuario;
+	} catch (error) {
+		console.error("No se pudo validar la sesión:", error);
+		return null;
 	}
-
-	return dbLocalPromise;
 }
 
-// Ejecuta una transacción sobre el almacén. "accion" recibe el almacén y puede devolver una
-// petición (IDBRequest), cuyo resultado se devuelve al terminar.
-async function operarLocal(modo, accion) {
-	const db = await abrirBaseLocal();
+// Valida al usuario (o lo da por ausente) y publica el resultado.
+// Cada cambio de auth reemplaza `sesionLista`; los resultados de validaciones antiguas se descartan.
+async function validarSesion(usuario) {
+	const promesa = resolverUsuario(usuario);
+	sesionLista = promesa; // síncrono: quien llame ahora mismo a usuarioValidado() ya espera esta validación
 
-	return new Promise((resolve, reject) => {
-		const transaction = db.transaction(STORE_ARCHIVOS, modo);
-		const peticion = accion(transaction.objectStore(STORE_ARCHIVOS));
-
-		transaction.oncomplete = () => resolve(peticion?.result);
-		transaction.onabort = transaction.onerror = () => reject(transaction.error);
-	});
+	const validado = await promesa;
+	if (promesa === sesionLista) publicar(resumirUsuario(validado));
 }
 
-const leerLocal = (clave) => operarLocal("readonly", (almacen) => almacen.get(clave));
-const guardarLocal = (clave, valor) => operarLocal("readwrite", (almacen) => almacen.put(valor, clave));
+onAuthStateChanged(auth, validarSesion);
 
-// Sustituye toda la copia local. Cada argumento es null si no existe en la nube.
-function reemplazarLocal(bytesRegistros, textoEjercicios) {
-	return operarLocal("readwrite", (almacen) => {
-		almacen.clear();
+// Si la validación falló (p. ej. al abrir sin conexión), reintentar al volver la red.
+addEventListener("online", () => {
+	if (auth.currentUser && ultimoResumen === null) validarSesion(auth.currentUser);
+});
 
-		if (bytesRegistros !== null) almacen.put(bytesRegistros, REGISTROS_KEY);
-		if (textoEjercicios !== null) almacen.put(textoEjercicios, EJERCICIOS_KEY);
-	});
+function publicar(resumen) {
+	if (ultimoResumen !== undefined && (ultimoResumen?.uid ?? null) === (resumen?.uid ?? null)) return;
+	ultimoResumen = resumen;
+	for (const cb of oyentes) cb(ultimoResumen);
 }
 
-/* ------------------------------------------------------------------ */
-/* Utilidades de Firestore                                            */
-/* ------------------------------------------------------------------ */
-
-function documentoUsuario(db, uid, coleccion, id) {
-	return doc(db, COL_USUARIOS, uid, coleccion, id);
-}
-
-// Con la caché offline de Firestore, una escritura no se resuelve hasta que el servidor
-// la confirma, y sin conexión eso puede no ocurrir nunca. Aquí se espera la confirmación
-// solo si hay conexión (con un tiempo máximo); si no, la escritura queda en la cola local
-// de Firestore y se sube sola al volver la red.
-function confirmarEscritura(escritura) {
-	if (!navigator.onLine) {
-		escritura.catch((error) => console.error("Error sincronizando escritura pendiente:", error));
-		return Promise.resolve();
-	}
-
-	let agotado = false;
-	let temporizador;
-
-	const espera = new Promise((resolve) => {
-		temporizador = setTimeout(() => {
-			agotado = true;
-			resolve();
-		}, ESPERA_ESCRITURA_MS);
-	});
-
-	escritura.catch((error) => {
-		if (agotado) console.error("Error sincronizando escritura pendiente:", error);
-	});
-
-	return Promise.race([escritura, espera]).finally(() => clearTimeout(temporizador));
-}
-
-/* ------------------------------------------------------------------ */
-/* Sincronización (única lectura de la nube)                          */
-/* ------------------------------------------------------------------ */
-
-async function sincronizarConNube(db, uid) {
-	if (!navigator.onLine) throw new Error(MSG_SIN_CONEXION);
-
-	// Primero se sube lo que hubiera pendiente de otras sesiones sin conexión.
-	await waitForPendingWrites(db);
-
-	const [Historial, ejercicios] = await Promise.all([
-		getDocFromServer(documentoUsuario(db, uid, COL_REGISTROS, ID_HISTORIAL)),
-		getDocFromServer(documentoUsuario(db, uid, COL_EJERCICIOS, ID_EJERCICIOS)),
-	]);
-
-	await reemplazarLocal(
-		Historial.exists() ? Historial.data().datos.toUint8Array() : null,
-		ejercicios.exists() ? ejercicios.data().texto : null,
-	);
+function resumirUsuario(usuario) {
+	return usuario && {
+		uid: usuario.uid, nombre: usuario.displayName, email: usuario.email,
+		foto: usuario.photoURL, proveedor: usuario.providerData[0]?.providerId ?? null,
+	};
 }
 
 /* ------------------------------------------------------------------ */
 /* Sesión y caducidad                                                 */
 /* ------------------------------------------------------------------ */
 
-function configValida(config) {
-	return Boolean(config?.apiKey && config.projectId && config.appId);
-}
-
-function guardarConfig(config) {
-	try {
-		localStorage.setItem(CLAVE_CONFIG, JSON.stringify(config));
-	} catch (error) {
-		console.warn("No se pudo guardar la configuración de Firebase:", error);
-	}
-}
-
-function leerConfigGuardada() {
-	try {
-		const config = JSON.parse(localStorage.getItem(CLAVE_CONFIG));
-
-		return configValida(config) ? config : null;
-	} catch {
-		return null;
-	}
-}
-
 function leerSesionDia() {
-	try {
-		return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA));
-	} catch {
-		return null;
-	}
+	try { return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA)); } catch { return null; }
 }
 
 function guardarSesionDia(sesion) {
-	try {
-		localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion));
-	} catch (error) {
-		console.warn("No se pudo guardar la sesión:", error);
-	}
+	try { localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion)); }
+	catch (e) { console.warn("No se pudo guardar la sesión:", e); }
 }
 
-function sesionDiaCaducada(uid) {
-	const sesion = leerSesionDia();
-
-	return sesion?.uid === uid && Date.now() >= sesion.caduca;
-}
-
-// Próxima medianoche en hora local.
 function finDelDia() {
 	const fecha = new Date();
-
 	fecha.setHours(24, 0, 0, 0);
-
 	return fecha.getTime();
 }
 
-function programarCaducidad(caduca) {
-	clearTimeout(temporizadorCaducidad);
-
-	temporizadorCaducidad = setTimeout(
-		() => expirarSesion().catch((error) => console.error("Error al caducar la sesión:", error)),
-		Math.max(0, caduca - Date.now()),
-	);
-}
-
-// Los temporizadores no son fiables si el dispositivo se suspende; se revisa al volver a la pestaña.
-function comprobarCaducidad() {
-	const sesion = leerSesionDia();
-
-	if (sesion && Date.now() >= sesion.caduca) {
-		expirarSesion().catch((error) => console.error("Error al caducar la sesión:", error));
-	}
-}
-
-async function expirarSesion() {
-	clearTimeout(temporizadorCaducidad);
-
-	try {
-		localStorage.removeItem(CLAVE_SESION_DIA);
-	} catch {
-		// sin acceso a localStorage: nada que limpiar
-	}
-
-	if (contexto) await signOut(contexto.auth); // onAuthStateChanged avisará con null
-}
-
-function resumirUsuario(usuario) {
-	if (!usuario) return null;
-
-	return {
-		uid: usuario.uid,
-		nombre: usuario.displayName,
-		email: usuario.email,
-		foto: usuario.photoURL,
-		proveedor: usuario.providerData[0]?.providerId ?? null,
-	};
-}
-
-function publicarSesion(resumen) {
-	if (ultimaSesion !== undefined && (ultimaSesion?.uid ?? null) === (resumen?.uid ?? null)) return;
-
-	ultimaSesion = resumen;
-
-	for (const callback of oyentes) {
-		callback(ultimaSesion);
-	}
-}
-
-// Comprueba la validación del día. Si es nueva (o de otro usuario) sincroniza con la nube y
-// fija la caducidad a medianoche; si ya estaba vigente no toca la red.
-function prepararSesion(usuario) {
-	if (!preparacion) {
-		preparacion = ejecutarPreparacion(usuario).finally(() => {
-			preparacion = null;
-		});
-	}
-
-	return preparacion;
-}
-
-async function ejecutarPreparacion(usuario) {
+// Valida el día del usuario: si ya estaba validado hoy, no toca la red; si no, refresca.
+async function validarDia(usuario) {
 	const guardada = leerSesionDia();
 
 	if (guardada?.uid === usuario.uid) {
-		if (Date.now() >= guardada.caduca) {
-			await expirarSesion();
-			throw new Error(MSG_CADUCADA);
-		}
-
-		programarCaducidad(guardada.caduca);
-		return;
+		if (Date.now() < guardada.caduca) return;
+		// Caducada: cerrar y rechazar.
+		await cerrarSesion();
+		throw new Error("La sesión ha caducado (fin del día). Vuelve a validarte.");
 	}
 
-	// Validación nueva: descarga completa. Si falla, no se da por válida.
-	await sincronizarConNube(contexto.db, usuario.uid);
-
-	const sesion = { uid: usuario.uid, caduca: finDelDia() };
-
-	guardarSesionDia(sesion);
-	programarCaducidad(sesion.caduca);
+	await refrescarCache(usuario.uid);
+	guardarSesionDia({ uid: usuario.uid, caduca: finDelDia() });
 }
 
-function inicializar(firebaseConfig) {
-	if (contexto) return contexto;
-
-	if (!configValida(firebaseConfig)) {
-		throw new Error("Configuración de Firebase incompleta (faltan apiKey, projectId o appId).");
-	}
-
-	const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-	const auth = getAuth(app); // Firebase conserva el usuario entre recargas; la caducidad la gestiona este módulo
-
-	// La caché persistente de Firestore se usa para la cola de escrituras sin conexión.
-	const db = initializeFirestore(app, {
-		localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-		ignoreUndefinedProperties: true,
-	});
-
-	contexto = { auth, db };
-
-	getRedirectResult(auth).catch((error) => console.error("Error al completar el inicio de sesión:", error));
-
-	onAuthStateChanged(auth, async (usuario) => {
-		if (!usuario) {
-			publicarSesion(null);
-			return;
-		}
-
-		try {
-			await prepararSesion(usuario);
-			publicarSesion(resumirUsuario(usuario));
-		} catch (error) {
-			console.error("No se pudo validar la sesión:", error);
-			publicarSesion(null);
-		}
-	});
-
-	document.addEventListener("visibilitychange", () => {
-		if (document.visibilityState === "visible") comprobarCaducidad();
-	});
-
-	return contexto;
+// Comprueba la caducidad al primer acceso tras medianoche (no hay temporizadores).
+// Se espera a que termine el cierre de sesión para que auth.currentUser ya esté actualizado.
+async function comprobarCaducidad() {
+	const sesion = leerSesionDia();
+	if (sesion && Date.now() >= sesion.caduca) await cerrarSesion();
 }
 
-function crearProveedor(nombre) {
-	switch (String(nombre).toLowerCase()) {
-		case "google": {
-			const proveedor = new GoogleAuthProvider();
-
-			proveedor.setCustomParameters({ prompt: "select_account" });
-			return proveedor;
-		}
-		case "microsoft": {
-			const proveedor = new OAuthProvider("microsoft.com");
-
-			proveedor.setCustomParameters({ prompt: "select_account" });
-			return proveedor;
-		}
-		case "github":
-			return new GithubAuthProvider();
-		default:
-			throw new Error(`Proveedor no soportado: "${nombre}". Usa "google", "microsoft" o "github".`);
-	}
-}
-
-// Valida al usuario con su cuenta y sincroniza. Debe llamarse desde un gesto del usuario (clic).
-//  - firebaseConfig: objeto de configuración de la app web de Firebase.
-//  - proveedor: "google" | "microsoft" | "github".
-// La validación y la config quedan guardadas dentro del módulo hasta medianoche: mientras
-// tanto, las funciones de datos funcionan solas tras recargar la página.
-// Devuelve { uid, nombre, email, foto, proveedor }, o null si se ha redirigido a la página de login.
-export async function iniciarSesion(proveedor) {
-	const { auth } = inicializar(firebaseConfig);
-	const proveedorAuth = crearProveedor(proveedor);
-
+// Devuelve el usuario con la sesión validada hoy, o null si no hay sesión.
+// Si la validación falló antes (p. ej. sin conexión), la reintenta; si vuelve a fallar,
+// el error real llega a quien llama.
+async function usuarioValidado() {
 	await auth.authStateReady();
+	await comprobarCaducidad();
 
-	if (auth.currentUser && sesionDiaCaducada(auth.currentUser.uid)) await expirarSesion();
+	const actual = auth.currentUser;
+	if (!actual) return null;
+
+	const usuario = await sesionLista;
+	if (usuario) return usuario;
+
+	await validarDia(actual);
+	sesionLista = Promise.resolve(actual);
+	publicar(resumirUsuario(actual));
+	return actual;
+}
+
+/* ------------------------------------------------------------------ */
+/* Acceso a datos                                                     */
+/* ------------------------------------------------------------------ */
+
+function documentoUsuario(uid, coleccion, id) {
+	return doc(db, COL_USUARIOS, uid, coleccion, id);
+}
+
+// Espera a que la sesión esté validada y devuelve el uid. Lanza si no hay sesión vigente.
+async function obtenerUid() {
+	const usuario = await usuarioValidado();
+	if (!usuario) throw new Error(MSG_SIN_SESION);
+	return usuario.uid;
+}
+
+// Lee de la caché local; null si el documento no está en caché.
+async function leerDeCache(coleccion, id) {
+	const uid = await obtenerUid();
+	try { return await getDocFromCache(documentoUsuario(uid, coleccion, id)); }
+	catch { return null; }
+}
+
+// No espera a la nube: la caché se actualiza al instante y la subida queda encolada.
+async function escribir(coleccion, id, datos) {
+	const uid = await obtenerUid();
+	setDoc(documentoUsuario(uid, coleccion, id), datos).catch((e) => console.error("Error sincronizando escritura:", e));
+}
+
+// Única lectura de red. Sube pendientes antes de descargar.
+async function refrescarCache(uid) {
+	if (!navigator.onLine) throw new Error(MSG_SIN_CONEXION);
+	await waitForPendingWrites(db);
+	await Promise.all([
+		getDocFromServer(documentoUsuario(uid, COL_REGISTROS, ID_HISTORIAL)),
+		getDocFromServer(documentoUsuario(uid, COL_EJERCICIOS, ID_EJERCICIOS)),
+	]);
+}
+
+/* ------------------------------------------------------------------ */
+/* API pública                                                        */
+/* ------------------------------------------------------------------ */
+
+// Devuelve el resumen del usuario, o null si se ha redirigido a la página de login.
+export async function iniciarSesion(proveedor) {
+	await auth.authStateReady();
+	await comprobarCaducidad(); // si caducó, cierra la sesión y volverá a pedir login
 
 	if (!auth.currentUser) {
+		const p = crearProveedor(proveedor);
 		try {
-			await signInWithPopup(auth, proveedorAuth);
+			await signInWithPopup(auth, p);
 		} catch (error) {
-			// Algunos navegadores móviles bloquean popups: se usa el flujo por redirección.
 			if (CODIGOS_USAR_REDIRECCION.includes(error.code)) {
-				guardarConfig(firebaseConfig);
-				await signInWithRedirect(auth, proveedorAuth);
-				return null; // la página se recarga al volver del login y entonces se sincroniza
+				await signInWithRedirect(auth, p);
+				return null;
 			}
 			throw error;
 		}
 	}
 
-	guardarConfig(firebaseConfig);
-	await prepararSesion(auth.currentUser);
-
-	const usuario = resumirUsuario(auth.currentUser);
-
-	publicarSesion(usuario);
-	return usuario;
+	const usuario = await usuarioValidado();
+	if (!usuario) throw new Error(MSG_SIN_SESION);
+	return resumirUsuario(usuario);
 }
 
 export async function cerrarSesion() {
-	await expirarSesion();
+	localStorage.removeItem(CLAVE_SESION_DIA);
+	await signOut(auth);
 }
 
-// Avisa del estado de la sesión (usuario o null) al registrarse y en cada cambio, incluida
-// la caducidad. Devuelve una función para dejar de escuchar.
 export function alCambiarSesion(callback) {
 	oyentes.add(callback);
-
-	if (ultimaSesion !== undefined) {
-		// Ya se conoce el estado: aviso inmediato.
-		callback(ultimaSesion);
-	} else if (contexto) {
-		// Sesión aún resolviéndose: onAuthStateChanged avisará (o el catch de abajo).
-	} else {
-		const config = leerConfigGuardada();
-
-		if (config) {
-			try {
-				inicializar(config);
-			} catch (error) {
-				console.error("Error al inicializar la sesión:", error);
-				publicarSesion(null);
-			}
-		} else {
-			// Sin config guardada no hay sesión posible: se avisa ya.
-			publicarSesion(null);
-		}
-	}
-
+	if (ultimoResumen !== undefined) callback(ultimoResumen);
 	return () => oyentes.delete(callback);
 }
 
-// Todas las funciones de datos pasan por aquí: exige validación vigente del día.
-async function obtenerSesion() {
-	if (!contexto) {
-		const config = leerConfigGuardada();
-
-		if (!config) throw new Error(MSG_SIN_SESION);
-		inicializar(config);
-	}
-
-	await contexto.auth.authStateReady();
-
-	const usuario = contexto.auth.currentUser;
-
-	if (!usuario) throw new Error(MSG_SIN_SESION);
-
-	await prepararSesion(usuario);
-
-	return { db: contexto.db, uid: usuario.uid };
+function crearProveedor(nombre) {
+	const crear = PROVEEDORES[String(nombre).toLowerCase()];
+	if (!crear) throw new Error(`Proveedor no soportado: "${nombre}". Usa "google" o "microsoft".`);
+	const p = crear();
+	p.setCustomParameters({ prompt: "select_account" });
+	return p;
 }
 
 /* ------------------------------------------------------------------ */
-/* Registros de ejercicio                                             */
+/* Histórico                                                          */
 /* ------------------------------------------------------------------ */
 
-// Guarda el histórico COMPLETO (array de objetos) en un único documento, sustituyendo al anterior.
-// Se envía a la nube en el momento y después se guarda en la copia local.
 export async function guardarHistorial(registros) {
-	if (!Array.isArray(registros)) {
-		throw new TypeError("guardarHistorial espera el array completo de registros.");
-	}
-
-	const { db, uid } = await obtenerSesion();
-	const bytes = empaquetarHistorial(registros);
-
-	try {
-		await confirmarEscritura(
-			setDoc(documentoUsuario(db, uid, COL_REGISTROS, ID_HISTORIAL), { datos: Bytes.fromUint8Array(bytes) }),
-		);
-	} catch (error) {
-		console.error("Error guardando el histórico en la nube:", error);
-		throw error;
-	}
-
-	await guardarLocal(REGISTROS_KEY, bytes);
-
-	return true;
+	if (!Array.isArray(registros)) throw new TypeError("guardarHistorial espera el array completo.");
+	const bytes = empaquetarHistorial(registros); // valida antes de tocar la sesión
+	await escribir(COL_REGISTROS, ID_HISTORIAL, { datos: Bytes.fromUint8Array(bytes) });
 }
 
-// Lectura 100 % local. Devuelve el array de objetos (vacío si no hay histórico).
 export async function cargarHistorial() {
-	await obtenerSesion();
-
-	return desempaquetarHistorial(await leerLocal(REGISTROS_KEY));
+	const snap = await leerDeCache(COL_REGISTROS, ID_HISTORIAL);
+	return snap?.exists() ? desempaquetarHistorial(snap.data().datos.toUint8Array()) : [];
 }
 
 /* ------------------------------------------------------------------ */
-/* Archivo de ejercicios                                              */
+/* Ejercicios                                                         */
 /* ------------------------------------------------------------------ */
 
-// Guarda el archivo de ejercicios (Blob/File con JSON) en un único documento y en la copia local.
 export async function guardarEjercicios(ejercicios) {
-	const { db, uid } = await obtenerSesion();
-
 	const texto = JSON.stringify(ejercicios);
-	const bytes = new TextEncoder().encode(texto).length;
-	if (bytes > MAX_BYTES_DOCUMENTO) {
+	if (new TextEncoder().encode(texto).length > MAX_BYTES_DOCUMENTO)
 		throw new Error("El archivo de ejercicios es demasiado grande para guardarlo en la nube.");
-	}
-
-	try {
-		await confirmarEscritura(setDoc(documentoUsuario(db, uid, COL_EJERCICIOS, ID_EJERCICIOS), { texto }));
-	} catch (error) {
-		console.error("Error guardando los ejercicios en la nube:", error);
-		throw error;
-	}
-
-	await guardarLocal(EJERCICIOS_KEY, texto);
+	await escribir(COL_EJERCICIOS, ID_EJERCICIOS, { texto });
 }
 
-// Lectura 100 % local.
 export async function cargarEjercicios() {
-	await obtenerSesion();
-
-	const texto = await leerLocal(EJERCICIOS_KEY);
-
-	if (texto === undefined || texto === null) {
-		throw new Error("No hay ejercicios importados. Usa 'Importar JSON' para cargarlos.");
-	}
-
-	return JSON.parse(texto);
+	const snap = await leerDeCache(COL_EJERCICIOS, ID_EJERCICIOS);
+	if (!snap?.exists()) throw new Error("No hay ejercicios importados. Usa 'Importar JSON' para cargarlos.");
+	return JSON.parse(snap.data().texto);
 }
