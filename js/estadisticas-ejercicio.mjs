@@ -1,5 +1,5 @@
 import { cargarEjercicios, cargarHistorial } from "./database.mjs";
-import { formatearFecha, formatearFechaCorta, obtenerParametrosURL } from "./utils.mjs";
+import { epley, formatearFecha, formatearFechaCorta, formatearNumero, obtenerInicioSemana, obtenerParametrosURL, setText } from "./utils.mjs";
 
 /*
 Semana / ciclo
@@ -18,30 +18,18 @@ const MILISEGUNDOS_SEMANA = 7 * MILISEGUNDOS_DIA;
 // ---------------------------------------------------------
 
 function formatearPeso(peso) {
-	return `${peso.toFixed(1)} kg`;
+	return `${formatearNumero(peso, 1, 0)} kg`;
 }
 
-function formatearNumero(valor) {
-	return valor.toFixed(1).replace(".", ",");
+function obtenerMaximo(realizaciones, propiedad) {
+	return Math.max(...realizaciones.map((realizacion) => realizacion[propiedad]));
 }
-
-function obtenerMaximo(puntos, propiedad) {
-	return Math.max(...puntos.map((punto) => punto[propiedad]));
-}
-
-function epley(peso, repeticiones) {
-	return peso * (1 + Math.min(repeticiones, 30) / 30);
-}
-
-const setText = (id, valor) => {
-	document.getElementById(id).textContent = valor;
-};
 
 // ---------------------------------------------------------
 // Serie temporal
 // ---------------------------------------------------------
 
-function construirPuntosEjercicio(ejercicioId, registrosEjercicio) {
+function construirRealizacionesEjercicio(ejercicioId, registrosEjercicio) {
 	// historial ya viene ordenado por fecha ascendente; filter conserva el orden
 	return registrosEjercicio
 		.filter((registroEjercicio) => registroEjercicio.idEjercicio === ejercicioId)
@@ -59,59 +47,59 @@ function construirPuntosEjercicio(ejercicioId, registrosEjercicio) {
 // Estadísticas
 // ---------------------------------------------------------
 
-function calcularFrecuenciaMedia(puntosEjercicio) {
-	if (puntosEjercicio.length < 2) return "Primera sesión";
+function calcularFrecuenciaMedia(realizaciones) {
+	if (realizaciones.length < 2) return "Primera sesión";
 
-	const mediaDias = (puntosEjercicio.at(-1).fecha - puntosEjercicio[0].fecha) / MILISEGUNDOS_DIA / (puntosEjercicio.length - 1);
-	return `cada ${formatearNumero(mediaDias)} días`;
+	const mediaDias = (realizaciones.at(-1).fecha - realizaciones[0].fecha) / MILISEGUNDOS_DIA / (realizaciones.length - 1);
+	return `cada ${formatearNumero(mediaDias, 1)} días`;
 }
 
-function calcularPendienteEpley(puntosEjercicio) {
-	const numeroPuntos = puntosEjercicio.length;
-	if (numeroPuntos < 2) return 0;
+function calcularPendienteEpley(realizaciones) {
+	const numeroRealizaciones = realizaciones.length;
+	if (numeroRealizaciones < 2) return 0;
 
-	const sumaX = ((numeroPuntos - 1) * numeroPuntos) / 2;
-	const sumaXX = ((numeroPuntos - 1) * numeroPuntos * (2 * numeroPuntos - 1)) / 6;
+	const sumaX = ((numeroRealizaciones - 1) * numeroRealizaciones) / 2;
+	const sumaXX = ((numeroRealizaciones - 1) * numeroRealizaciones * (2 * numeroRealizaciones - 1)) / 6;
 	let sumaY = 0;
 	let sumaXY = 0;
 
-	puntosEjercicio.forEach((punto, indice) => {
+	realizaciones.forEach((punto, indice) => {
 		sumaY += punto.pesoEpley;
 		sumaXY += indice * punto.pesoEpley;
 	});
 
-	const denominador = numeroPuntos * sumaXX - sumaX * sumaX;
-	return denominador === 0 ? 0 : (numeroPuntos * sumaXY - sumaX * sumaY) / denominador;
+	const denominador = numeroRealizaciones * sumaXX - sumaX * sumaX;
+	return denominador === 0 ? 0 : (numeroRealizaciones * sumaXY - sumaX * sumaY) / denominador;
 }
 
-function calcularVolumenTotal(puntosEjercicio) {
-	return puntosEjercicio.reduce((total, punto) => total + punto.volumen, 0);
+function calcularVolumenTotal(realizaciones) {
+	return realizaciones.reduce((total, punto) => total + punto.volumen, 0);
 }
 
-function calcularRepeticionesTotales(puntosEjercicio) {
-	return puntosEjercicio.reduce((total, punto) => total + punto.numeroSeries * punto.repeticiones, 0);
+function calcularRepeticionesTotales(realizaciones) {
+	return realizaciones.reduce((total, punto) => total + punto.numeroSeries * punto.repeticiones, 0);
 }
 
-function mostrarEstadisticasEjercicio(puntosEjercicio) {
-	const ultimoPunto = puntosEjercicio.at(-1);
+function mostrarEstadisticasEjercicio(realizaciones) {
+	const ultimoPunto = realizaciones.at(-1);
 	const pesoEstimadoActual = ultimoPunto.pesoEpley;
-	const mejorPesoEstimado = obtenerMaximo(puntosEjercicio, "pesoEpley");
+	const mejorPesoEstimado = obtenerMaximo(realizaciones, "pesoEpley");
 	const elementoTendencia = document.getElementById("tendencia-ejercicio");
 
 	setText("peso-estimado-actual", formatearPeso(pesoEstimadoActual));
-	setText("porcentaje-mejor-1pr", `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100)}%`);
-	setText("frecuencia-media", calcularFrecuenciaMedia(puntosEjercicio));
-	setText("volumen-total", calcularVolumenTotal(puntosEjercicio));
-	setText("repeticiones-totales", calcularRepeticionesTotales(puntosEjercicio));
+	setText("porcentaje-mejor-1pr", `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100, 1)}%`);
+	setText("frecuencia-media", calcularFrecuenciaMedia(realizaciones));
+	setText("volumen-total", formatearNumero(calcularVolumenTotal(realizaciones), 1));
+	setText("repeticiones-totales", calcularRepeticionesTotales(realizaciones));
 
-	if (puntosEjercicio.length === 1) {
+	if (realizaciones.length === 1) {
 		elementoTendencia.textContent = "Primera sesión";
 		return;
 	}
 
-	const pendienteEpley = calcularPendienteEpley(puntosEjercicio);
+	const pendienteEpley = calcularPendienteEpley(realizaciones);
 	const signo = pendienteEpley > 0 ? "+" : "";
-	elementoTendencia.textContent = `${signo}${formatearNumero(pendienteEpley)} kg/sesión`;
+	elementoTendencia.textContent = `${signo}${formatearNumero(pendienteEpley, 2)} kg/sesión`;
 }
 
 // ---------------------------------------------------------
@@ -128,19 +116,19 @@ const CONFIG_RECORDS = [
 	{ id: "volumen", campo: "volumen" },
 ];
 
-function calcularRecordsHistoricos(puntosEjercicio) {
+function calcularRecordsHistoricos(realizaciones) {
 	return {
-		pesoEpley: obtenerMaximo(puntosEjercicio, "pesoEpley"),
-		peso: obtenerMaximo(puntosEjercicio, "peso"),
-		repeticiones: obtenerMaximo(puntosEjercicio, "repeticiones"),
-		numeroSeries: obtenerMaximo(puntosEjercicio, "numeroSeries"),
-		volumen: obtenerMaximo(puntosEjercicio, "volumen"),
+		pesoEpley: obtenerMaximo(realizaciones, "pesoEpley"),
+		peso: obtenerMaximo(realizaciones, "peso"),
+		repeticiones: obtenerMaximo(realizaciones, "repeticiones"),
+		numeroSeries: obtenerMaximo(realizaciones, "numeroSeries"),
+		volumen: obtenerMaximo(realizaciones, "volumen"),
 	};
 }
 
-function calcularNuevosRecordsUltimoRegistro(puntosEjercicio) {
-	const recordsAnteriores = puntosEjercicio.length > 1 ? calcularRecordsHistoricos(puntosEjercicio.slice(0, -1)) : null;
-	const ultimoPunto = puntosEjercicio.at(-1);
+function calcularNuevosRecordsUltimoRegistro(realizaciones) {
+	const recordsAnteriores = realizaciones.length > 1 ? calcularRecordsHistoricos(realizaciones.slice(0, -1)) : null;
+	const ultimoPunto = realizaciones.at(-1);
 
 	return Object.fromEntries(
 		CAMPOS_RECORD.map((campo) => [
@@ -165,7 +153,7 @@ function mostrarNuevosRecords(nuevosRecords) {
 		const el = document.getElementById(`record-ultimo-${id}`);
 		const ocultar = valor === null;
 
-		el.classList.toggle("hidden", ocultar);
+		el.hidden = ocultar;
 		if (!ocultar) {
 			el.querySelector("dd").textContent = formatear ? formatear(valor) : valor;
 			numeroRecordsNuevos++;
@@ -179,11 +167,11 @@ function mostrarNuevosRecords(nuevosRecords) {
 // Rachas
 // ---------------------------------------------------------
 
-function calcularRachaMejora(puntosEjercicio) {
+function calcularRachaMejora(realizaciones) {
 	let racha = 0;
 
-	for (let indice = puntosEjercicio.length - 1; indice > 0; indice--) {
-		if (puntosEjercicio[indice].pesoEpley <= puntosEjercicio[indice - 1].pesoEpley) break;
+	for (let indice = realizaciones.length - 1; indice > 0; indice--) {
+		if (realizaciones[indice].pesoEpley <= realizaciones[indice - 1].pesoEpley) break;
 
 		racha++;
 	}
@@ -191,27 +179,20 @@ function calcularRachaMejora(puntosEjercicio) {
 	return racha;
 }
 
-function obtenerInicioSemana(fecha) {
-	const inicioSemana = new Date(fecha);
-	inicioSemana.setHours(0, 0, 0, 0);
-	inicioSemana.setDate(inicioSemana.getDate() - ((inicioSemana.getDay() + 6) % 7));
-	return inicioSemana.getTime();
-}
-
-function calcularRachaSemanas(puntosEjercicio) {
-	if (!puntosEjercicio.length) {
-		return 0;
-	}
+function calcularRachaSemanas(realizaciones) {
+	if (!realizaciones.length) return 0;
 
 	const inicioSemanaActual = obtenerInicioSemana(new Date());
-	const inicioSemanaUltimoPunto = obtenerInicioSemana(puntosEjercicio.at(-1).fecha);
+	const inicioSemanaUltimoPunto = obtenerInicioSemana(realizaciones.at(-1).fecha);
 
-	if (inicioSemanaUltimoPunto !== inicioSemanaActual) {
-		return 0;
-	}
+	// La semana en curso aún no ha terminado: si la última sesión fue
+	// esta semana o la anterior, la racha sigue viva. Se rompe sólo si
+	// hay una semana completa sin ninguna sesión (≥ 2 semanas de distancia).
+	const diferenciaSemanas = (inicioSemanaActual - inicioSemanaUltimoPunto) / MILISEGUNDOS_SEMANA;
+	if (diferenciaSemanas > 1) return 0;
 
-	// puntosEjercicio está ordenado por fecha, así que las semanas ya salen ordenadas
-	const semanas = [...new Set(puntosEjercicio.map((punto) => obtenerInicioSemana(punto.fecha)))];
+	// realizaciones está ordenado por fecha, así que las semanas ya salen ordenadas
+	const semanas = [...new Set(realizaciones.map((r) => obtenerInicioSemana(r.fecha)))];
 
 	let racha = 1;
 	let semanaActual = semanas.at(-1);
@@ -228,9 +209,9 @@ function calcularRachaSemanas(puntosEjercicio) {
 	return racha;
 }
 
-function mostrarRacha(puntosEjercicio) {
-	setText("racha-sesiones-mejora", calcularRachaMejora(puntosEjercicio));
-	setText("racha-semanas", calcularRachaSemanas(puntosEjercicio));
+function mostrarRacha(realizaciones) {
+	setText("racha-sesiones-mejora", calcularRachaMejora(realizaciones));
+	setText("racha-semanas", calcularRachaSemanas(realizaciones));
 }
 
 // ---------------------------------------------------------
@@ -239,13 +220,13 @@ function mostrarRacha(puntosEjercicio) {
 
 let graficoPeso = null;
 
-function crearGraficoPeso(puntosEjercicio) {
+function crearGraficoPeso(realizaciones) {
 	if (graficoPeso) {
 		graficoPeso.destroy();
 		graficoPeso = null;
 	}
 
-	const datosGrafico = puntosEjercicio.map((punto) => ({
+	const datosGrafico = realizaciones.map((punto) => ({
 		x: punto.fecha.getTime(),
 		y: punto.pesoEpley,
 	}));
@@ -289,8 +270,7 @@ function crearGraficoPeso(puntosEjercicio) {
 					callbacks: {
 						title: (elementos) => formatearFecha(new Date(elementos[0].parsed.x)),
 						label: (elemento) => {
-							const punto = puntosEjercicio[elemento.dataIndex];
-
+							const punto = realizaciones[elemento.dataIndex];
 							return `${formatearPeso(punto.pesoEpley)} ` + `(${punto.repeticiones} reps, ` + `${formatearPeso(punto.peso)})`;
 						},
 					},
@@ -374,19 +354,19 @@ async function inicializar() {
 		titulo.textContent = `${nombreEjercicio}`;
 		document.title = `SIMPLEGYM - ${nombreEjercicio}`;
 
-		const puntosEjercicio = construirPuntosEjercicio(ejercicio.id, historial);
+		const realizaciones = construirRealizacionesEjercicio(ejercicio.id, historial);
 
-		if (puntosEjercicio.length === 0) {
+		if (realizaciones.length === 0) {
 			throw new Error(`No hay historial para ${nombreEjercicio}.`);
 		}
 
-		subtitulo.textContent = `${puntosEjercicio.length} ${puntosEjercicio.length === 1 ? "sesión registrada" : "sesiones registradas"}`;
+		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "sesión registrada" : "sesiones registradas"}`;
 
-		crearGraficoPeso(puntosEjercicio);
-		mostrarEstadisticasEjercicio(puntosEjercicio);
-		mostrarRecordsHistoricos(calcularRecordsHistoricos(puntosEjercicio));
-		mostrarNuevosRecords(calcularNuevosRecordsUltimoRegistro(puntosEjercicio));
-		mostrarRacha(puntosEjercicio);
+		crearGraficoPeso(realizaciones);
+		mostrarEstadisticasEjercicio(realizaciones);
+		mostrarRecordsHistoricos(calcularRecordsHistoricos(realizaciones));
+		mostrarNuevosRecords(calcularNuevosRecordsUltimoRegistro(realizaciones));
+		mostrarRacha(realizaciones);
 	} catch (error) {
 		document.getElementById("main-container").hidden = true;
 		titulo.textContent = "Error";

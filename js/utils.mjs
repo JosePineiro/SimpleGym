@@ -86,3 +86,27 @@ export function formatearFechaCorta(fecha) {
 export function esMismoDia(fecha1, fecha2) {
 	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
 }
+
+export function obtenerInicioSemana(fecha) {
+	const inicioSemana = new Date(fecha);
+	inicioSemana.setHours(0, 0, 0, 0);
+	inicioSemana.setDate(inicioSemana.getDate() - ((inicioSemana.getDay() + 6) % 7));
+	return inicioSemana.getTime();
+}
+
+
+export function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
+	return Number.isFinite(valor)
+		? valor.toLocaleString("es-ES", { maximumFractionDigits: maximoDecimales, minimumFractionDigits: minimoDecimales })
+		: "—";
+}
+
+export const setText = (id, valor) => {
+	document.getElementById(id).textContent = valor;
+};
+
+
+
+export function epley(peso, repeticiones) {
+	return peso * (1 + Math.min(repeticiones, 30) / 30);
+}

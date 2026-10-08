@@ -176,12 +176,16 @@ async function importarJSON(event) {
 			ejercicio.nombre.trim() !== "" &&
 			typeof ejercicio.descripcion === "string" &&
 			typeof ejercicio.incremento_peso === "number" &&
+			ejercicio.incremento_peso > 0.1 &&
+			typeof ejercicio.incremento_repeticiones === "number" &&
+			ejercicio.incremento_repeticiones > 0 &&
 			Array.isArray(ejercicio.sesiones) &&
 			ejercicio.sesiones.every((sesion) => typeof sesion === "number") &&
 			typeof ejercicio.series_trabajo === "number" &&
 			typeof ejercicio.series_aproximacion === "number" &&
 			typeof ejercicio.repeticiones_min === "number" &&
 			typeof ejercicio.repeticiones_max === "number" &&
+			ejercicio.repeticiones_min < ejercicio.repeticiones_max &&
 			typeof ejercicio.rir === "number" &&
 			typeof ejercicio.descanso === "number";
 

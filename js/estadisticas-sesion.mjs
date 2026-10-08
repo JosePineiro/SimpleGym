@@ -1,5 +1,5 @@
 import { cargarHistorial } from "./database.mjs";
-import { formatearFecha, formatearFechaCorta, obtenerParametrosURL } from "./utils.mjs";
+import { formatearFecha, formatearFechaCorta, formatearNumero, obtenerInicioSemana, obtenerParametrosURL, setText } from "./utils.mjs";
 
 const MILISEGUNDOS_DIA = 24 * 60 * 60 * 1000;
 const MILISEGUNDOS_SEMANA = 7 * MILISEGUNDOS_DIA;
@@ -10,27 +10,6 @@ const PROPIEDADES_RECORD = [
 	{ prop: "repeticiones", id: "record-ultima-sesion-repeticiones" },
 	{ prop: "numeroEjercicios", id: "record-ultima-sesion-ejercicios" },
 ];
-
-// ---------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------
-
-function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
-	return Number.isFinite(valor)
-		? valor.toLocaleString("es-ES", { maximumFractionDigits: maximoDecimales, minimumFractionDigits: minimoDecimales })
-		: "—";
-}
-
-const mostrarTexto = (id, valor) => {
-	document.getElementById(id).textContent = valor;
-};
-
-function obtenerInicioSemana(fecha) {
-	const inicio = new Date(fecha);
-	inicio.setHours(0, 0, 0, 0);
-	inicio.setDate(inicio.getDate() - ((inicio.getDay() + 6) % 7));
-	return inicio.getTime();
-}
 
 // ---------------------------------------------------------
 // Realizaciones de la sesión
@@ -142,24 +121,29 @@ function calcularRachaSemanas(realizaciones) {
 	if (!realizaciones.length) return 0;
 
 	const inicioSemanaActual = obtenerInicioSemana(new Date());
-	const inicioSemanaUltima = obtenerInicioSemana(realizaciones.at(-1).fecha);
+	const inicioSemanaUltimoPunto = obtenerInicioSemana(realizaciones.at(-1).fecha);
 
 	// La semana en curso aún no ha terminado: si la última sesión fue
 	// esta semana o la anterior, la racha sigue viva. Se rompe sólo si
 	// hay una semana completa sin ninguna sesión (≥ 2 semanas de distancia).
-	const diferenciaSemanas = (inicioSemanaActual - inicioSemanaUltima) / MILISEGUNDOS_SEMANA;
+	const diferenciaSemanas = (inicioSemanaActual - inicioSemanaUltimoPunto) / MILISEGUNDOS_SEMANA;
 	if (diferenciaSemanas > 1) return 0;
 
+	// realizaciones está ordenado por fecha, así que las semanas ya salen ordenadas
 	const semanas = [...new Set(realizaciones.map((r) => obtenerInicioSemana(r.fecha)))];
 
 	let racha = 1;
-	for (
-		let i = semanas.length - 2;
-		i >= 0 && semanas[i + 1] - semanas[i] === MILISEGUNDOS_SEMANA;
-		i--
-	) {
+	let semanaActual = semanas.at(-1);
+
+	for (let indice = semanas.length - 2; indice >= 0; indice--) {
+		const semanaAnterior = semanas[indice];
+
+		if (semanaActual - semanaAnterior !== MILISEGUNDOS_SEMANA) break;
+
 		racha++;
+		semanaActual = semanaAnterior;
 	}
+
 	return racha;
 }
 
@@ -226,17 +210,17 @@ function mostrarEstadisticas(estadisticas) {
 		rachaSesionesCompletadas, rachaSesionesConMejora, rachaSemanas,
 	} = estadisticas;
 
-	mostrarTexto("volumen-actual", formatearNumero(volumenActual));
-	mostrarTexto("porcentaje-mejor-volumen", `${formatearNumero(porcentajeMejorVolumen, 1)}%`);
-	mostrarTexto("frecuencia-media", frecuenciaMedia);
-	mostrarTexto("tendencia-volumen", tendenciaVolumen);
-	mostrarTexto("record-ejercicios", formatearNumero(recordsHistoricos.numeroEjercicios));
-	mostrarTexto("record-series", formatearNumero(recordsHistoricos.numeroSeries));
-	mostrarTexto("record-repeticiones", formatearNumero(recordsHistoricos.repeticiones));
-	mostrarTexto("record-volumen", formatearNumero(recordsHistoricos.volumen));
-	mostrarTexto("racha-sesiones-completadas", formatearNumero(rachaSesionesCompletadas));
-	mostrarTexto("racha-sesiones-mejora", formatearNumero(rachaSesionesConMejora));
-	mostrarTexto("racha-semanas", formatearNumero(rachaSemanas));
+	setText("volumen-actual", formatearNumero(volumenActual));
+	setText("porcentaje-mejor-volumen", `${formatearNumero(porcentajeMejorVolumen, 1)}%`);
+	setText("frecuencia-media", frecuenciaMedia);
+	setText("tendencia-volumen", tendenciaVolumen);
+	setText("record-ejercicios", recordsHistoricos.numeroEjercicios);
+	setText("record-series", recordsHistoricos.numeroSeries);
+	setText("record-repeticiones", recordsHistoricos.repeticiones);
+	setText("record-volumen", formatearNumero(recordsHistoricos.volumen));
+	setText("racha-sesiones-completadas", rachaSesionesCompletadas);
+	setText("racha-sesiones-mejora", rachaSesionesConMejora);
+	setText("racha-semanas", rachaSemanas);
 
 	mostrarNuevosRecords(nuevosRecords);
 }

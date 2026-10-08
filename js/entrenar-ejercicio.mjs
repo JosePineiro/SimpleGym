@@ -310,18 +310,22 @@ async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion
 	if (!Number.isInteger(repeticiones) || repeticiones <= 0) throw new Error("Repeticiones inválidas.");
 
 	// El nuevo registro va al final: el histórico queda ordenado por fecha ascendente.
-	historial.push({
-		idEjercicio: ejercicio.id,
-		numeroSesion,
-		totalEjercicios: totalEjerciciosSesion,
-		fecha: new Date(),
-		numeroSeries: ejercicio.series_trabajo,
-		peso,
-		repeticiones,
-	});
+	// No mutamos `historial`: creamos un array nuevo. Si `guardarHistorial` falla,
+	// el histórico en memoria queda intacto y un reintento no duplica el registro.
+	const historialActualizado = [
+		...historial,
+		{
+			idEjercicio: ejercicio.id,
+			numeroSesion,
+			totalEjercicios: totalEjerciciosSesion,
+			fecha: new Date(),
+			numeroSeries: ejercicio.series_trabajo,
+			peso,
+			repeticiones,
+		},
+	];
 
-	// Guardamos el historial completo
-	await guardarHistorial(historial);
+	await guardarHistorial(historialActualizado);
 
 	location.href = `sesion.html?numeroSesion=${numeroSesion}`;
 }

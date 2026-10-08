@@ -1,4 +1,5 @@
 import { cargarEjercicios, cargarHistorial } from "./database.mjs";
+import { epley, formatearFecha } from "./utils.mjs";
 
 let ejerciciosPorId = new Map();
 let fechaActual = new Date();
@@ -14,14 +15,7 @@ const ETIQUETA_ESTADO = {
 	best: "sesión completa con progreso",
 };
 
-function epley(peso, repeticiones) {
-	if (repeticiones > 29) repeticiones = 30;
-	return peso * (1 + repeticiones / 30);
-}
-
 /* ---------- Utilidades de fecha ---------- */
-
-const pad = (n) => String(n).padStart(2, "0");
 
 // Las fechas del historial ya son Date a medianoche LOCAL (ver diasAFecha en
 // database.mjs). Su getTime() coincide con el de new Date(y, m, d) para el
@@ -226,8 +220,7 @@ function renderDetalleDia(clave) {
 	tarjetaDetalle.hidden = false;
 
 	const date = new Date(clave);
-	document.getElementById("detalle-titulo").textContent =
-		`Detalle del ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+	document.getElementById("detalle-titulo").textContent = `Detalle del ${formatearFecha(date)}`;
 
 	document.getElementById("detalle-texto").innerHTML =
 		`Sesión: <strong>${sesion ?? "—"}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
