@@ -2,6 +2,7 @@ import {
 	alCambiarSesion,
 	cargarEjercicios,
 	cargarHistorial,
+	cerrarSesion,
 	guardarEjercicios,
 	guardarHistorial,
 	iniciarSesion,
@@ -276,7 +277,17 @@ async function alCambiarEstadoSesion(usuario) {
 
 	// Sin validación: se oculta la pantalla principal y se muestra la de validación.
 	document.getElementById("main-section").hidden = !validado;
-	document.getElementById("validation-section").hidden = validado;
+
+	// Mostrar/ocultar botones de login y desconexión según el estado.
+	document.getElementById("btn-validar-google").hidden = validado;
+	document.getElementById("btn-validar-microsoft").hidden = validado;
+	document.getElementById("btn-cerrar-sesion").hidden = !validado;
+	if (usuario) {
+		document.getElementById("usuario").textContent = `${usuario.nombre}`;
+	}
+	else {
+		document.getElementById("usuario").textContent = "Valida tu cuenta.";
+	}
 
 	// Abortamos la inicialización hasta que haya sesión vigente.
 	if (!validado) return;
@@ -293,5 +304,13 @@ document.getElementById("btn-importar-JSON").addEventListener("change", importar
 document.getElementById("btn-exportar-JSON").addEventListener("click", exportarJSON);
 document.getElementById("btn-validar-google").addEventListener("click", () => iniciarSesion("google"));
 document.getElementById("btn-validar-microsoft").addEventListener("click", () => iniciarSesion("microsoft"));
+document.getElementById("btn-cerrar-sesion").addEventListener("click", async () => {
+	try {
+		await cerrarSesion();
+	} catch (error) {
+		console.error(error);
+		alert(`Error al desconectar: ${error?.message || error}`);
+	}
+});
 
 alCambiarSesion(alCambiarEstadoSesion);

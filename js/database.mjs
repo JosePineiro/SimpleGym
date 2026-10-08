@@ -156,7 +156,7 @@ function diasAFecha(dias) {
 }
 
 // Array de objetos -> Uint8Array. Valida los rangos (un Uint8 truncaría sin avisar).
-export function empaquetarHistorial(registros) {
+function empaquetarHistorial(registros) {
 	const tamano = BYTES_CABECERA + registros.length * BYTES_REGISTRO;
 
 	if (tamano > MAX_BYTES_DOCUMENTO) {
@@ -184,7 +184,7 @@ export function empaquetarHistorial(registros) {
 }
 
 // Uint8Array -> array de objetos.
-export function desempaquetarHistorial(buffer) {
+function desempaquetarHistorial(buffer) {
 	if (!buffer || buffer.length === 0) return [];
 
 	if (buffer[0] !== VERSION_FORMATO) {
@@ -325,13 +325,6 @@ async function sincronizarConNube(db, uid) {
 		Historial.exists() ? Historial.data().datos.toUint8Array() : null,
 		ejercicios.exists() ? ejercicios.data().texto : null,
 	);
-}
-
-// Refresco manual opcional (requiere sesión y conexión). No amplía la caducidad.
-export async function sincronizar() {
-	const { db, uid } = await obtenerSesion();
-
-	await sincronizarConNube(db, uid);
 }
 
 /* ------------------------------------------------------------------ */
@@ -579,11 +572,6 @@ export async function iniciarSesion(proveedor) {
 
 export async function cerrarSesion() {
 	await expirarSesion();
-}
-
-// Usuario con la validación vigente, o null.
-export function obtenerUsuario() {
-	return ultimaSesion ?? null;
 }
 
 // Avisa del estado de la sesión (usuario o null) al registrarse y en cada cambio, incluida
