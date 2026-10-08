@@ -1,11 +1,14 @@
 // database.mjs — Firebase Auth + Firestore con caché persistente.
 //
-//  - iniciarSesion() valida y refresca la caché desde la nube (única lectura de red).
-//  - cargar*() leen de la caché local (getDocFromCache): sin red ni coste.
-//  - guardar*() usan setDoc: actualizan la caché al instante y encolan la subida.
-//  - La validación caduca a medianoche; al primer acceso tras la caducidad, se cierra.
-//  - Si la validación falla (p. ej. al abrir sin conexión), se reintenta al volver la red
-//    o en la siguiente llamada a iniciarSesion()/cargar*()/guardar*().
+//  - Las escrituras (guardar*) usan setDoc: la caché local se actualiza al instante
+//    y la subida a Firebase queda encolada, sin esperar a la red.
+//  - Las lecturas (cargar*) usan getDocFromCache: siempre salen de la caché local,
+//    sin red ni coste.
+//  - La caché se refresca desde la nube una vez al día: la primera operación de cada
+//    día (iniciarSesion, cargar* o guardar*) sube lo pendiente y descarga los documentos.
+//    El resto del día todo va por caché. No hace falta volver a iniciar sesión.
+//  - Si el refresco falla (p. ej. al abrir sin conexión en un día nuevo), la operación
+//    lanza el error y se reintenta en la siguiente llamada o al volver la red.
 //
 // Datos:    guardarHistorial(registros) / cargarHistorial()
 //           guardarEjercicios(obj)      / cargarEjercicios()
@@ -30,6 +33,7 @@ const firebaseConfig = {
 	appId: "1:1086535851954:web:5eb50586ba1db2c9498eab",
 };
 
+// Clave de localStorage donde se guarda { uid, dia } del último refresco de la caché.
 const CLAVE_SESION_DIA = "fitnessDB.sesionDia";
 const MSG_SIN_SESION = "Sesión no iniciada. Llama a iniciarSesion(proveedor) desde un botón.";
 const MSG_SIN_CONEXION = "Esta operación necesita conexión a internet.";
@@ -59,6 +63,7 @@ const db = initializeFirestore(app, {
 	ignoreUndefinedProperties: true,
 });
 
+// Completa el inicio de sesión si se volvió de una redirección.
 getRedirectResult(auth).catch((e) => console.error("Error al completar el inicio de sesión:", e));
 
 /* ------------------------------------------------------------------ */
@@ -69,20 +74,22 @@ getRedirectResult(auth).catch((e) => console.error("Error al completar el inicio
 //   +0 idEjercicio  +1 numeroSesion  +2 totalEjercicios  +3..4 fecha (días, uint16)
 //   +5 numeroSeries +6..7 peso (decagramos, uint16)  +8 repeticiones
 // La fecha se guarda como día del calendario local (se pierde la hora).
-// Rangos: bytes 0-255; fecha 1970-2149; peso 0 a 655.35 (kg).
+// Rangos: bytes 0-255; fecha 1970-2149; peso 0 a 655.35 kg.
 const VERSION_FORMATO = 1, BYTES_CABECERA = 1, BYTES_REGISTRO = 9, MS_DIA = 86_400_000;
 
 // Valida que `valor` sea un entero entre 0 y `max` (NaN también se rechaza).
-// `original` es el valor que se muestra en el error cuando se ha transformado (peso, fecha).
-function entero(valor, max, campo, indice, original = valor) {
+// `campo` e `indice` identifican el dato erróneo en el mensaje de error.
+function entero(valor, max, campo, indice) {
 	if (!Number.isInteger(valor) || valor < 0 || valor > max)
-		throw new RangeError(`Registro ${indice}: "${campo}" no es válido o está fuera de rango (valor: ${original}).`);
+		throw new RangeError(`Registro ${indice}: "${campo}" no es válido o está fuera de rango (valor: ${valor}).`);
 	return valor;
 }
 
+// Fecha local -> días desde 1970 (NaN si no es una Date válida).
 const fechaADias = (fecha) =>
 	fecha instanceof Date ? Math.round(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) / MS_DIA) : NaN;
 
+// Días desde 1970 -> Date a medianoche local.
 function diasAFecha(dias) {
 	const utc = new Date(dias * MS_DIA);
 	return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
@@ -102,9 +109,9 @@ function empaquetarHistorial(registros) {
 		buffer[o] = entero(r?.idEjercicio, 255, "idEjercicio", i);
 		buffer[o + 1] = entero(r.numeroSesion, 255, "numeroSesion", i);
 		buffer[o + 2] = entero(r.totalEjercicios, 255, "totalEjercicios", i);
-		vista.setUint16(o + 3, entero(fechaADias(r.fecha), 65535, "fecha", i, r.fecha));
+		vista.setUint16(o + 3, entero(fechaADias(r.fecha), 65535, "fecha", i));
 		buffer[o + 5] = entero(r.numeroSeries, 255, "numeroSeries", i);
-		vista.setUint16(o + 6, entero(Math.round(Number(r.peso) * 100), 65535, "peso", i, r.peso));
+		vista.setUint16(o + 6, entero(Math.round(r.peso * 100), 65535, "peso", i));
 		buffer[o + 8] = entero(r.repeticiones, 255, "repeticiones", i);
 	});
 
@@ -133,42 +140,63 @@ function desempaquetarHistorial(buffer) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Estado interno                                                     */
+/* Sesión y refresco diario de la caché                               */
 /* ------------------------------------------------------------------ */
 
-let sesionLista = Promise.resolve(null); // Promise<usuario validado | null>
-let ultimoResumen; // undefined = aún no resuelta; null = sin sesión o validación fallida; objeto = usuario
 const oyentes = new Set();
+let ultimoResumen;     // undefined = aún no resuelto; null = sin sesión o refresco fallido; objeto = usuario
+let validando = null;  // { uid, promesa } del refresco en curso (evita lanzar dos a la vez)
+let version = 0;       // descarta resultados de notificaciones antiguas
 
-// Devuelve el usuario si su sesión es válida hoy, o null si no hay sesión o la validación falla.
-async function resolverUsuario(usuario) {
+const hoy = () => new Date().toLocaleDateString("sv"); // AAAA-MM-DD en hora local
+
+function leerSesionDia() {
+	try { return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA)); } catch { return null; }
+}
+
+function guardarSesionDia(sesion) {
+	try { localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion)); }
+	catch (e) { console.warn("No se pudo guardar la sesión:", e); }
+}
+
+function borrarSesionDia() {
+	try { localStorage.removeItem(CLAVE_SESION_DIA); } catch { /* sin almacenamiento: nada que borrar */ }
+}
+
+// Devuelve el usuario con la caché refrescada hoy, o null si no hay sesión.
+// Si hoy aún no se ha refrescado, descarga de la nube (previa subida de lo pendiente);
+// si falla, lanza el error y se reintenta en la siguiente llamada.
+// No hay temporizadores: el cambio de día se detecta en la primera llamada tras medianoche.
+async function usuarioValidado() {
+	await auth.authStateReady();
+
+	const usuario = auth.currentUser;
 	if (!usuario) return null;
-	try {
-		await validarDia(usuario);
-		return usuario;
-	} catch (error) {
-		console.error("No se pudo validar la sesión:", error);
-		return null;
+
+	const guardada = leerSesionDia();
+	if (guardada?.uid === usuario.uid && guardada.dia === hoy()) return usuario;
+
+	if (validando?.uid !== usuario.uid) {
+		const promesa = refrescarCache(usuario.uid)
+			.then(() => guardarSesionDia({ uid: usuario.uid, dia: hoy() }))
+			.finally(() => { if (validando?.promesa === promesa) validando = null; });
+		validando = { uid: usuario.uid, promesa };
 	}
+	await validando.promesa;
+	return usuario;
 }
 
-// Valida al usuario (o lo da por ausente) y publica el resultado.
-// Cada cambio de auth reemplaza `sesionLista`; los resultados de validaciones antiguas se descartan.
-async function validarSesion(usuario) {
-	const promesa = resolverUsuario(usuario);
-	sesionLista = promesa; // síncrono: quien llame ahora mismo a usuarioValidado() ya espera esta validación
-
-	const validado = await promesa;
-	if (promesa === sesionLista) publicar(resumirUsuario(validado));
+// Resuelve el estado de la sesión y lo publica a los oyentes.
+// Si hay varias notificaciones solapadas, solo se publica la más reciente.
+async function notificar() {
+	const v = ++version;
+	let usuario = null;
+	try { usuario = await usuarioValidado(); }
+	catch (e) { console.error("No se pudo refrescar la caché:", e); }
+	if (v === version) publicar(resumirUsuario(usuario));
 }
 
-onAuthStateChanged(auth, validarSesion);
-
-// Si la validación falló (p. ej. al abrir sin conexión), reintentar al volver la red.
-addEventListener("online", () => {
-	if (auth.currentUser && ultimoResumen === null) validarSesion(auth.currentUser);
-});
-
+// Avisa a los oyentes solo si cambia el usuario (o en la primera resolución).
 function publicar(resumen) {
 	if (ultimoResumen !== undefined && (ultimoResumen?.uid ?? null) === (resumen?.uid ?? null)) return;
 	ultimoResumen = resumen;
@@ -182,82 +210,27 @@ function resumirUsuario(usuario) {
 	};
 }
 
-/* ------------------------------------------------------------------ */
-/* Sesión y caducidad                                                 */
-/* ------------------------------------------------------------------ */
+onAuthStateChanged(auth, notificar);
 
-function leerSesionDia() {
-	try { return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA)); } catch { return null; }
-}
-
-function guardarSesionDia(sesion) {
-	try { localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion)); }
-	catch (e) { console.warn("No se pudo guardar la sesión:", e); }
-}
-
-function finDelDia() {
-	const fecha = new Date();
-	fecha.setHours(24, 0, 0, 0);
-	return fecha.getTime();
-}
-
-// Valida el día del usuario: si ya estaba validado hoy, no toca la red; si no, refresca.
-async function validarDia(usuario) {
-	const guardada = leerSesionDia();
-
-	if (guardada?.uid === usuario.uid) {
-		if (Date.now() < guardada.caduca) return;
-		// Caducada: cerrar y rechazar.
-		await cerrarSesion();
-		throw new Error("La sesión ha caducado (fin del día). Vuelve a validarte.");
-	}
-
-	await refrescarCache(usuario.uid);
-	guardarSesionDia({ uid: usuario.uid, caduca: finDelDia() });
-}
-
-// Comprueba la caducidad al primer acceso tras medianoche (no hay temporizadores).
-// Se espera a que termine el cierre de sesión para que auth.currentUser ya esté actualizado.
-async function comprobarCaducidad() {
-	const sesion = leerSesionDia();
-	if (sesion && Date.now() >= sesion.caduca) await cerrarSesion();
-}
-
-// Devuelve el usuario con la sesión validada hoy, o null si no hay sesión.
-// Si la validación falló antes (p. ej. sin conexión), la reintenta; si vuelve a fallar,
-// el error real llega a quien llama.
-async function usuarioValidado() {
-	await auth.authStateReady();
-	await comprobarCaducidad();
-
-	const actual = auth.currentUser;
-	if (!actual) return null;
-
-	const usuario = await sesionLista;
-	if (usuario) return usuario;
-
-	await validarDia(actual);
-	sesionLista = Promise.resolve(actual);
-	publicar(resumirUsuario(actual));
-	return actual;
-}
+// Si el refresco falló (p. ej. al abrir sin conexión), reintentar al volver la red.
+addEventListener("online", () => {
+	if (auth.currentUser && ultimoResumen === null) notificar();
+});
 
 /* ------------------------------------------------------------------ */
 /* Acceso a datos                                                     */
 /* ------------------------------------------------------------------ */
 
-function documentoUsuario(uid, coleccion, id) {
-	return doc(db, COL_USUARIOS, uid, coleccion, id);
-}
+const documentoUsuario = (uid, coleccion, id) => doc(db, COL_USUARIOS, uid, coleccion, id);
 
-// Espera a que la sesión esté validada y devuelve el uid. Lanza si no hay sesión vigente.
+// Espera a que la caché esté refrescada hoy y devuelve el uid. Lanza si no hay sesión.
 async function obtenerUid() {
 	const usuario = await usuarioValidado();
 	if (!usuario) throw new Error(MSG_SIN_SESION);
 	return usuario.uid;
 }
 
-// Lee de la caché local; null si el documento no está en caché.
+// Lee siempre de la caché local; null si el documento no está en caché.
 async function leerDeCache(coleccion, id) {
 	const uid = await obtenerUid();
 	try { return await getDocFromCache(documentoUsuario(uid, coleccion, id)); }
@@ -270,7 +243,7 @@ async function escribir(coleccion, id, datos) {
 	setDoc(documentoUsuario(uid, coleccion, id), datos).catch((e) => console.error("Error sincronizando escritura:", e));
 }
 
-// Única lectura de red. Sube pendientes antes de descargar.
+// Única lectura de red. Sube las escrituras pendientes antes de descargar.
 async function refrescarCache(uid) {
 	if (!navigator.onLine) throw new Error(MSG_SIN_CONEXION);
 	await waitForPendingWrites(db);
@@ -285,9 +258,9 @@ async function refrescarCache(uid) {
 /* ------------------------------------------------------------------ */
 
 // Devuelve el resumen del usuario, o null si se ha redirigido a la página de login.
+// Si ya hay sesión de Firebase, solo refresca la caché cuando toca (una vez al día).
 export async function iniciarSesion(proveedor) {
 	await auth.authStateReady();
-	await comprobarCaducidad(); // si caducó, cierra la sesión y volverá a pedir login
 
 	if (!auth.currentUser) {
 		const p = crearProveedor(proveedor);
@@ -308,10 +281,11 @@ export async function iniciarSesion(proveedor) {
 }
 
 export async function cerrarSesion() {
-	localStorage.removeItem(CLAVE_SESION_DIA);
+	borrarSesionDia();
 	await signOut(auth);
 }
 
+// Registra un oyente de cambios de sesión; devuelve la función para darlo de baja.
 export function alCambiarSesion(callback) {
 	oyentes.add(callback);
 	if (ultimoResumen !== undefined) callback(ultimoResumen);
