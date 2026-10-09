@@ -87,6 +87,14 @@ export function esMismoDia(fecha1, fecha2) {
 	return fecha1.getFullYear() === fecha2.getFullYear() && fecha1.getMonth() === fecha2.getMonth() && fecha1.getDate() === fecha2.getDate();
 }
 
+/**
+ * @brief Obtiene el timestamp del inicio de la semana (lunes a las 00:00:00) para una fecha dada.
+ * @param {Date} fecha Fecha de referencia.
+ * @return {number} Timestamp en milisegundos del lunes de esa semana a las 00:00:00.
+ * @example
+ *   const fecha = new Date(2024, 0, 17); // miércoles
+ *   obtenerInicioSemana(fecha); // timestamp del lunes 15/01/2024 00:00:00
+ */
 export function obtenerInicioSemana(fecha) {
 	const inicioSemana = new Date(fecha);
 	inicioSemana.setHours(0, 0, 0, 0);
@@ -94,19 +102,42 @@ export function obtenerInicioSemana(fecha) {
 	return inicioSemana.getTime();
 }
 
-
+/**
+ * @brief Formatea un número con separadores de miles y decimales configurables según la configuración regional española.
+ * @param {number} valor Número a formatear.
+ * @param {number} [maximoDecimales=2] Número máximo de decimales.
+ * @param {number} [minimoDecimales=0] Número mínimo de decimales.
+ * @return {string} Cadena formateada o "—" si el valor no es finito.
+ * @example
+ *   formatearNumero(1234.567); // "1.234,57"
+ *   formatearNumero(1234.5, 1, 1); // "1.234,5"
+ */
 export function formatearNumero(valor, maximoDecimales = 2, minimoDecimales = 0) {
 	return Number.isFinite(valor)
 		? valor.toLocaleString("es-ES", { maximumFractionDigits: maximoDecimales, minimumFractionDigits: minimoDecimales })
 		: "—";
 }
 
+/**
+ * @brief Establece el contenido de texto de un elemento DOM por su id.
+ * @param {string} id Identificador del elemento.
+ * @param {string} valor Texto a asignar.
+ * @return {void}
+ * @example
+ *   setText("resultado", "Hola mundo");
+ */
 export const setText = (id, valor) => {
 	document.getElementById(id).textContent = valor;
 };
 
-
-
+/**
+ * @brief Calcula el 1RM estimado usando la fórmula de Epley.
+ * @param {number} peso Peso levantado.
+ * @param {number} repeticiones Número de repeticiones (se limita a 30).
+ * @return {number} 1RM estimado.
+ * @example
+ *   epley(100, 5); // 116.666...
+ */
 export function epley(peso, repeticiones) {
 	return peso * (1 + Math.min(repeticiones, 30) / 30);
 }

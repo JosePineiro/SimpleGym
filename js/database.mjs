@@ -77,24 +77,45 @@ getRedirectResult(auth).catch((e) => console.error("Error al completar el inicio
 // Rangos: bytes 0-255; fecha 1970-2149; peso 0 a 655.35 kg.
 const VERSION_FORMATO = 1, BYTES_CABECERA = 1, BYTES_REGISTRO = 9, MS_DIA = 86_400_000;
 
-// Valida que `valor` sea un entero entre 0 y `max` (NaN también se rechaza).
-// `campo` e `indice` identifican el dato erróneo en el mensaje de error.
+/**
+ * @brief Valida que `valor` sea un entero entre 0 y `max` (NaN también se rechaza).
+ * @param {number} valor Valor a validar.
+ * @param {number} max Valor máximo permitido.
+ * @param {string} campo Nombre del campo (para el mensaje de error).
+ * @param {number} indice Índice del registro (para el mensaje de error).
+ * @returns {number} El mismo valor si es válido.
+ * @throws {RangeError} Si el valor no es un entero o está fuera de rango.
+ */
 function entero(valor, max, campo, indice) {
 	if (!Number.isInteger(valor) || valor < 0 || valor > max)
 		throw new RangeError(`Registro ${indice}: "${campo}" no es válido o está fuera de rango (valor: ${valor}).`);
 	return valor;
 }
 
-// Fecha local -> días desde 1970 (NaN si no es una Date válida).
+/**
+ * @brief Convierte una fecha local a días desde 1970 (NaN si no es una Date válida).
+ * @param {Date} fecha Fecha a convertir.
+ * @returns {number} Días desde 1970.
+ */
 const fechaADias = (fecha) =>
 	fecha instanceof Date ? Math.round(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) / MS_DIA) : NaN;
 
-// Días desde 1970 -> Date a medianoche local.
+/**
+ * @brief Convierte días desde 1970 a un objeto Date a medianoche local.
+ * @param {number} dias Días desde 1970.
+ * @returns {Date} Fecha resultante.
+ */
 function diasAFecha(dias) {
 	const utc = new Date(dias * MS_DIA);
 	return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
 }
 
+/**
+ * @brief Empaqueta un array de registros en un Uint8Array binario.
+ * @param {Array<Object>} registros Array de registros a empaquetar.
+ * @returns {Uint8Array} Buffer con los datos empaquetados.
+ * @throws {RangeError} Si el tamaño supera el límite o algún campo no es válido.
+ */
 function empaquetarHistorial(registros) {
 	const tamano = BYTES_CABECERA + registros.length * BYTES_REGISTRO;
 	if (tamano > MAX_BYTES_DOCUMENTO)
@@ -118,6 +139,12 @@ function empaquetarHistorial(registros) {
 	return buffer;
 }
 
+/**
+ * @brief Desempaqueta un Uint8Array binario a un array de registros.
+ * @param {Uint8Array} buffer Buffer con los datos empaquetados.
+ * @returns {Array<Object>} Array de registros.
+ * @throws {Error} Si la versión no es soportada o el tamaño es inválido.
+ */
 function desempaquetarHistorial(buffer) {
 	if (!buffer || buffer.length === 0) return [];
 	if (buffer[0] !== VERSION_FORMATO)
@@ -148,25 +175,42 @@ let ultimoResumen;     // undefined = aún no resuelto; null = sin sesión o ref
 let validando = null;  // { uid, promesa } del refresco en curso (evita lanzar dos a la vez)
 let version = 0;       // descarta resultados de notificaciones antiguas
 
+/**
+ * @brief Devuelve la fecha actual en formato AAAA-MM-DD (hora local).
+ * @returns {string} Fecha en formato ISO corto.
+ */
 const hoy = () => new Date().toLocaleDateString("sv"); // AAAA-MM-DD en hora local
 
+/**
+ * @brief Lee de localStorage la sesión diaria guardada.
+ * @returns {Object|null} Objeto { uid, dia } o null si no existe o hay error.
+ */
 function leerSesionDia() {
 	try { return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA)); } catch { return null; }
 }
 
+/**
+ * @brief Guarda en localStorage la sesión diaria.
+ * @param {Object} sesion Objeto { uid, dia }.
+ */
 function guardarSesionDia(sesion) {
 	try { localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion)); }
 	catch (e) { console.warn("No se pudo guardar la sesión:", e); }
 }
 
+/**
+ * @brief Borra de localStorage la sesión diaria.
+ */
 function borrarSesionDia() {
 	try { localStorage.removeItem(CLAVE_SESION_DIA); } catch { /* sin almacenamiento: nada que borrar */ }
 }
 
-// Devuelve el usuario con la caché refrescada hoy, o null si no hay sesión.
-// Si hoy aún no se ha refrescado, descarga de la nube (previa subida de lo pendiente);
-// si falla, lanza el error y se reintenta en la siguiente llamada.
-// No hay temporizadores: el cambio de día se detecta en la primera llamada tras medianoche.
+/**
+ * @brief Devuelve el usuario con la caché refrescada hoy, o null si no hay sesión.
+ *        Si hoy aún no se ha refrescado, descarga de la nube (previa subida de lo pendiente).
+ *        Si falla, lanza el error y se reintenta en la siguiente llamada.
+ * @returns {Promise<Object|null>} Usuario de Firebase o null.
+ */
 async function usuarioValidado() {
 	await auth.authStateReady();
 
@@ -186,8 +230,10 @@ async function usuarioValidado() {
 	return usuario;
 }
 
-// Resuelve el estado de la sesión y lo publica a los oyentes.
-// Si hay varias notificaciones solapadas, solo se publica la más reciente.
+/**
+ * @brief Resuelve el estado de la sesión y lo publica a los oyentes.
+ *        Si hay varias notificaciones solapadas, solo se publica la más reciente.
+ */
 async function notificar() {
 	const v = ++version;
 	let usuario = null;
@@ -196,13 +242,21 @@ async function notificar() {
 	if (v === version) publicar(resumirUsuario(usuario));
 }
 
-// Avisa a los oyentes solo si cambia el usuario (o en la primera resolución).
+/**
+ * @brief Avisa a los oyentes solo si cambia el usuario (o en la primera resolución).
+ * @param {Object|null} resumen Resumen del usuario o null.
+ */
 function publicar(resumen) {
 	if (ultimoResumen !== undefined && (ultimoResumen?.uid ?? null) === (resumen?.uid ?? null)) return;
 	ultimoResumen = resumen;
 	for (const cb of oyentes) cb(ultimoResumen);
 }
 
+/**
+ * @brief Crea un objeto resumen a partir de un usuario de Firebase.
+ * @param {Object|null} usuario Usuario de Firebase.
+ * @returns {Object|null} Resumen con uid, nombre, email, foto y proveedor.
+ */
 function resumirUsuario(usuario) {
 	return usuario && {
 		uid: usuario.uid, nombre: usuario.displayName, email: usuario.email,
@@ -221,29 +275,54 @@ addEventListener("online", () => {
 /* Acceso a datos                                                     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * @brief Obtiene la referencia a un documento de Firestore dentro de la colección del usuario.
+ * @param {string} uid UID del usuario.
+ * @param {string} coleccion Nombre de la colección.
+ * @param {string} id ID del documento.
+ * @returns {Object} Referencia al documento.
+ */
 const documentoUsuario = (uid, coleccion, id) => doc(db, COL_USUARIOS, uid, coleccion, id);
 
-// Espera a que la caché esté refrescada hoy y devuelve el uid. Lanza si no hay sesión.
+/**
+ * @brief Espera a que la caché esté refrescada hoy y devuelve el uid. Lanza si no hay sesión.
+ * @returns {Promise<string>} UID del usuario.
+ * @throws {Error} Si no hay sesión iniciada.
+ */
 async function obtenerUid() {
 	const usuario = await usuarioValidado();
 	if (!usuario) throw new Error(MSG_SIN_SESION);
 	return usuario.uid;
 }
 
-// Lee siempre de la caché local; null si el documento no está en caché.
+/**
+ * @brief Lee siempre de la caché local; null si el documento no está en caché.
+ * @param {string} coleccion Nombre de la colección.
+ * @param {string} id ID del documento.
+ * @returns {Promise<Object|null>} Documento o null.
+ */
 async function leerDeCache(coleccion, id) {
 	const uid = await obtenerUid();
 	try { return await getDocFromCache(documentoUsuario(uid, coleccion, id)); }
 	catch { return null; }
 }
 
-// No espera a la nube: la caché se actualiza al instante y la subida queda encolada.
+/**
+ * @brief Escribe en Firestore sin esperar a la nube (la caché se actualiza al instante).
+ * @param {string} coleccion Nombre de la colección.
+ * @param {string} id ID del documento.
+ * @param {Object} datos Datos a escribir.
+ */
 async function escribir(coleccion, id, datos) {
 	const uid = await obtenerUid();
 	setDoc(documentoUsuario(uid, coleccion, id), datos).catch((e) => console.error("Error sincronizando escritura:", e));
 }
 
-// Única lectura de red. Sube las escrituras pendientes antes de descargar.
+/**
+ * @brief Única lectura de red. Sube las escrituras pendientes antes de descargar.
+ * @param {string} uid UID del usuario.
+ * @throws {Error} Si no hay conexión.
+ */
 async function refrescarCache(uid) {
 	if (!navigator.onLine) throw new Error(MSG_SIN_CONEXION);
 	await waitForPendingWrites(db);
@@ -257,8 +336,16 @@ async function refrescarCache(uid) {
 /* API pública                                                        */
 /* ------------------------------------------------------------------ */
 
-// Devuelve el resumen del usuario, o null si se ha redirigido a la página de login.
-// Si ya hay sesión de Firebase, solo refresca la caché cuando toca (una vez al día).
+/**
+ * @brief Inicia sesión con el proveedor indicado (google o microsoft).
+ *        Si ya hay sesión de Firebase, solo refresca la caché cuando toca (una vez al día).
+ * @param {string} proveedor Nombre del proveedor ("google" o "microsoft").
+ * @returns {Promise<Object|null>} Resumen del usuario, o null si se ha redirigido a la página de login.
+ * @throws {Error} Si el proveedor no es válido o falla el inicio de sesión.
+ * @example
+ *   const usuario = await iniciarSesion("google");
+ *   if (usuario) console.log("Bienvenido", usuario.nombre);
+ */
 export async function iniciarSesion(proveedor) {
 	await auth.authStateReady();
 
@@ -280,18 +367,37 @@ export async function iniciarSesion(proveedor) {
 	return resumirUsuario(usuario);
 }
 
+/**
+ * @brief Cierra la sesión de Firebase y borra la sesión diaria almacenada.
+ * @returns {Promise<void>}
+ * @example
+ *   await cerrarSesion();
+ */
 export async function cerrarSesion() {
 	borrarSesionDia();
 	await signOut(auth);
 }
 
-// Registra un oyente de cambios de sesión; devuelve la función para darlo de baja.
+/**
+ * @brief Registra un oyente de cambios de sesión; devuelve la función para darlo de baja.
+ * @param {Function} callback Función que recibe el resumen del usuario (o null).
+ * @returns {Function} Función para cancelar la suscripción.
+ * @example
+ *   const unsubscribe = alCambiarSesion((usuario) => console.log(usuario));
+ *   // Más tarde: unsubscribe();
+ */
 export function alCambiarSesion(callback) {
 	oyentes.add(callback);
 	if (ultimoResumen !== undefined) callback(ultimoResumen);
 	return () => oyentes.delete(callback);
 }
 
+/**
+ * @brief Crea un proveedor de autenticación a partir de su nombre.
+ * @param {string} nombre Nombre del proveedor ("google" o "microsoft").
+ * @returns {Object} Proveedor configurado.
+ * @throws {Error} Si el proveedor no está soportado.
+ */
 function crearProveedor(nombre) {
 	const crear = PROVEEDORES[String(nombre).toLowerCase()];
 	if (!crear) throw new Error(`Proveedor no soportado: "${nombre}". Usa "google" o "microsoft".`);
@@ -304,12 +410,27 @@ function crearProveedor(nombre) {
 /* Histórico                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * @brief Guarda el histórico completo de registros en Firestore (caché local + subida encolada).
+ * @param {Array<Object>} registros Array de registros a guardar.
+ * @returns {Promise<void>}
+ * @throws {TypeError} Si registros no es un array.
+ * @throws {RangeError} Si algún registro no es válido o el tamaño excede el límite.
+ * @example
+ *   await guardarHistorial([{ idEjercicio: 1, numeroSesion: 1, ... }]);
+ */
 export async function guardarHistorial(registros) {
 	if (!Array.isArray(registros)) throw new TypeError("guardarHistorial espera el array completo.");
 	const bytes = empaquetarHistorial(registros); // valida antes de tocar la sesión
 	await escribir(COL_REGISTROS, ID_HISTORIAL, { datos: Bytes.fromUint8Array(bytes) });
 }
 
+/**
+ * @brief Carga el histórico desde la caché local.
+ * @returns {Promise<Array<Object>>} Array de registros. Vacío si no hay datos.
+ * @example
+ *   const registros = await cargarHistorial();
+ */
 export async function cargarHistorial() {
 	const snap = await leerDeCache(COL_REGISTROS, ID_HISTORIAL);
 	return snap?.exists() ? desempaquetarHistorial(snap.data().datos.toUint8Array()) : [];
@@ -319,6 +440,14 @@ export async function cargarHistorial() {
 /* Ejercicios                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * @brief Guarda el objeto de ejercicios en Firestore (caché local + subida encolada).
+ * @param {Object} ejercicios Objeto con los ejercicios.
+ * @returns {Promise<void>}
+ * @throws {Error} Si el tamaño excede el límite.
+ * @example
+ *   await guardarEjercicios({ ejercicios: [...] });
+ */
 export async function guardarEjercicios(ejercicios) {
 	const texto = JSON.stringify(ejercicios);
 	if (new TextEncoder().encode(texto).length > MAX_BYTES_DOCUMENTO)
@@ -326,6 +455,13 @@ export async function guardarEjercicios(ejercicios) {
 	await escribir(COL_EJERCICIOS, ID_EJERCICIOS, { texto });
 }
 
+/**
+ * @brief Carga el objeto de ejercicios desde la caché local.
+ * @returns {Promise<Object>} Objeto con los ejercicios.
+ * @throws {Error} Si no hay ejercicios importados.
+ * @example
+ *   const ejercicios = await cargarEjercicios();
+ */
 export async function cargarEjercicios() {
 	const snap = await leerDeCache(COL_EJERCICIOS, ID_EJERCICIOS);
 	if (!snap?.exists()) throw new Error("No hay ejercicios importados. Usa 'Importar JSON' para cargarlos.");
