@@ -1,5 +1,5 @@
 import { cargarEjercicios, cargarHistorial } from "./database.mjs";
-import { obtenerParametrosURL } from "./utils.mjs";
+import { obtenerParametrosURL, setText } from "./utils.mjs";
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
@@ -26,9 +26,6 @@ function crearTarjetaEjercicio(ejercicio, completado, numeroSesion, totalEjercic
 }
 
 async function inicializar() {
-	const titulo = document.getElementById("titulo");
-	const subtitulo = document.getElementById("subtitulo");
-
 	try {
 		const [numeroSesion] = obtenerParametrosURL({ clave: "numeroSesion", validar: (n) => n > 0 });
 
@@ -56,8 +53,8 @@ async function inicializar() {
 
 		const completados = ejerciciosSesion.filter((e) => ejerciciosCompletadosHoy.has(e.id)).length;
 
-		titulo.textContent = `Sesión ${numeroSesion}`;
-		subtitulo.textContent = `${completados} de ${ejerciciosSesion.length} ejercicios completados`;
+		setText("titulo", `Sesión ${numeroSesion}`);
+		setText("subtitulo", `${completados} de ${ejerciciosSesion.length} ejercicios completados`);
 
 		document.getElementById("contenedor-ejercicios").replaceChildren(
 			...ejerciciosSesion.map((ejercicio) =>
@@ -70,8 +67,8 @@ async function inicializar() {
 			),
 		);
 	} catch (error) {
-		titulo.textContent = "Error";
-		subtitulo.textContent = error.message || "Error inicializando la sesión";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "Error inicializando la sesión");
 		console.error(error);
 	}
 }

@@ -1,4 +1,5 @@
 import { cargarEjercicios } from "./database.mjs";
+import { setText } from "./utils.mjs";
 
 /* =========================================================
    Estadísticas por sesión
@@ -42,26 +43,23 @@ async function obtenerSesionesDisponibles() {
 /* ---------------- Inicialización ---------------- */
 
 async function inicializar() {
-	const contenedorSesiones = document.getElementById("contenedor-sesiones");
-	const subtitulo = document.getElementById("subtitulo");
-
 	try {
 		const sesiones = await obtenerSesionesDisponibles();
 		if (sesiones.length === 0) {
 			throw new Error("No hay sesiones configuradas.");
 		}
 
-		subtitulo.textContent = `${sesiones.length} ${sesiones.length === 1 ? "sesión" : "sesiones"}`;
+		setText("subtitulo", `${sesiones.length} ${sesiones.length === 1 ? "sesión" : "sesiones"}`);
 
 		const fragmento = document.createDocumentFragment();
 		for (const numeroSesion of sesiones) {
 			fragmento.appendChild(crearTarjetaSesion(numeroSesion));
 		}
 
-		contenedorSesiones.appendChild(fragmento);
+		document.getElementById("contenedor-sesiones").appendChild(fragmento);
 	} catch (error) {
-		document.getElementById("titulo").textContent = "Error";
-		subtitulo.textContent = error.message || "No se pudieron cargar las sesiones.";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "No se pudieron cargar las sesiones.");
 		console.error(error);
 	}
 }

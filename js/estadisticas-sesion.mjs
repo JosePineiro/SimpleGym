@@ -148,19 +148,13 @@ function calcularRachaSemanas(realizaciones) {
 }
 
 function calcularRecords(realizaciones) {
-	const ultima = realizaciones.at(-1);
-	const historicos = {};
-	const nuevos = {};
-
+	const historicos = {}, nuevos = {};
 	for (const { prop } of PROPIEDADES_RECORD) {
-		let maxAnterior = 0;
-		for (let i = 0; i < realizaciones.length - 1; i++) {
-			if (realizaciones[i][prop] > maxAnterior) maxAnterior = realizaciones[i][prop];
-		}
-		historicos[prop] = Math.max(maxAnterior, ultima[prop]);
-		nuevos[prop] = ultima[prop] > maxAnterior ? ultima[prop] : null;
+		const maxAnterior = realizaciones.slice(0, -1).reduce((m, r) => Math.max(m, r[prop]), 0);
+		const ultimo = realizaciones.at(-1)[prop];
+		historicos[prop] = Math.max(maxAnterior, ultimo);
+		nuevos[prop] = ultimo > maxAnterior ? ultimo : null;
 	}
-
 	return { historicos, nuevos };
 }
 
@@ -302,9 +296,6 @@ function crearGraficoVolumen(realizaciones) {
 // ---------------------------------------------------------
 
 async function inicializar() {
-	const titulo = document.getElementById("titulo");
-	const subtitulo = document.getElementById("subtitulo");
-
 	try {
 		const [numeroSesion] = obtenerParametrosURL({ clave: "numeroSesion", validar: (n) => n > 0 });
 
@@ -314,9 +305,9 @@ async function inicializar() {
 		const realizaciones = obtenerRealizacionesSesion(numeroSesion, historial);
 		if (!realizaciones.length) throw new Error("No hay histórico de la sesión.");
 
-		titulo.textContent = `Sesión ${numeroSesion}`;
+		setText("titulo", `Sesión ${numeroSesion}`);
 		document.title = `SIMPLEGYM - Sesión ${numeroSesion}`;
-		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"}`;
+		setText("subtitulo", `${realizaciones.length} ${realizaciones.length === 1 ? "realización registrada" : "realizaciones registradas"}`);
 
 		crearGraficoVolumen(realizaciones);
 		mostrarEstadisticas(calcularEstadisticasSesion(realizaciones));
@@ -324,8 +315,8 @@ async function inicializar() {
 		document.getElementById("main-container").hidden = false;
 	} catch (error) {
 		document.getElementById("main-container").hidden = true;
-		titulo.textContent = "Error";
-		subtitulo.textContent = error.message || "No se pudo cargar el progreso de volumen.";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "No se pudo cargar el progreso de volumen.");
 		console.error(error);
 	}
 }

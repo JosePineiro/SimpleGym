@@ -84,7 +84,6 @@ function mostrarEstadisticasEjercicio(realizaciones) {
 	const ultimoPunto = realizaciones.at(-1);
 	const pesoEstimadoActual = ultimoPunto.pesoEpley;
 	const mejorPesoEstimado = obtenerMaximo(realizaciones, "pesoEpley");
-	const elementoTendencia = document.getElementById("tendencia-ejercicio");
 
 	setText("peso-estimado-actual", formatearPeso(pesoEstimadoActual));
 	setText("porcentaje-mejor-1pr", `${formatearNumero((pesoEstimadoActual / mejorPesoEstimado) * 100, 1)}%`);
@@ -93,20 +92,18 @@ function mostrarEstadisticasEjercicio(realizaciones) {
 	setText("repeticiones-totales", calcularRepeticionesTotales(realizaciones));
 
 	if (realizaciones.length === 1) {
-		elementoTendencia.textContent = "Primera sesión";
+		setText("tendencia-ejercicio", "Primera sesión");
 		return;
 	}
 
 	const pendienteEpley = calcularPendienteEpley(realizaciones);
 	const signo = pendienteEpley > 0 ? "+" : "";
-	elementoTendencia.textContent = `${signo}${formatearNumero(pendienteEpley, 2)} kg/sesión`;
+	setText("tendencia-ejercicio", `${signo}${formatearNumero(pendienteEpley, 2)} kg/sesión`);
 }
 
 // ---------------------------------------------------------
 // Récords históricos y de la última sesión
 // ---------------------------------------------------------
-
-const CAMPOS_RECORD = ["pesoEpley", "peso", "repeticiones", "numeroSeries", "volumen"];
 
 const CONFIG_RECORDS = [
 	{ id: "1pr-epley", campo: "pesoEpley", formatear: formatearPeso },
@@ -117,13 +114,9 @@ const CONFIG_RECORDS = [
 ];
 
 function calcularRecordsHistoricos(realizaciones) {
-	return {
-		pesoEpley: obtenerMaximo(realizaciones, "pesoEpley"),
-		peso: obtenerMaximo(realizaciones, "peso"),
-		repeticiones: obtenerMaximo(realizaciones, "repeticiones"),
-		numeroSeries: obtenerMaximo(realizaciones, "numeroSeries"),
-		volumen: obtenerMaximo(realizaciones, "volumen"),
-	};
+	return Object.fromEntries(
+		CONFIG_RECORDS.map(({ campo }) => [campo, obtenerMaximo(realizaciones, campo)]),
+	);
 }
 
 function calcularNuevosRecordsUltimoRegistro(realizaciones) {
@@ -131,7 +124,7 @@ function calcularNuevosRecordsUltimoRegistro(realizaciones) {
 	const ultimoPunto = realizaciones.at(-1);
 
 	return Object.fromEntries(
-		CAMPOS_RECORD.map((campo) => [
+		CONFIG_RECORDS.map(({ campo }) => [
 			campo,
 			!recordsAnteriores || ultimoPunto[campo] > recordsAnteriores[campo] ? ultimoPunto[campo] : null,
 		]),
@@ -334,9 +327,6 @@ function crearGraficoPeso(realizaciones) {
 // ---------------------------------------------------------
 
 async function inicializar() {
-	const titulo = document.getElementById("titulo");
-	const subtitulo = document.getElementById("subtitulo");
-
 	try {
 		const referrer = document.referrer;
 		if (referrer && new URL(referrer).origin === window.location.origin) {
@@ -351,16 +341,15 @@ async function inicializar() {
 		}
 
 		const nombreEjercicio = ejercicio.nombre;
-		titulo.textContent = `${nombreEjercicio}`;
+		setText("titulo", `${nombreEjercicio}`);
 		document.title = `SIMPLEGYM - ${nombreEjercicio}`;
 
 		const realizaciones = construirRealizacionesEjercicio(ejercicio.id, historial);
-
 		if (realizaciones.length === 0) {
 			throw new Error(`No hay historial para ${nombreEjercicio}.`);
 		}
 
-		subtitulo.textContent = `${realizaciones.length} ${realizaciones.length === 1 ? "sesión registrada" : "sesiones registradas"}`;
+		setText("subtitulo", `${realizaciones.length} ${realizaciones.length === 1 ? "sesión registrada" : "sesiones registradas"}`);
 
 		crearGraficoPeso(realizaciones);
 		mostrarEstadisticasEjercicio(realizaciones);
@@ -369,8 +358,8 @@ async function inicializar() {
 		mostrarRacha(realizaciones);
 	} catch (error) {
 		document.getElementById("main-container").hidden = true;
-		titulo.textContent = "Error";
-		subtitulo.textContent = error.message || "No se pudo cargar el histórico.";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "No se pudo cargar el histórico.");
 		console.error(error);
 	}
 }

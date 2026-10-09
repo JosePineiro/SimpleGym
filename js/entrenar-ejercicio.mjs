@@ -1,5 +1,5 @@
 import { cargarEjercicios, cargarHistorial, guardarHistorial } from "./database.mjs";
-import { obtenerParametrosURL } from "./utils.mjs";
+import { formatearNumero, obtenerParametrosURL } from "./utils.mjs";
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
@@ -156,7 +156,7 @@ function obtenerFase(estado, objetivos, ejercicio) {
 // Muestra las repeticiones y el peso objetivo de la serie que toca a continuación.
 function mostrarObjetivoSerie(elementosDom, fase) {
 	elementosDom.repeticionesObjetivo.textContent = fase.repeticiones;
-	elementosDom.pesoObjetivo.textContent = fase.peso;
+	elementosDom.pesoObjetivo.textContent = formatearNumero(fase.peso, 1);
 }
 
 // Restaura el texto del botón de la serie (al terminar el descanso).

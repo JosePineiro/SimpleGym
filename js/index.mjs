@@ -7,7 +7,7 @@ import {
 	guardarHistorial,
 	iniciarSesion,
 } from "./database.mjs";
-import { esMismoDia } from "./utils.mjs";
+import { esMismoDia, setText } from "./utils.mjs";
 
 /*
 Definiciones:
@@ -262,12 +262,11 @@ async function inicializar() {
 		btnIrSesion.textContent = `Comenzar sesión ${numeroSesionDeHoy}`;
 		btnIrSesion.href = `sesion.html?numeroSesion=${numeroSesionDeHoy}`;
 
-		const infoSesion = document.getElementById("info-sesion");
 		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, historial, numeroSesionDeHoy);
 		if (numeroEjerciciosPendientes === 0) {
-			infoSesion.textContent = "Todos los ejercicios de hoy completados";
+			setText("info-sesion", "Todos los ejercicios de hoy completados");
 		} else {
-			infoSesion.textContent = `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`;
+			setText("info-sesion", `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`);
 		}
 	} catch (error) {
 		console.error(error);
@@ -287,10 +286,9 @@ async function alCambiarEstadoSesion(usuario) {
 	document.getElementById("btn-validar-microsoft").hidden = validado;
 	document.getElementById("btn-cerrar-sesion").hidden = !validado;
 	if (usuario) {
-		document.getElementById("usuario").textContent = `${usuario.nombre}`;
-	}
-	else {
-		document.getElementById("usuario").textContent = "Valida tu cuenta.";
+		setText("usuario", `${usuario.nombre}`);
+	} else {
+		setText("usuario", "Valida tu cuenta.");
 	}
 
 	// Abortamos la inicialización hasta que haya sesión vigente.

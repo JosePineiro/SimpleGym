@@ -1,4 +1,5 @@
 import { cargarEjercicios } from "./database.mjs";
+import { setText } from "./utils.mjs";
 
 /* =========================================================
    Estadísticas por ejercicio
@@ -38,21 +39,18 @@ function crearTarjetaEjercicio(ejercicio) {
 /* ---------------- Inicialización ---------------- */
 
 async function inicializar() {
-	const subtitulo = document.getElementById("subtitulo");
-	const contenedorEjercicios = document.getElementById("contenedor-ejercicios");
-
 	try {
 		const ejercicios = (await cargarEjercicios()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 		if (ejercicios.length === 0) {
 			throw new Error("No hay ejercicios registrados.");
 		}
 
-		subtitulo.textContent = `${ejercicios.length} ejercicio${ejercicios.length === 1 ? "" : "s"}`;
+		setText("subtitulo", `${ejercicios.length} ejercicio${ejercicios.length === 1 ? "" : "s"}`);
 
-		contenedorEjercicios.replaceChildren(...ejercicios.map(crearTarjetaEjercicio));
+		document.getElementById("contenedor-ejercicios").replaceChildren(...ejercicios.map(crearTarjetaEjercicio));
 	} catch (error) {
-		document.getElementById("titulo").textContent = "Error";
-		subtitulo.textContent = error.message || "No se pudieron cargar los ejercicios.";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "No se pudieron cargar los ejercicios.");
 		console.error(error);
 	}
 }

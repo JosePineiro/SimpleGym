@@ -1,5 +1,5 @@
 import { cargarEjercicios, cargarHistorial } from "./database.mjs";
-import { epley, formatearFecha } from "./utils.mjs";
+import { epley, formatearFecha, formatearNumero, setText } from "./utils.mjs";
 
 let ejerciciosPorId = new Map();
 let fechaActual = new Date();
@@ -120,12 +120,10 @@ function actualizarNavegacion() {
 
 function renderCalendario(mes) {
 	const grid = document.getElementById("cal-grid");
-	const titulo = document.getElementById("cal-titulo");
-
 	const y = mes.getFullYear();
 	const m = mes.getMonth();
 
-	titulo.textContent = `${MESES[m]} ${y}`;
+	setText("cal-titulo", `${MESES[m]} ${y}`);
 	grid.innerHTML = "";
 
 	const primerDia = new Date(y, m, 1);
@@ -201,10 +199,10 @@ function renderResumenMes(mes) {
 		cuenta[est]++;
 	}
 
-	document.getElementById("descanso").textContent = cuenta.none;
-	document.getElementById("parcial").textContent = cuenta.some;
-	document.getElementById("completo").textContent = cuenta.all;
-	document.getElementById("progreso").textContent = cuenta.best;
+	setText("descanso", cuenta.none);
+	setText("parcial", cuenta.some);
+	setText("completo", cuenta.all);
+	setText("progreso", cuenta.best);
 }
 
 /* ---------- Detalle del día ---------- */
@@ -220,7 +218,7 @@ function renderDetalleDia(clave) {
 	tarjetaDetalle.hidden = false;
 
 	const date = new Date(clave);
-	document.getElementById("detalle-titulo").textContent = `Detalle del ${formatearFecha(date)}`;
+	setText("detalle-titulo", `Detalle del ${formatearFecha(date)}`);
 
 	document.getElementById("detalle-texto").innerHTML =
 		`Sesión: <strong>${sesion ?? "—"}</strong> · Estado: <strong>${ETIQUETA_ESTADO[estado]}</strong>`;
@@ -246,9 +244,9 @@ function renderDetalleDia(clave) {
 }
 
 const getTD = (anterior, actual, decimales) => {
-	const arrow = anterior < actual ? "↑" : anterior > actual ? "↓" : "=";
+	const flecha = anterior < actual ? "↑" : anterior > actual ? "↓" : "=";
 	const tipo = anterior < actual ? "up" : anterior > actual ? "down" : "equal";
-	return `<td class="numero">${actual.toFixed(decimales)}<span class="progreso-badge progreso-${tipo}">${arrow}</span></td>`;
+	return `<td class="numero">${formatearNumero(actual, decimales, decimales)}<span class="progreso-badge progreso-${tipo}">${flecha}</span></td>`;
 };
 
 /* ---------- Navegación ---------- */
@@ -298,8 +296,8 @@ async function inicializar() {
 		document.getElementById("main-container").hidden = false;
 	} catch (error) {
 		document.getElementById("main-container").hidden = true;
-		document.getElementById("titulo").textContent = "Error";
-		document.getElementById("subtitulo").textContent = error.message || "No se pudo cargar el historial.";
+		setText("titulo", "Error");
+		setText("subtitulo", error.message || "No se pudo cargar el historial.");
 		console.error(error);
 	}
 }
