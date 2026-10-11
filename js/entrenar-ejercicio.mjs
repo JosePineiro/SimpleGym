@@ -6,6 +6,124 @@ const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 const limitar = (valor, minimo, maximo) => Math.min(Math.max(valor, minimo), maximo);
 
 /* =========================================================
+   Progreso local (localStorage)
+   ========================================================= */
+
+// Guarda en el navegador las series ya hechas de un ejercicio, para no perderlas si el
+// navegador del móvil descarga la página mientras está en segundo plano.
+// La clave incluye el día (hora local): al cambiar de día el progreso anterior ya no
+// se encuentra y, además, se limpia con `limpiarProgresoAntiguo`.
+
+const PREFIJO_PROGRESO = "simplegym:progreso:";
+const VERSION_PROGRESO = 1;
+
+function fechaLocal() {
+	// No usamos toISOString(): devuelve la fecha en UTC y cerca de medianoche daría el día equivocado.
+	const ahora = new Date();
+	const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+	const dia = String(ahora.getDate()).padStart(2, "0");
+	return `${ahora.getFullYear()}-${mes}-${dia}`;
+}
+
+const claveProgreso = (idEjercicio) => `${PREFIJO_PROGRESO}${idEjercicio}:${fechaLocal()}`;
+
+function guardarProgreso(idEjercicio, estado) {
+	try {
+		localStorage.setItem(
+			claveProgreso(idEjercicio),
+			JSON.stringify({
+				version: VERSION_PROGRESO,
+				numeroSeriesAproximacionTerminadas: estado.numeroSeriesAproximacionTerminadas,
+				numeroSeriesTrabajoTerminadas: estado.numeroSeriesTrabajoTerminadas,
+				inicioSerie: estado.inicioSerie,
+				finDescanso: estado.finDescanso,
+				borrador: estado.borrador,
+			}),
+		);
+	} catch (error) {
+		// Modo privado, almacenamiento lleno o bloqueado: la app sigue funcionando sin persistencia.
+		console.warn("No se pudo guardar el progreso:", error);
+	}
+}
+
+// Devuelve el progreso guardado hoy para este ejercicio o `null` si no hay (o está corrupto).
+function leerProgreso(idEjercicio) {
+	try {
+		const datos = JSON.parse(localStorage.getItem(claveProgreso(idEjercicio)));
+		if (!datos || datos.version !== VERSION_PROGRESO) return null;
+
+		const esContador = (n) => Number.isInteger(n) && n >= 0;
+		if (!esContador(datos.numeroSeriesAproximacionTerminadas) || !esContador(datos.numeroSeriesTrabajoTerminadas)) {
+			return null;
+		}
+
+		const borrador =
+			datos.borrador && typeof datos.borrador.peso === "string" && typeof datos.borrador.repeticiones === "string"
+				? { peso: datos.borrador.peso, repeticiones: datos.borrador.repeticiones }
+				: null;
+
+		return {
+			numeroSeriesAproximacionTerminadas: datos.numeroSeriesAproximacionTerminadas,
+			numeroSeriesTrabajoTerminadas: datos.numeroSeriesTrabajoTerminadas,
+			inicioSerie: Number.isFinite(datos.inicioSerie) ? datos.inicioSerie : Date.now(),
+			finDescanso: Number.isFinite(datos.finDescanso) ? datos.finDescanso : 0,
+			borrador,
+		};
+	} catch (error) {
+		console.warn("No se pudo leer el progreso:", error);
+		return null;
+	}
+}
+
+function borrarProgreso(idEjercicio) {
+	try {
+		localStorage.removeItem(claveProgreso(idEjercicio));
+	} catch (error) {
+		console.warn("No se pudo borrar el progreso:", error);
+	}
+}
+
+// Elimina el progreso de cualquier ejercicio que no sea de hoy.
+function limpiarProgresoAntiguo() {
+	try {
+		const sufijoHoy = `:${fechaLocal()}`;
+		const obsoletas = [];
+
+		for (let i = 0; i < localStorage.length; i++) {
+			const clave = localStorage.key(i);
+			if (clave?.startsWith(PREFIJO_PROGRESO) && !clave.endsWith(sufijoHoy)) obsoletas.push(clave);
+		}
+
+		// Borramos después de recorrer: eliminar durante el recorrido altera los índices.
+		for (const clave of obsoletas) localStorage.removeItem(clave);
+	} catch (error) {
+		console.warn("No se pudo limpiar el progreso antiguo:", error);
+	}
+}
+
+// Vuelca el progreso guardado sobre `estado`, validándolo contra el ejercicio actual
+// (por si la rutina o el histórico han cambiado desde que se guardó).
+function restaurarProgreso(elementosDom, ejercicio, estado, objetivos) {
+	const guardado = leerProgreso(ejercicio.id);
+	if (!guardado) return;
+
+	estado.numeroSeriesAproximacionTerminadas = limitar(
+		guardado.numeroSeriesAproximacionTerminadas,
+		0,
+		objetivos.seriesDeAproximacion.length,
+	);
+	estado.numeroSeriesTrabajoTerminadas = limitar(guardado.numeroSeriesTrabajoTerminadas, 0, ejercicio.series_trabajo);
+	estado.inicioSerie = guardado.inicioSerie;
+	estado.finDescanso = guardado.finDescanso;
+	estado.borrador = guardado.borrador;
+
+	if (guardado.borrador) {
+		elementosDom.pesoFinal.value = guardado.borrador.peso;
+		elementosDom.repeticionesFinal.value = guardado.borrador.repeticiones;
+	}
+}
+
+/* =========================================================
    Series de aproximación
    ========================================================= */
 
@@ -241,26 +359,34 @@ function reproducirPitido() {
    Descanso
    ========================================================= */
 
-function iniciarDescanso(elementosDom, segundos, estado, objetivos, ejercicio) {
+let intervaloDescanso = null;
+
+// El descanso termina en `estado.finDescanso` (timestamp). Al depender de una hora absoluta
+// y no de una cuenta atrás, sigue siendo correcto aunque el navegador pause los temporizadores
+// en segundo plano o la página se recargue.
+function iniciarDescanso(elementosDom, estado, objetivos, ejercicio) {
 	const { btnSerie } = elementosDom;
-	const finDescanso = Date.now() + segundos * 1000;
 
 	btnSerie.classList.add("btn-disabled");
 	btnSerie.disabled = true;
 
-	const intervalo = setInterval(() => {
-		const restantes = Math.max(0, Math.ceil((finDescanso - Date.now()) / 1000));
+	clearInterval(intervaloDescanso);
+
+	const actualizar = () => {
+		const restantes = Math.max(0, Math.ceil((estado.finDescanso - Date.now()) / 1000));
 		btnSerie.textContent = `${String(Math.floor(restantes / 60)).padStart(2, "0")}:${String(restantes % 60).padStart(2, "0")}`;
 
 		if (restantes === 0) {
-			clearInterval(intervalo);
+			clearInterval(intervaloDescanso);
 			btnSerie.classList.remove("btn-disabled");
 			btnSerie.disabled = false;
-			estado.inicioSerie = Date.now();
 			mostrarTextoBotonSerie(elementosDom, estado, obtenerFase(estado, objetivos, ejercicio));
 			reproducirPitido();
 		}
-	}, 200);
+	};
+
+	actualizar();
+	intervaloDescanso = setInterval(actualizar, 200);
 }
 
 /* =========================================================
@@ -284,16 +410,23 @@ function finalizarSerie(elementosDom, ejercicio, estado, objetivos) {
 		estado.numeroSeriesAproximacionTerminadas++;
 	} else {
 		estado.numeroSeriesTrabajoTerminadas++;
+	}
 
-		if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
-			mostrarEjercicioCompletado(elementosDom);
-			return;
-		}
+	// El descanso acaba en `finDescanso` y en ese mismo instante empieza la siguiente serie.
+	estado.finDescanso = Date.now() + faseTerminada.descanso * 1000;
+	estado.inicioSerie = estado.finDescanso;
+
+	// Guardamos el progreso en cada pulsación, antes de cualquier otra cosa.
+	guardarProgreso(ejercicio.id, estado);
+
+	if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
+		mostrarEjercicioCompletado(elementosDom);
+		return;
 	}
 
 	// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
 	mostrarObjetivoSerie(elementosDom, obtenerFase(estado, objetivos, ejercicio));
-	iniciarDescanso(elementosDom, faseTerminada.descanso, estado, objetivos, ejercicio);
+	iniciarDescanso(elementosDom, estado, objetivos, ejercicio);
 }
 
 /* =========================================================
@@ -326,6 +459,9 @@ async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion
 	];
 
 	await guardarHistorial(historialActualizado);
+
+	// El ejercicio ya está registrado en el histórico: descartamos el progreso temporal.
+	borrarProgreso(ejercicio.id);
 
 	location.href = `sesion.html?numeroSesion=${numeroSesion}`;
 }
@@ -386,11 +522,26 @@ async function inicializar() {
 			numeroSeriesAproximacionTerminadas: 0,
 			numeroSeriesTrabajoTerminadas: 0,
 			inicioSerie: Date.now(),
+			finDescanso: 0,
+			borrador: null,
 		};
 
-		const faseInicial = obtenerFase(estado, objetivos, ejercicio);
-		mostrarObjetivoSerie(elementosDom, faseInicial);
-		mostrarTextoBotonSerie(elementosDom, estado, faseInicial);
+		// Recuperamos lo que ya se hizo hoy en este ejercicio (si el navegador recargó la página).
+		limpiarProgresoAntiguo();
+		restaurarProgreso(elementosDom, ejercicio, estado, objetivos);
+
+		const faseActual = obtenerFase(estado, objetivos, ejercicio);
+		mostrarObjetivoSerie(elementosDom, faseActual);
+
+		if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
+			mostrarEjercicioCompletado(elementosDom);
+		} else if (estado.finDescanso > Date.now()) {
+			// Seguimos en pleno descanso: retomamos la cuenta atrás con el tiempo que queda.
+			iniciarDescanso(elementosDom, estado, objetivos, ejercicio);
+		} else {
+			// Sin descanso en curso (o ya terminó mientras la página estaba en segundo plano).
+			mostrarTextoBotonSerie(elementosDom, estado, faseActual);
+		}
 
 		/* ---------- Botón de serie ---------- */
 		elementosDom.btnSerie.addEventListener("click", () => {
@@ -400,6 +551,15 @@ async function inicializar() {
 		});
 
 		/* ---------- Formulario de guardado ---------- */
+		// Conservamos lo que se esté escribiendo en el formulario por si se pierde la página.
+		elementosDom.formFinalizar.addEventListener("input", () => {
+			estado.borrador = {
+				peso: elementosDom.pesoFinal.value,
+				repeticiones: elementosDom.repeticionesFinal.value,
+			};
+			guardarProgreso(ejercicio.id, estado);
+		});
+
 		elementosDom.formFinalizar.addEventListener("submit", async (evento) => {
 			// Sin esto, el navegador recarga la página y cancela el guardado asíncrono.
 			evento.preventDefault();
