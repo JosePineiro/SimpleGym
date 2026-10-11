@@ -259,14 +259,18 @@ async function inicializar() {
 		const maxNumeroSesion = Math.max(1, ...ejercicios.flatMap((ejercicio) => ejercicio.sesiones));
 		const numeroSesionDeHoy = getSesionActual(maxNumeroSesion, historial);
 		const btnIrSesion = document.getElementById("btn-ir-sesion");
-		btnIrSesion.textContent = `Comenzar sesión ${numeroSesionDeHoy}`;
+		const hayEjerciciosHoy = historial.some((registro) => esMismoDia(registro.fecha, new Date()));
+
+		btnIrSesion.textContent = hayEjerciciosHoy
+			? `Continuar sesión ${numeroSesionDeHoy}`
+			: `Comenzar sesión ${numeroSesionDeHoy}`;
 		btnIrSesion.href = `sesion.html?numeroSesion=${numeroSesionDeHoy}`;
 
 		const numeroEjerciciosPendientes = getNumeroEjerciciosPendientes(ejercicios, historial, numeroSesionDeHoy);
 		if (numeroEjerciciosPendientes === 0) {
 			setText("info-sesion", "Todos los ejercicios de hoy completados");
 		} else {
-			setText("info-sesion", `Hoy tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`);
+			setText("info-sesion", `Tienes ${numeroEjerciciosPendientes} ejercicios pendientes.`);
 		}
 	} catch (error) {
 		console.error(error);
