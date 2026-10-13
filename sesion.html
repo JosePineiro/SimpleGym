@@ -14,8 +14,18 @@
 			<p class="subtitulo" id="subtitulo"></p>
 			<a class="topbar-link" href="index.html">Inicio</a>
 		</header>
-
 		<main class="container">
+			<section class="dashboard-container">
+				<article class="card">
+					<h2 id="descarga-titulo">Sesión de descarga</h2>
+					<p class="card-text" id="descarga-aviso"></p>
+					<label class="switch">
+						<span class="switch-text" id="descarga-estado">Desactivada</span>
+						<input type="checkbox" id="toggle-descarga">
+						<span class="switch-slider" aria-hidden="true"></span>
+					</label>
+				</article>
+			</section>
 			<section class="grid" id="contenedor-ejercicios" aria-label="Ejercicios de la sesión"></section>
 		</main>
 	</body>

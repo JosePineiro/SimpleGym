@@ -70,12 +70,12 @@ getRedirectResult(auth).catch((e) => console.error("Error al completar el inicio
 /* Empaquetado binario del histórico                                  */
 /* ------------------------------------------------------------------ */
 
-// Layout (big-endian): 1 byte de versión + 9 bytes por registro:
+// Layout (big-endian): 1 byte de versión + 10 bytes por registro:
 //   +0 idEjercicio  +1 numeroSesion  +2 totalEjercicios  +3..4 fecha (días, uint16)
-//   +5 numeroSeries +6..7 peso (decagramos, uint16)  +8 repeticiones
+//   +5 numeroSeries +6..7 peso (centésimas de kg, uint16) +8 repeticiones  +9 esDescarga (0/1)
 // La fecha se guarda como día del calendario local (se pierde la hora).
 // Rangos: bytes 0-255; fecha 1970-2149; peso 0 a 655.35 kg.
-const VERSION_FORMATO = 1, BYTES_CABECERA = 1, BYTES_REGISTRO = 9, MS_DIA = 86_400_000;
+const VERSION_FORMATO = 1, BYTES_CABECERA = 1, BYTES_REGISTRO = 10, MS_DIA = 86_400_000;
 
 /**
  * @brief Valida que `valor` sea un entero entre 0 y `max` (NaN también se rechaza).
@@ -134,6 +134,7 @@ function empaquetarHistorial(registros) {
 		buffer[o + 5] = entero(r.numeroSeries, 255, "numeroSeries", i);
 		vista.setUint16(o + 6, entero(Math.round(r.peso * 100), 65535, "peso", i));
 		buffer[o + 8] = entero(r.repeticiones, 255, "repeticiones", i);
+		buffer[o + 9] = r.esDescarga ? 1 : 0;
 	});
 
 	return buffer;
@@ -158,9 +159,14 @@ function desempaquetarHistorial(buffer) {
 	for (let i = 0; i < registros.length; i++) {
 		const o = BYTES_CABECERA + i * BYTES_REGISTRO;
 		registros[i] = {
-			idEjercicio: buffer[o], numeroSesion: buffer[o + 1], totalEjercicios: buffer[o + 2],
-			fecha: diasAFecha(vista.getUint16(o + 3)), numeroSeries: buffer[o + 5],
-			peso: vista.getUint16(o + 6) / 100, repeticiones: buffer[o + 8],
+			idEjercicio: buffer[o],
+			numeroSesion: buffer[o + 1],
+			totalEjercicios: buffer[o + 2],
+			fecha: diasAFecha(vista.getUint16(o + 3)),
+			numeroSeries: buffer[o + 5],
+			peso: vista.getUint16(o + 6) / 100,
+			repeticiones: buffer[o + 8],
+			esDescarga: buffer[o + 9] === 1,
 		};
 	}
 	return registros;

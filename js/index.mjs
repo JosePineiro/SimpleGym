@@ -47,8 +47,8 @@ function parseCSV(text) {
 			continue;
 		}
 
-		const [idEjercicioTexto, numeroSesionTexto, totalEjerciciosTexto, fechaTexto, numeroSeriesTexto, pesoTexto, repeticionesTexto] =
-			partes;
+		const [idEjercicioTexto, numeroSesionTexto, totalEjerciciosTexto, fechaTexto, numeroSeriesTexto, pesoTexto,
+			repeticionesTexto, esDescargaTexto] = partes;
 		const idEjercicio = Number(idEjercicioTexto);
 		const numeroSesion = Number(numeroSesionTexto);
 		const totalEjercicios = Number(totalEjerciciosTexto);
@@ -57,6 +57,7 @@ function parseCSV(text) {
 		const numeroSeries = Number(numeroSeriesTexto);
 		const peso = Number(pesoTexto);
 		const repeticiones = Number(repeticionesTexto);
+		const esDescarga = esDescargaTexto === "1";
 
 		const registroValido =
 			idEjercicioTexto &&
@@ -78,7 +79,7 @@ function parseCSV(text) {
 			continue;
 		}
 
-		registros.push({ idEjercicio, numeroSesion, totalEjercicios, fecha, numeroSeries, peso, repeticiones });
+		registros.push({ idEjercicio, numeroSesion, totalEjercicios, fecha, numeroSeries, peso, repeticiones, esDescarga });
 	}
 
 	return { registros, omitidos };
@@ -118,7 +119,7 @@ async function exportarCSV() {
 	}
 
 	const filas = [
-		"id_ejercicio;numero_sesion;total_ejercicios;fecha;numero_series;peso;repeticiones",
+		"id_ejercicio;numero_sesion;total_ejercicios;fecha;numero_series;peso;repeticiones;es_descarga",
 
 		...registros.map((registro) => {
 			const fecha = `${registro.fecha.getFullYear()}/${String(registro.fecha.getMonth() + 1).padStart(2, "0")}/${String(
@@ -133,6 +134,7 @@ async function exportarCSV() {
 				registro.numeroSeries,
 				registro.peso,
 				registro.repeticiones,
+				registro.esDescarga ? 1 : 0
 			].join(";");
 		}),
 	];
@@ -177,8 +179,6 @@ async function importarJSON(event) {
 			typeof ejercicio.descripcion === "string" &&
 			typeof ejercicio.incremento_peso === "number" &&
 			ejercicio.incremento_peso > 0.1 &&
-			typeof ejercicio.incremento_repeticiones === "number" &&
-			ejercicio.incremento_repeticiones > 0 &&
 			Array.isArray(ejercicio.sesiones) &&
 			ejercicio.sesiones.every((sesion) => typeof sesion === "number") &&
 			typeof ejercicio.series_trabajo === "number" &&

@@ -33,8 +33,7 @@ function guardarProgreso(idEjercicio, estado) {
 			claveProgreso(idEjercicio),
 			JSON.stringify({
 				version: VERSION_PROGRESO,
-				numeroSeriesAproximacionTerminadas: estado.numeroSeriesAproximacionTerminadas,
-				numeroSeriesTrabajoTerminadas: estado.numeroSeriesTrabajoTerminadas,
+				indiceSerie: estado.indiceSerie,
 				inicioSerie: estado.inicioSerie,
 				finDescanso: estado.finDescanso,
 				borrador: estado.borrador,
@@ -52,10 +51,7 @@ function leerProgreso(idEjercicio) {
 		const datos = JSON.parse(localStorage.getItem(claveProgreso(idEjercicio)));
 		if (!datos || datos.version !== VERSION_PROGRESO) return null;
 
-		const esContador = (n) => Number.isInteger(n) && n >= 0;
-		if (!esContador(datos.numeroSeriesAproximacionTerminadas) || !esContador(datos.numeroSeriesTrabajoTerminadas)) {
-			return null;
-		}
+		if (!Number.isInteger(datos.indiceSerie) || datos.indiceSerie < 0) return null;
 
 		const borrador =
 			datos.borrador && typeof datos.borrador.peso === "string" && typeof datos.borrador.repeticiones === "string"
@@ -63,8 +59,7 @@ function leerProgreso(idEjercicio) {
 				: null;
 
 		return {
-			numeroSeriesAproximacionTerminadas: datos.numeroSeriesAproximacionTerminadas,
-			numeroSeriesTrabajoTerminadas: datos.numeroSeriesTrabajoTerminadas,
+			indiceSerie: datos.indiceSerie,
 			inicioSerie: Number.isFinite(datos.inicioSerie) ? datos.inicioSerie : Date.now(),
 			finDescanso: Number.isFinite(datos.finDescanso) ? datos.finDescanso : 0,
 			borrador,
@@ -101,18 +96,13 @@ function limpiarProgresoAntiguo() {
 	}
 }
 
-// Vuelca el progreso guardado sobre `estado`, validándolo contra el ejercicio actual
+// Vuelca el progreso guardado sobre `estado`, validándolo contra la sesión actual
 // (por si la rutina o el histórico han cambiado desde que se guardó).
-function restaurarProgreso(elementosDom, ejercicio, estado, objetivos) {
+function restaurarProgreso(elementosDom, ejercicio, estado, sesion) {
 	const guardado = leerProgreso(ejercicio.id);
 	if (!guardado) return;
 
-	estado.numeroSeriesAproximacionTerminadas = limitar(
-		guardado.numeroSeriesAproximacionTerminadas,
-		0,
-		objetivos.seriesDeAproximacion.length,
-	);
-	estado.numeroSeriesTrabajoTerminadas = limitar(guardado.numeroSeriesTrabajoTerminadas, 0, ejercicio.series_trabajo);
+	estado.indiceSerie = limitar(guardado.indiceSerie, 0, sesion.series.length);
 	estado.inicioSerie = guardado.inicioSerie;
 	estado.finDescanso = guardado.finDescanso;
 	estado.borrador = guardado.borrador;
@@ -185,7 +175,7 @@ function obtenerEjercicio(ejercicios, idEjercicio) {
 }
 
 function mostrarEjercicio(elementosDom, ejercicio) {
-	const { imagenEjercicio, descripcionEjercicio, seriesTrabajo, rangoRepeticiones, rir, descanso } = elementosDom;
+	const { imagenEjercicio, descripcionEjercicio, titulo } = elementosDom;
 
 	imagenEjercicio.src = ejercicio.imagen || IMAGEN_PLACEHOLDER;
 	imagenEjercicio.alt = ejercicio.nombre;
@@ -196,75 +186,79 @@ function mostrarEjercicio(elementosDom, ejercicio) {
 		imagenEjercicio.src = IMAGEN_PLACEHOLDER;
 	};
 
+	titulo.textContent = ejercicio.nombre;
 	descripcionEjercicio.textContent = ejercicio.descripcion;
-	seriesTrabajo.textContent = ejercicio.series_trabajo;
-	rangoRepeticiones.textContent = `${ejercicio.repeticiones_min}-${ejercicio.repeticiones_max}`;
-	rir.textContent = ejercicio.rir;
-	descanso.textContent = ejercicio.descanso;
 }
 
 /* =========================================================
-   Histórico y objetivos
+   Histórico y sesión del día
    ========================================================= */
 
 function obtenerUltimoRegistro(historial, idEjercicio) {
 	// El histórico está ordenado por fecha ascendente, así que el último registro
 	// coincidente es el más reciente (aunque haya varios con la misma fecha, que es
 	// lo habitual porque la fecha solo guarda el día).
-	return historial.findLast((r) => r.idEjercicio === idEjercicio) ?? null;
+	// La progresión se calcula sobre el último registro NO de descarga:
+	return historial.findLast((r) => r.idEjercicio === idEjercicio && !r.esDescarga) ?? null;
 }
 
-function calcularObjetivos(ejercicio, ultimoRegistro) {
+// Devuelve la sesión del día como una lista plana de series a realizar.
+// Cada serie tiene: { peso, repeticiones, descanso, esAproximacion, numero }.
+function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
 	let pesoObjetivo;
 	let repeticionesObjetivo;
 
+	// Calculamos peso y repeticiones objetivo según el último registro y si es sesión de descarga.
 	if (!ultimoRegistro) {
 		// No hay registros previos, usamos los valores mínimos del ejercicio.
 		pesoObjetivo = ejercicio.incremento_peso;
 		repeticionesObjetivo = ejercicio.repeticiones_min;
 	} else {
-		pesoObjetivo = Number(ultimoRegistro.peso);
-		repeticionesObjetivo = Number(ultimoRegistro.repeticiones) + 1;
+		pesoObjetivo = ultimoRegistro.peso;
+
+		// En descarga bajamos las repeticiones objetivo (más fácil). Si no, subimos las repeticiones objetivo (más difícil).
+		repeticionesObjetivo = esDescarga ? ultimoRegistro.repeticiones - 2 : ultimoRegistro.repeticiones + 1;
 
 		if (repeticionesObjetivo > ejercicio.repeticiones_max) {
 			// Hemos llegado al máximo de repeticiones, subimos el peso y reiniciamos las repeticiones al mínimo.
 			pesoObjetivo += ejercicio.incremento_peso;
 			repeticionesObjetivo = ejercicio.repeticiones_min;
 		} else if (repeticionesObjetivo < ejercicio.repeticiones_min) {
-			// las repeticiones del último registro son menores que el mínimo: Bajamos el peso y ponemos las repeticiones al máximo.
+			// Las repeticiones del último registro son menores que el mínimo: bajamos el peso y ponemos las repeticiones al máximo.
 			pesoObjetivo -= ejercicio.incremento_peso;
 			pesoObjetivo = Math.max(pesoObjetivo, ejercicio.incremento_peso);
 			repeticionesObjetivo = ejercicio.repeticiones_max;
 		}
 	}
 
+	const aproximacion = calcularSeriesAproximacion(ejercicio, pesoObjetivo);
+
+	// En descarga, reducimos las series de trabajo a la mitad y subimos el RIR (más fácil).
+	const numeroSeriesTrabajo = esDescarga ? Math.max(1, Math.round(ejercicio.series_trabajo / 2)) : ejercicio.series_trabajo;
+	const rir = esDescarga ? Math.min(5, Math.round(ejercicio.rir + 2)) : ejercicio.rir;
+
 	return {
-		pesoObjetivo,
-		repeticionesObjetivo,
-		seriesDeAproximacion: calcularSeriesAproximacion(ejercicio, pesoObjetivo),
+		esDescarga,
+		numeroSeriesTrabajo,
+		rangoRepeticiones: `${ejercicio.repeticiones_min}-${ejercicio.repeticiones_max}`,
+		rir,
+		series: [
+			...aproximacion.map((s, i) => ({
+				peso: s.peso,
+				repeticiones: s.repeticiones,
+				descanso: s.descanso,
+				esAproximacion: true,
+				numero: i + 1,
+			})),
+			...Array.from({ length: numeroSeriesTrabajo }, (_, i) => ({
+				peso: pesoObjetivo,
+				repeticiones: repeticionesObjetivo,
+				descanso: ejercicio.descanso,
+				esAproximacion: false,
+				numero: i + 1,
+			})),
+		],
 	};
-}
-
-/* =========================================================
-   Fase actual (aproximación o trabajo)
-   ========================================================= */
-
-function obtenerFase(estado, objetivos, ejercicio) {
-	const aprox = objetivos.seriesDeAproximacion[estado.numeroSeriesAproximacionTerminadas];
-
-	return aprox
-		? {
-			esAproximacion: true,
-			peso: aprox.peso,
-			repeticiones: aprox.repeticiones,
-			descanso: aprox.descanso,
-		}
-		: {
-			esAproximacion: false,
-			peso: objetivos.pesoObjetivo,
-			repeticiones: objetivos.repeticionesObjetivo,
-			descanso: ejercicio.descanso,
-		};
 }
 
 /* =========================================================
@@ -272,16 +266,20 @@ function obtenerFase(estado, objetivos, ejercicio) {
    ========================================================= */
 
 // Muestra las repeticiones y el peso objetivo de la serie que toca a continuación.
-function mostrarObjetivoSerie(elementosDom, fase) {
-	elementosDom.repeticionesObjetivo.textContent = fase.repeticiones;
-	elementosDom.pesoObjetivo.textContent = formatearNumero(fase.peso, 1);
+function mostrarObjetivoSerie(elementosDom, serie) {
+	elementosDom.descanso.textContent = serie.descanso;
+	elementosDom.repeticionesObjetivo.textContent = serie.repeticiones;
+	elementosDom.pesoObjetivo.textContent = formatearNumero(serie.peso, 1);
 }
 
 // Restaura el texto del botón de la serie (al terminar el descanso).
-function mostrarTextoBotonSerie(elementosDom, estado, fase) {
-	elementosDom.btnSerie.textContent = fase.esAproximacion
-		? `Terminé la serie de aproximación ${estado.numeroSeriesAproximacionTerminadas + 1}`
-		: `Terminé la serie ${estado.numeroSeriesTrabajoTerminadas + 1}`;
+function mostrarTextoBotonSerie(elementosDom, series, actual) {
+	if (series[actual].esAproximacion)
+		elementosDom.btnSerie.textContent = `Terminé la serie de aproximación ${series[actual].numero}`;
+	else if (actual < series.length - 1)
+		elementosDom.btnSerie.textContent = `Terminé la serie ${series[actual].numero}`;
+	else
+		elementosDom.btnSerie.textContent = 'Terminé el ejercicio';
 }
 
 /* =========================================================
@@ -364,7 +362,7 @@ let intervaloDescanso = null;
 // El descanso termina en `estado.finDescanso` (timestamp). Al depender de una hora absoluta
 // y no de una cuenta atrás, sigue siendo correcto aunque el navegador pause los temporizadores
 // en segundo plano o la página se recargue.
-function iniciarDescanso(elementosDom, estado, objetivos, ejercicio) {
+function iniciarDescanso(elementosDom, estado, serieSiguiente) {
 	const { btnSerie } = elementosDom;
 
 	btnSerie.classList.add("btn-disabled");
@@ -380,7 +378,8 @@ function iniciarDescanso(elementosDom, estado, objetivos, ejercicio) {
 			clearInterval(intervaloDescanso);
 			btnSerie.classList.remove("btn-disabled");
 			btnSerie.disabled = false;
-			mostrarTextoBotonSerie(elementosDom, estado, obtenerFase(estado, objetivos, ejercicio));
+			elementosDom.btnSerie.textContent = 'Terminé el ejercicio';
+			// mostrarTextoBotonSerie(elementosDom, serieSiguiente);
 			reproducirPitido();
 		}
 	};
@@ -393,47 +392,44 @@ function iniciarDescanso(elementosDom, estado, objetivos, ejercicio) {
    Finalizar serie
    ========================================================= */
 
-function finalizarSerie(elementosDom, ejercicio, estado, objetivos) {
-	// Fase que acabamos de terminar (antes de tocar los contadores).
-	const faseTerminada = obtenerFase(estado, objetivos, ejercicio);
+function finalizarSerie(elementosDom, ejercicio, estado, sesion) {
+	// Serie que acabamos de terminar.
+	const serieTerminada = sesion.series[estado.indiceSerie];
 
 	const tiempoTranscurrido = Math.trunc((Date.now() - estado.inicioSerie) / 1000);
-	const tiempoObjetivo = faseTerminada.repeticiones * 6;
+	const tiempoObjetivo = serieTerminada.repeticiones * 6;
 
 	if (tiempoTranscurrido < tiempoObjetivo) {
 		const diferencia = Math.trunc(tiempoObjetivo - tiempoTranscurrido);
 		alert(`Has ido ${diferencia} segundo${diferencia !== 1 ? "s" : ""} demasiado rápido.`);
 	}
 
-	// Avanzamos el contador correspondiente.
-	if (faseTerminada.esAproximacion) {
-		estado.numeroSeriesAproximacionTerminadas++;
-	} else {
-		estado.numeroSeriesTrabajoTerminadas++;
-	}
+	// Avanzamos al siguiente índice.
+	estado.indiceSerie++;
 
 	// El descanso acaba en `finDescanso` y en ese mismo instante empieza la siguiente serie.
-	estado.finDescanso = Date.now() + faseTerminada.descanso * 1000;
+	estado.finDescanso = Date.now() + serieTerminada.descanso * 1000;
 	estado.inicioSerie = estado.finDescanso;
 
 	// Guardamos el progreso en cada pulsación, antes de cualquier otra cosa.
 	guardarProgreso(ejercicio.id, estado);
 
-	if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
+	if (estado.indiceSerie >= sesion.series.length) {
 		mostrarEjercicioCompletado(elementosDom);
 		return;
 	}
 
 	// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
-	mostrarObjetivoSerie(elementosDom, obtenerFase(estado, objetivos, ejercicio));
-	iniciarDescanso(elementosDom, estado, objetivos, ejercicio);
+	const serieSiguiente = sesion.series[estado.indiceSerie];
+	mostrarObjetivoSerie(elementosDom, serieSiguiente);
+	iniciarDescanso(elementosDom, estado, serieSiguiente);
 }
 
 /* =========================================================
    Guardar registro de ejercicio
    ========================================================= */
 
-async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion) {
+async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion, sesion) {
 	const pesoStr = elementosDom.pesoFinal.value.trim();
 	const repStr = elementosDom.repeticionesFinal.value.trim();
 	if (!pesoStr || !repStr) throw new Error("Introduce peso y repeticiones.");
@@ -452,9 +448,10 @@ async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion
 			numeroSesion,
 			totalEjercicios: totalEjerciciosSesion,
 			fecha: new Date(),
-			numeroSeries: ejercicio.series_trabajo,
+			numeroSeries: sesion.series.filter((s) => !s.esAproximacion).length,
 			peso,
 			repeticiones,
+			esDescarga: sesion.esDescarga === true,
 		},
 	];
 
@@ -463,7 +460,7 @@ async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion
 	// El ejercicio ya está registrado en el histórico: descartamos el progreso temporal.
 	borrarProgreso(ejercicio.id);
 
-	location.href = `sesion.html?numeroSesion=${numeroSesion}`;
+	location.href = `sesion.html?numeroSesion=${numeroSesion}&descarga=${sesion.esDescarga ? 1 : 0}`;
 }
 
 /* =========================================================
@@ -497,10 +494,11 @@ async function inicializar() {
 	const elementosDom = obtenerElementosDom();
 
 	try {
-		const [idEjercicio, numeroSesion, totalEjerciciosSesion] = obtenerParametrosURL(
+		const [idEjercicio, numeroSesion, totalEjerciciosSesion, esDescarga] = obtenerParametrosURL(
 			{ clave: "idEjercicio", validar: (n) => n > 0 },
 			{ clave: "numeroSesion", validar: (n) => n > 0 },
-			{ clave: "totalEjerciciosSesion", validar: (n) => n >= 0 }
+			{ clave: "totalEjerciciosSesion", validar: (n) => n >= 0 },
+			{ clave: "descarga", validar: (n) => n === 1 || n === 0 },
 		);
 
 		// ---------- Volver ----------
@@ -508,19 +506,19 @@ async function inicializar() {
 
 		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
 		const ejercicio = obtenerEjercicio(ejercicios, idEjercicio);
-
-		elementosDom.titulo.textContent = ejercicio.nombre;
+		const ultimoRegistro = obtenerUltimoRegistro(historial, ejercicio.id);
+		const sesion = calcularSesion(ejercicio, ultimoRegistro, esDescarga === 1);
 
 		mostrarEjercicio(elementosDom, ejercicio);
 
-		const ultimoRegistro = obtenerUltimoRegistro(historial, ejercicio.id);
-		const objetivos = calcularObjetivos(ejercicio, ultimoRegistro);
-		elementosDom.pesoFinal.value = objetivos.pesoObjetivo;
-		elementosDom.repeticionesFinal.value = objetivos.repeticionesObjetivo;
+		elementosDom.seriesTrabajo.textContent = sesion.numeroSeriesTrabajo;
+		elementosDom.rangoRepeticiones.textContent = sesion.rangoRepeticiones;
+		elementosDom.rir.textContent = sesion.rir;
+		elementosDom.repeticionesFinal.value = sesion.series.at(-1).repeticiones;
+		elementosDom.pesoFinal.value = sesion.series.at(-1).peso;
 
 		const estado = {
-			numeroSeriesAproximacionTerminadas: 0,
-			numeroSeriesTrabajoTerminadas: 0,
+			indiceSerie: 0,
 			inicioSerie: Date.now(),
 			finDescanso: 0,
 			borrador: null,
@@ -528,26 +526,28 @@ async function inicializar() {
 
 		// Recuperamos lo que ya se hizo hoy en este ejercicio (si el navegador recargó la página).
 		limpiarProgresoAntiguo();
-		restaurarProgreso(elementosDom, ejercicio, estado, objetivos);
+		restaurarProgreso(elementosDom, ejercicio, estado, sesion);
 
-		const faseActual = obtenerFase(estado, objetivos, ejercicio);
-		mostrarObjetivoSerie(elementosDom, faseActual);
-
-		if (estado.numeroSeriesTrabajoTerminadas >= ejercicio.series_trabajo) {
+		if (estado.indiceSerie >= sesion.series.length) {
 			mostrarEjercicioCompletado(elementosDom);
-		} else if (estado.finDescanso > Date.now()) {
-			// Seguimos en pleno descanso: retomamos la cuenta atrás con el tiempo que queda.
-			iniciarDescanso(elementosDom, estado, objetivos, ejercicio);
 		} else {
-			// Sin descanso en curso (o ya terminó mientras la página estaba en segundo plano).
-			mostrarTextoBotonSerie(elementosDom, estado, faseActual);
+			const serieActual = sesion.series[estado.indiceSerie];
+			mostrarObjetivoSerie(elementosDom, serieActual);
+
+			if (estado.finDescanso > Date.now()) {
+				// Seguimos en pleno descanso: retomamos la cuenta atrás con el tiempo que queda.
+				iniciarDescanso(elementosDom, estado, serieActual);
+			} else {
+				// Sin descanso en curso (o ya terminó mientras la página estaba en segundo plano).
+				mostrarTextoBotonSerie(elementosDom, sesion.series, estado.indiceSerie);
+			}
 		}
 
 		/* ---------- Botón de serie ---------- */
 		elementosDom.btnSerie.addEventListener("click", () => {
 			// Protección contra dobles clics.
 			elementosDom.btnSerie.disabled = true;
-			finalizarSerie(elementosDom, ejercicio, estado, objetivos);
+			finalizarSerie(elementosDom, ejercicio, estado, sesion);
 		});
 
 		/* ---------- Formulario de guardado ---------- */
@@ -566,7 +566,7 @@ async function inicializar() {
 
 			elementosDom.btnGuardar.disabled = true;
 			try {
-				await guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion);
+				await guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion, sesion);
 			} catch (error) {
 				elementosDom.btnGuardar.disabled = false;
 				console.error(error);

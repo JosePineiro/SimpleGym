@@ -79,7 +79,7 @@
 		"orden": 6,
 		"imagen": "images/abductor.avif",
 		"nombre": "Abductor",
-		"descripcion": "Siéntate con la espalda apoyada en el respaldo y ajusta la posición inicial para partir de una apertura cómoda para las caderas. Abre las piernas de forma controlada, sin balancear el tronco ni usar impulso. No permitir que las placas de peso se toquen durante la serie.",
+		"descripcion": "Siéntate con la espalda apoyada en el respaldo y ajusta la posición inicial para partir con las rodillas juntas. Abre las piernas de forma controlada, sin balancear el tronco ni usar impulso. No permitir que las placas de peso se toquen durante la serie.",
 		"incremento_peso": 5,
 		"sesiones": [1, 3],
 		"series_trabajo": 2,
