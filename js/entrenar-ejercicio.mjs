@@ -397,7 +397,7 @@ function finalizarSerie(elementosDom, ejercicio, estado, sesion) {
 	const serieTerminada = sesion.series[estado.indiceSerie];
 
 	const tiempoTranscurrido = Math.trunc((Date.now() - estado.inicioSerie) / 1000);
-	const tiempoObjetivo = serieTerminada.repeticiones * 6;
+	const tiempoObjetivo = serieTerminada.repeticiones * 4;
 
 	if (tiempoTranscurrido < tiempoObjetivo) {
 		const diferencia = Math.trunc(tiempoObjetivo - tiempoTranscurrido);
