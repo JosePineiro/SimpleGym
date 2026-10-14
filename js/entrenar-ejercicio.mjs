@@ -362,7 +362,7 @@ let intervaloDescanso = null;
 // El descanso termina en `estado.finDescanso` (timestamp). Al depender de una hora absoluta
 // y no de una cuenta atrás, sigue siendo correcto aunque el navegador pause los temporizadores
 // en segundo plano o la página se recargue.
-function iniciarDescanso(elementosDom, estado, serieSiguiente) {
+function iniciarDescanso(elementosDom, estado, sesion) {
 	const { btnSerie } = elementosDom;
 
 	btnSerie.classList.add("btn-disabled");
@@ -378,8 +378,7 @@ function iniciarDescanso(elementosDom, estado, serieSiguiente) {
 			clearInterval(intervaloDescanso);
 			btnSerie.classList.remove("btn-disabled");
 			btnSerie.disabled = false;
-			elementosDom.btnSerie.textContent = 'Terminé el ejercicio';
-			// mostrarTextoBotonSerie(elementosDom, serieSiguiente);
+			mostrarTextoBotonSerie(elementosDom, sesion.series, estado.indiceSerie);
 			reproducirPitido();
 		}
 	};
@@ -422,7 +421,7 @@ function finalizarSerie(elementosDom, ejercicio, estado, sesion) {
 	// Mostramos ya el objetivo de la siguiente serie para poder preparar el peso durante el descanso.
 	const serieSiguiente = sesion.series[estado.indiceSerie];
 	mostrarObjetivoSerie(elementosDom, serieSiguiente);
-	iniciarDescanso(elementosDom, estado, serieSiguiente);
+	iniciarDescanso(elementosDom, estado, sesion);
 }
 
 /* =========================================================
@@ -536,7 +535,7 @@ async function inicializar() {
 
 			if (estado.finDescanso > Date.now()) {
 				// Seguimos en pleno descanso: retomamos la cuenta atrás con el tiempo que queda.
-				iniciarDescanso(elementosDom, estado, serieActual);
+				iniciarDescanso(elementosDom, estado, sesion);
 			} else {
 				// Sin descanso en curso (o ya terminó mientras la página estaba en segundo plano).
 				mostrarTextoBotonSerie(elementosDom, sesion.series, estado.indiceSerie);
