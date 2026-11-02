@@ -35,7 +35,7 @@
 		"imagen": "images/leg-extension.avif",
 		"nombre": "Leg Extension",
 		"descripcion": "Ajusta el respaldo para que la rodilla quede alineada con el eje de giro de la máquina y el rodillo apoyado en la parte baja de la espinilla. Extiende sin bloquear la rodilla. Usa el limitador de recorrido para no bajar de los 90° de flexión al volver.",
-		"incremento_peso": 5,
+		"incremento_peso": 2.5,
 		"sesiones": [],
 		"series_trabajo": 2,
 		"series_aproximacion": 1,
