@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="Cómo funciona SIMPLEGYM y consejos para entrenar en máquinas">
+		<title>SIMPLEGYM - Ayuda</title>
+		<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+		<link rel="stylesheet" href="css/styles.css">
+		<style>
+		/* Estilos específicos de la página de ayuda */
+		.ayuda h3 {
+			margin: 20px 0 6px;
+			font-size: 1.02rem;
+			color: #123;
+		}
+		.ayuda p,
+		.ayuda li {
+			line-height: 1.55;
+		}
+		.ayuda p {
+			text-align: justify;
+			margin: 0 0 8px;
+		}
+		.ayuda ul,
+		.ayuda ol {
+			margin: 6px 0 0;
+			padding-left: 1.3em;
+		}
+		.ayuda li {
+			margin-bottom: 5px;
+		}
+		.ayuda .ejemplo {
+			background: #eef;
+			border-left: 4px solid var(--primary-color);
+			border-radius: 8px;
+			padding: 10px 12px;
+			margin: 10px 0;
+			font-size: 0.92rem;
+		}
+		</style>
+	</head>
+	<body>
+		<header class="topbar">
+			<h1>Ayuda</h1>
+			<p class="subtitulo">Cómo funciona y cómo entrenar</p>
+			<a class="topbar-link" href="index.html">Inicio</a>
+		</header>
+		<main class="container">
+			<!-- ===================================================== -->
+			<!-- SECCIÓN 1 · CÓMO FUNCIONA EL PROGRAMA                -->
+			<!-- ===================================================== -->
+			<section class="card ayuda">
+				<h2>Cómo funciona el programa</h2>
+				<p>
+					SIMPLEGYM es un cuaderno de entrenamiento para una rutina de ejercicios. No genera rutinas por ti: tú sigues el plan que
+					ya tienes cargado y la aplicación sirve para saber qué toca hoy, anotar el peso, las repeticiones de cada serie y ver tu
+					progreso con el tiempo.
+				</p>
+
+				<h2>Por qué debo validarme con la cuenta de Google o Microsoft</h2>
+				<p>
+					La validación permite guardar tu progreso y acceder a él desde cualquier dispositivo. Los datos se guardan en Firestore,
+					encriptados con tu contraseña. Nadie puede acceder a ellos. El código del programa es público y cualquiera puede
+					auditarlo verificando que no se recolecta ningun tipo de dato.
+				</p>
+
+				<h3>La rutina: sesiones en rotación</h3>
+				<p>El plan se organiza en varias sesiones que se van alternando.</p>
+				<p>
+					Cada ejercicio está asignado a una o varias sesiones. Al abrir el panel principal, la app te indica qué sesión toca;
+					entra en ella y ve pasando por cada ejercicio. EL programa va rotando las sesiones
+					<strong> 1 → 2 → 3 → 4 → 1 → 2 …</strong>
+				</p>
+
+				<h3>Cómo entrenar</h3>
+				<p>El sistema es siempre el mismo y muy sencillo:</p>
+				<ol>
+					<li>
+						Selecciona el primer ejercicio de la sesión. Si la máquina estuviera ocupada puedes pasar al siguiente ejercicio.
+					</li>
+					<li>
+						En <strong>Peso objetivo</strong>
+						te indica el peso a seleccionar en la máquina. Ese peso se irá incrementando automáticamente.
+					</li>
+					<li>
+						En <strong>Repeticiones objetivo</strong>
+						te indica el número de repeticiones a realizar. No debes superarlas en las series de aproximación.
+					</li>
+					<li>
+						Cuando hayas terminado las repeticiones de la serie pulsa <strong>Terminé serie de aproximación</strong>
+						(si ese ejercicio las tuviera), <strong>Terminé serie de trabajo</strong>
+						o <strong>Terminé ejercicio</strong>
+						(cuando es la última serie).
+					</li>
+					<li>La pantalla te indica el nuevo <strong>Peso objetivo</strong> y <strong>Repeticiones objetivo</strong></li>
+					<li>El botón muestra un contador con el tiempo de descanso. Al llegar a cero el movil vibrará y sonará un pitido.</li>
+					<li>
+						Al terminar el descanso realizas la nueva serie, intentando llegar al número de repeticiones objetivo. Si fuera la
+						última serie puedes intentar superarlas e intentar llegar al número de repeticiones máximas.
+					</li>
+					<li>
+						Al pulsar el botón de <strong>Terminé ejercicio</strong>, el programa te pregunta el peso usado y el número de
+						repeticiones alcanzadas en la última serie. Intródúcelos y pulsa <strong>Guardar</strong>.
+					</li>
+					<li>
+						El programa cambia a la pantalla de ejercicios de la sesión. Verás que los ejercicios ya realizados están en gris.
+						Selecciona el siguiente ejercicio de la sesión.
+					</li>
+				</ol>
+
+				<h3>Sesión de descarga</h3>
+				<p>
+					Si llevas ocho semanas de entrenamiento contínuo, dos semanas sin progresar, no te sientes descansado desde la última
+					sesión o estás desanimado con tu rutina, activa la sesión de descarga. El programa la trata como cualquier otra sesión
+					pero disminuyendo ligeramente el esfuerzo (un poco menos de peso o repeticiones) y menos series de trabajo. El modo
+					<strong>Sesión de Descarga</strong>
+					queda activo para el resto del día. Es conveniente que lo actives durante una semana.
+				</p>
+				<h3>Estadísticas</h3>
+				<p>En este apartado puedes ver varias estadísticas que te premitirán seguir tu progreso y ver los records conseguidos.</p>
+				<ul>
+					<li><strong>Por ejercicio:</strong> evolución del 1RM estimado, récords, rachas, frecuencia y volumen acumulado.</li>
+					<li><strong>Por sesión:</strong> volumen a lo largo del tiempo, récords y rachas de sesiones.</li>
+					<li>
+						<strong>Por días:</strong>
+						calendario tipo mapa de calor con los días entrenados (incompleta, completa o con progreso) y un resumen del mes.
+						Podrás ver el detalle de los ejercicios realizados ese día.
+					</li>
+				</ul>
+
+				<h3>Ejercicios (JSON)</h3>
+				<p>
+					El programa viene sin ejercicios predeterminados. Estos dependen de las máquinas, pesas o mancuernas que tengas
+					disponibles.
+				</p>
+				<p>Los ejercicios están definidos en un archivo JSON. Cada ejercicio dispone de los siguientes datos:</p>
+				<ul>
+					<li><strong>id</strong>: identificador único del ejercicio. No repetir ni «reciclar».</li>
+					<li><strong>nombre</strong>: nombre del ejercicio.</li>
+					<li><strong>descripcion</strong>: descripción detallada del ejercicio.</li>
+					<li><strong>incremento_peso</strong>: cantidad en la que se puede incrementar el peso.</li>
+					<li><strong>orden</strong>: orden de los ejercicios en la sesión.</li>
+					<li><strong>sesiones</strong>: array con las sesiones en las que se incluye el ejercicio.</li>
+					<li><strong>series_aproximacion</strong>: número de series de aproximación.</li>
+					<li><strong>series_trabajo</strong>: número de series de trabajo.</li>
+					<li><strong>repeticiones_min</strong>: número mínimo de repeticiones de trabajo por serie.</li>
+					<li><strong>repeticiones_max</strong>: número máximo de repeticiones de trabajo por serie.</li>
+					<li><strong>rir</strong>: repeticiones en reserva.</li>
+					<li><strong>descanso</strong>: tiempo de descanso entre series (en segundos).</li>
+				</ul>
+				<p>
+					Puedes descargar un archivo <a href="ejercicios-jose.json" target="_blank">JSON de ejemplo</a>
+					con los ejercicios para máquinas de TECHNOGYM.
+				</p>
+				<p>
+					Puedes adaptar el JSON según lo que tengas disponible, cubriendo los cuatro primeros campos. Para confeccionar tu rutina
+					usas ChatGPT (o cualquier otra IA) dándole el JSON e añadiendo este texto:
+				</p>
+				<blockquote>
+					Adapta la rutina del JSON adjunto para un [hombre/mujer] de 30 años con 1 mes de experiencia, sin lesiones ni
+					limitaciones [o indicar las que haya]. Objetivo principal: [fuerza/musculación/resistencia]. Quiero [X] días por semana,
+					con sesiones de [XX] minutos excluyendo calentamiento pero incluyendo series de aproximación, descansos y transiciones.
+					Usa únicamente ejercicios del JSON. En base a estos datos ajusta orden, sesiones, series_aproximacion, series_trabajo,
+					repeticiones_min, repeticiones_max, rir y descanso. Si un ejercicio es redundante por patrón, no es conveniente o no da
+					tiempo, deja "sesiones": [] y conserva el resto de campos. Prioriza ejercicios compuestos y que cada sesión quepa en 50
+					minutos; después equilibra la duración, el número de series efectivas entre sesiones y evita desequilibrios evidentes
+					entre grupos musculares, sin exigir igualdad exacta. Para calcular el tiempo asume 4 segundos por repeticiones_max, suma
+					el descanso entre series y una transición de 60 segundos entre ejercicio. Devuelve un array JSON válido, sin markdown ni
+					explicación. Mantén exactamente el mismo formato, IDs y campos.
+				</blockquote>
+				<p>La IA te devolverá un JSON que puedes introducir en el programa con el botón <strong>Importar</strong></p>
+
+				<h3>Historial (CSV)</h3>
+				<p>
+					Podrás exportar tu historial de ejercicios a un archivo CSV y abrirlo con Excel, LibreOffice o Google Sheets. Úsalo para
+					hacer copias de seguridad.
+				</p>
+			</section>
+
+			<!-- ===================================================== -->
+			<!-- SECCIÓN 2 · CONSEJOS PARA ENTRENAR                    -->
+			<!-- ===================================================== -->
+			<section class="card ayuda">
+				<h2>Consejos para entrenar</h2>
+				<p>
+					Consejos genéricos pensados para alguien que empieza con máquinas de fuerza. Ante cualquier duda o molestia, consulta
+					con un profesional.
+				</p>
+
+				<h3>1. Calentamiento general</h3>
+				<p>
+					Antes de tocar las máquinas, dedica <strong>5-10 minutos</strong> a moverte: caminar rápido o bici estática suave,
+					movilidad de hombros, caderas y tobillos. El objetivo es subir la temperatura corporal y preparar las articulaciones, no
+					cansarte.
+				</p>
+
+				<h3>2. Ajuste del equipo</h3>
+				<p>
+					Ajusta el asiento y los apoyos a tu cuerpo antes de empezar. Las instrucciones de cada ejercicio te indicán como debes
+					ajustarlo.
+				</p>
+
+				<h3>3. Series de aproximación</h3>
+				<p>
+					Son series ligeras del mismo ejercicio antes de las series de trabajo. Sirven para «ensayar» el movimiento y activar el
+					músculo. El programa te indica un peso cómodo y un número de repeticiones; respétalas, sobre todo en el primer ejercicio
+					de cada sesión para ese grupo muscular.
+				</p>
+
+				<h3>4. Fase concéntrica: rápida (~1 segundo)</h3>
+				<p>
+					Es la fase en la que vences la resistencia (empujar o tirar). Debe ser rápida, aproximadamente
+					<strong>1 segundo</strong>, pero <strong>controlada</strong>: sin tirones ni rebotes. No se trata de lanzar el peso,
+					sino de moverlo con intención. En las últimas repeticiones es normal que no puedas mantener la velocidad.
+				</p>
+
+				<h3>5. Fase excéntrica: lenta (~3 segundos)</h3>
+				<p>
+					Es la fase de vuelta, en la que el músculo se estira. Baja el peso <strong>despacio</strong>, controlando todo el
+					recorrido (cuenta 3 segundos). Aquí es donde más se gana fuerza y masa muscular. Evita el rebote.
+				</p>
+
+				<h3>6. Respiración</h3>
+				<p>
+					<strong>Espira al empujar o tirar</strong>
+					(fase concéntrica) e <strong>inspira al volver</strong> (fase excéntrica). No aguantes la respiración.
+				</p>
+
+				<h3>7. Recorrido completo, sin bloquear articulaciones</h3>
+				<p>
+					Haz el recorrido completo de la máquina (estira y contrae del todo), pero sin bloquear las articulaciones: no estires
+					del todo los codos ni las rodillas con el peso encima.
+				</p>
+
+				<h3>8. Repeticiones objetivo</h3>
+				<p>
+					El programa te da un rango (por ejemplo, 9-13). En las series de trabajo intenta
+					<strong>acercarte al máximo del rango sin sobrepasarlo</strong>: si el máximo son 13, no hagas 20. Si puedes hacer
+					muchas más de las indicadas sube el peso en la siguiente serie.
+				</p>
+
+				<h3>9. RIR: repeticiones en reserva</h3>
+				<p>
+					El RIR indica cuántas repeticiones te deben «sobrar» al terminar la serie. Un RIR 2 significa que podrías haber hecho 2
+					repeticiones más. No busques el fallo total: entrena cerca del límite pero con margen, sobre todo al principio.
+				</p>
+
+				<h3>10. Qué hacer en la siguiente serie</h3>
+				<p>
+					Intenta hacer <strong>las mismas repeticiones</strong>
+					que en la primera serie. Es normal perder alguna repetición por la fatiga; si bajas de la repetición mínima del rango,
+					baja el peso en la siguiente serie. La idea es que todas las series sean de calidad.
+				</p>
+
+				<h3>11. Descanso entre series</h3>
+				<p>
+					Respeta el descanso indicado en cada ejercicio. Si vas justo de tiempo, es mejor recortar ejercicios que recortar el
+					descanso: un descanso insuficiente te hará rendir menos en la siguiente serie.
+				</p>
+
+				<h3>12. Se sincero</h3>
+				<p>
+					Cuando termines el ejercicio indica las series que has conseguido hacer con buena técnica y el RIR indicado. Si las
+					últimas repeticiones no fueron controladas (de calidad) no las cuentes. El programa incrementará el peso y las
+					repeticiones para la próxima sesión en base a lo que le has indicado.
+				</p>
+
+				<h3>13. Técnica y seguridad</h3>
+				<ul>
+					<li>Ajusta la máquina a tu altura antes de empezar.</li>
+					<li>Movimientos controlados, sin impulso, sin balanceo y sin «retorcerser» en el asiento.</li>
+					<li>Si notas dolor (no fatiga) en una articulación, para.</li>
+					<li>Respecta el calentamiento, aunque tengas prisa.</li>
+					<li>Hidrátate durante la sesión.</li>
+				</ul>
+
+				<h3>14. Sé constante</h3>
+				<p>
+					La constancia importa más que la perfección: es mejor entrenar 2-3 días por semana de forma regular que matarse un día y
+					desaparecer.
+				</p>
+			</section>
+		</main>
+	</body>
+</html>

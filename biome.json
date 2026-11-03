@@ -4,7 +4,7 @@
 		"experimentalFullSupportEnabled": true,
 		"formatter": {
 			"enabled": true,
-			"whitespaceSensitivity": "ignore",
+			"whitespaceSensitivity": "css",
 			"indentStyle": "tab"
 		}
 	},

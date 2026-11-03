@@ -234,7 +234,7 @@ function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
 	const aproximacion = calcularSeriesAproximacion(ejercicio, pesoObjetivo);
 
 	// En descarga, reducimos las series de trabajo a la mitad y subimos el RIR (más fácil).
-	const numeroSeriesTrabajo = esDescarga ? Math.max(1, Math.round(ejercicio.series_trabajo / 2)) : ejercicio.series_trabajo;
+	const numeroSeriesTrabajo = esDescarga ? Math.max(1, Math.round(ejercicio.series_trabajo * 0.6)) : ejercicio.series_trabajo;
 	const rir = esDescarga ? Math.min(5, Math.round(ejercicio.rir + 2)) : ejercicio.rir;
 
 	return {
