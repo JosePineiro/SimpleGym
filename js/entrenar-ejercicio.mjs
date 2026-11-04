@@ -243,6 +243,7 @@ function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
 		rangoRepeticiones: `${ejercicio.repeticiones_min}-${ejercicio.repeticiones_max}`,
 		rir,
 		series: [
+			// Primero las series de aproximación
 			...aproximacion.map((s, i) => ({
 				peso: s.peso,
 				repeticiones: s.repeticiones,
@@ -250,7 +251,16 @@ function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
 				esAproximacion: true,
 				numero: i + 1,
 			})),
-			...Array.from({ length: numeroSeriesTrabajo }, (_, i) => ({
+			// Series de trabajo. Se solicita llegar al numero de repeticiones maximas
+			...Array.from({ length: numeroSeriesTrabajo - 1 }, (_, i) => ({
+				peso: pesoObjetivo,
+				repeticiones: ejercicio.repeticiones_max,
+				descanso: ejercicio.descanso,
+				esAproximacion: false,
+				numero: i + 1,
+			})),
+			// Última serie de trabajo: se solicita llegar al número de repeticiones objetivo
+			...Array.from({ length: 1 }, (_, i) => ({
 				peso: pesoObjetivo,
 				repeticiones: repeticionesObjetivo,
 				descanso: ejercicio.descanso,
