@@ -8,6 +8,7 @@
 [![Chart.js](https://img.shields.io/badge/Chart.js-4.4.4-FF6384?logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
 
 **SIMPLEGYM** es una aplicación web sin instalación que actúa como cuaderno de entrenamiento. No genera rutinas por ti: tú sigues el plan que ya tienes cargado y la aplicación te indica qué toca hoy, te guía serie a serie, calcula la progresión de peso y muestra tu evolución a lo largo del tiempo.
+Su filosofía es ser una aplicación simple, sencilla e intuitiva. Así te puedes centrar en el ejercicio y no pierdes tiempo navegando entre pantallas e introduciendo un monton de datos.
 
 ---
 
@@ -21,12 +22,12 @@
 - 📋 **Rutina en sesiones rotativas** — Las sesiones se alternan cíclicamente: `1 → 2 → 3 → 4 → 1 …`
 - ⏱️ **Guía serie a serie** — Series de aproximación y series de trabajo con peso y repeticiones objetivo, además de temporizador de descanso con aviso sonoro y vibración.
 - 📈 **Progresión automática** — Basada en el rango de repeticiones del ejercicio y en el último registro. Sube peso al llegar al máximo y reinicia el rango.
-- 🔁 **Sesión de descarga** — Reduce el volumen automáticamente cuando lo necesitas.
+- 🔁 **Sesión de descarga** — Reduce el volumen automáticamente cuando lo necesites.
 - 📊 **Estadísticas completas**
   - Por **ejercicio**: evolución del 1RM con fórmula de Epley, récords, rachas, frecuencia y volumen total.
   - Por **sesión**: volumen a lo largo del tiempo, récords y rachas.
   - Por **día**: calendario en mapa de calor con sesiones incompletas, completas o con progreso.
-- 💾 **Persistencia multi-dispositivo** — Firebase Auth con Google o Microsoft y Firestore con caché local persistente.
+- 💾 **Persistencia multi-dispositivo** — Firebase Auth con Google o Microsoft y Firestore con caché local persistente. Tus datos están en todos tus dispositivos.
 - 📥 **Importar y exportar**
   - Ejercicios en **JSON**.
   - Historial de entrenamiento en **CSV**.
@@ -50,14 +51,19 @@ Sin frameworks y sin bundler. Solo ficheros estáticos servidos desde cualquier 
 
 ## 🚀 Puesta en marcha
 
-### 1. Clonar el repositorio
+### 1. IDE
+
+Esta aplicación ha sido desarrollada con Visual Studio Code. Si usas ese IDE todas las dependencias se instalarán automáticamente.
+
+
+### 2. Clonar el repositorio
 
 ```bash
 git clone https://github.com/<usuario>/simplegym.git
 cd simplegym
 ```
 
-### 2. Servir los ficheros
+### 3. Servir los ficheros
 
 La aplicación usa ES Modules y Firebase, así que no funciona abriendo los HTML con `file://`. Necesitas un servidor HTTP local:
 
@@ -74,7 +80,7 @@ php -S localhost:8080
 
 Después, abre `http://localhost:8080` en el navegador.
 
-### 3. Configurar Firebase
+### 4. Configurar Firebase
 
 La configuración de Firebase está en `js/database.mjs`:
 
@@ -89,7 +95,7 @@ const firebaseConfig = {
 
 La `apiKey` de Firebase es pública por diseño. Lo que protege los datos son las reglas de seguridad de Firestore. Si despliegas tu propia instancia, crea un proyecto en Firebase Console, activa los proveedores de Google y Microsoft, y sustituye `firebaseConfig` por el de tu proyecto.
 
-### 4. Importar ejercicios
+### 5. Importar ejercicios
 
 La aplicación no incluye ejercicios predeterminados. Puedes usar uno de los ejemplos incluidos:
 
@@ -113,6 +119,7 @@ simplegym/
 ├── estadisticas-sesiones.html     # Lista de sesiones
 ├── estadisticas-sesion.html       # Estadísticas de una sesión
 ├── estadisticas-dias.html         # Calendario de entrenamiento
+├── images/                        # Todas las imagenes de los ejercicios, auque pueden estar en cualquier otro servidor.
 ├── css/
 │   └── styles.css
 ├── js/
@@ -130,6 +137,7 @@ simplegym/
 ├── ejercicios-mancuernas.json
 ├── favicon.svg
 └── LICENSE.txt
+└── README.md
 ```
 
 ---
@@ -140,7 +148,7 @@ simplegym/
 |-------|------|-------------|
 | `id` | `number` | Identificador único. |
 | `orden` | `number` | Posición dentro de la sesión. |
-| `imagen` | `string` | Ruta a la imagen ilustrativa. |
+| `imagen` | `string` | Ruta a la imagen ilustrativa. Puede ser absoluta o relativa |
 | `nombre` | `string` | Nombre del ejercicio. |
 | `descripcion` | `string` | Descripción técnica. |
 | `incremento_peso` | `number` | Salto mínimo de peso en kg. |
@@ -182,7 +190,8 @@ Cada ejercicio tiene un rango de repeticiones. Al terminar un ejercicio, anotas 
 
 1. Si llegaste al máximo del rango, sube el peso en `incremento_peso` y reinicia las repeticiones al mínimo.
 2. Si no llegaste al máximo, mantiene el peso y te pide una repetición más que la vez anterior.
-3. En sesión de descarga, reduce el volumen y el peso, y el registro no cuenta para la progresión.
+3. Si no llegaste al mínimo, baja el peso y te pone las repeticiones máximo.
+4. En sesión de descarga, reduce el volumen y el peso, y el registro no cuenta para la progresión.
 
 La fórmula de 1RM usada en las estadísticas es Epley:
 
@@ -226,7 +235,7 @@ Aplicación estable, en uso personal. Sin tests automatizados. Se aceptan issues
 Distribuido bajo la **Licencia MIT**. Consulta [`LICENSE.txt`](LICENSE.txt) para más información.
 
 ```text
-MIT License · Copyright (c) 2020 Jose M. Piñeiro
+MIT License · Copyright (c) 2026 Jose M. Piñeiro
 ```
 
 ---
