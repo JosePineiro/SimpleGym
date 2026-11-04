@@ -11,6 +11,11 @@
 
 ---
 
+## 🚀 Puesta en marcha
+- Si solamente deseas usarla pon esta dirección en tu navegador: https://josepineiro.github.io/SimpleGym/index.html
+- A continuación lee la ayuda para saber como introducir los ejercicios.
+---
+
 ## ✨ Características
 
 - 📋 **Rutina en sesiones rotativas** — Las sesiones se alternan cíclicamente: `1 → 2 → 3 → 4 → 1 …`
