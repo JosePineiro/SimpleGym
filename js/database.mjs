@@ -4,10 +4,11 @@
 //    y la subida a Firebase queda encolada, sin esperar a la red.
 //  - Las lecturas (cargar*) usan getDocFromCache: siempre salen de la caché local,
 //    sin red ni coste.
-//  - La caché se refresca desde la nube una vez al día: la primera operación de cada
-//    día (iniciarSesion, cargar* o guardar*) sube lo pendiente y descarga los documentos.
-//    El resto del día todo va por caché. No hace falta volver a iniciar sesión.
-//  - Si el refresco falla (p. ej. al abrir sin conexión en un día nuevo), la operación
+//  - La caché se refresca desde la nube como máximo una vez cada VALIDEZ_CACHE_MS: la primera operación
+//    (iniciarSesion, cargar* o guardar*) tras pasar VALIDEZ_CACHE_MS sube lo pendiente y descarga
+//    los documentos. Mientras tanto todo va por caché. No hace falta volver a iniciar sesión.
+//  - Cada escritura confirmada por el servidor reinicia el contador de VALIDEZ_CACHE_MS.
+//  - Si el refresco falla (p. ej. al abrir sin conexión con la caché caducada), la operación
 //    lanza el error y se reintenta en la siguiente llamada o al volver la red.
 //
 // Datos:    guardarHistorial(registros) / cargarHistorial()
@@ -33,8 +34,10 @@ const firebaseConfig = {
 	appId: "1:1086535851954:web:5eb50586ba1db2c9498eab",
 };
 
-// Clave de localStorage donde se guarda { uid, dia } del último refresco de la caché.
+// Clave de localStorage donde se guarda { uid, ts } (ts = ms epoch) de la última sincronización
+// con la nube (refresco de la caché o escritura confirmada por el servidor).
 const CLAVE_SESION_DIA = "fitnessDB.sesionDia";
+const VALIDEZ_CACHE_MS = 120 * 60 * 1000; // 2 horas
 const MSG_SIN_SESION = "Sesión no iniciada. Llama a iniciarSesion(proveedor) desde un botón.";
 const MSG_SIN_CONEXION = "Esta operación necesita conexión a internet.";
 
@@ -182,22 +185,35 @@ let validando = null;  // { uid, promesa } del refresco en curso (evita lanzar d
 let version = 0;       // descarta resultados de notificaciones antiguas
 
 /**
- * @brief Devuelve la fecha actual en formato AAAA-MM-DD (hora local).
- * @returns {string} Fecha en formato ISO corto.
+ * @brief Indica si la caché sigue vigente para el usuario (sincronizada hace menos de una hora).
+ *        Una marca en el futuro (reloj cambiado) se considera caducada.
+ * @param {string} uid UID del usuario.
+ * @returns {boolean} true si no hace falta refrescar.
  */
-const hoy = () => new Date().toLocaleDateString("sv"); // AAAA-MM-DD en hora local
+function cacheVigente(uid) {
+	const guardada = leerSesionDia();
+	if (guardada?.uid !== uid || typeof guardada.ts !== "number") return false;
+	const edad = Date.now() - guardada.ts;
+	return edad >= 0 && edad < VALIDEZ_CACHE_MS;
+}
 
 /**
- * @brief Lee de localStorage la sesión diaria guardada.
- * @returns {Object|null} Objeto { uid, dia } o null si no existe o hay error.
+ * @brief Marca la caché como sincronizada ahora (reinicia el contador de una hora).
+ * @param {string} uid UID del usuario.
+ */
+const marcarSincronizado = (uid) => guardarSesionDia({ uid, ts: Date.now() });
+
+/**
+ * @brief Lee de localStorage la última sincronización guardada.
+ * @returns {Object|null} Objeto { uid, ts } o null si no existe o hay error.
  */
 function leerSesionDia() {
 	try { return JSON.parse(localStorage.getItem(CLAVE_SESION_DIA)); } catch { return null; }
 }
 
 /**
- * @brief Guarda en localStorage la sesión diaria.
- * @param {Object} sesion Objeto { uid, dia }.
+ * @brief Guarda en localStorage la última sincronización.
+ * @param {Object} sesion Objeto { uid, ts }.
  */
 function guardarSesionDia(sesion) {
 	try { localStorage.setItem(CLAVE_SESION_DIA, JSON.stringify(sesion)); }
@@ -205,15 +221,15 @@ function guardarSesionDia(sesion) {
 }
 
 /**
- * @brief Borra de localStorage la sesión diaria.
+ * @brief Borra de localStorage la última sincronización.
  */
 function borrarSesionDia() {
 	try { localStorage.removeItem(CLAVE_SESION_DIA); } catch { /* sin almacenamiento: nada que borrar */ }
 }
 
 /**
- * @brief Devuelve el usuario con la caché refrescada hoy, o null si no hay sesión.
- *        Si hoy aún no se ha refrescado, descarga de la nube (previa subida de lo pendiente).
+ * @brief Devuelve el usuario con la última caché refrescada, o null si no hay sesión.
+ *        Si ha caducado, descarga de la nube (previa subida de lo pendiente).
  *        Si falla, lanza el error y se reintenta en la siguiente llamada.
  * @returns {Promise<Object|null>} Usuario de Firebase o null.
  */
@@ -223,12 +239,11 @@ async function usuarioValidado() {
 	const usuario = auth.currentUser;
 	if (!usuario) return null;
 
-	const guardada = leerSesionDia();
-	if (guardada?.uid === usuario.uid && guardada.dia === hoy()) return usuario;
+	if (cacheVigente(usuario.uid)) return usuario;
 
 	if (validando?.uid !== usuario.uid) {
 		const promesa = refrescarCache(usuario.uid)
-			.then(() => guardarSesionDia({ uid: usuario.uid, dia: hoy() }))
+			.then(() => marcarSincronizado(usuario.uid))
 			.finally(() => { if (validando?.promesa === promesa) validando = null; });
 		validando = { uid: usuario.uid, promesa };
 	}
@@ -291,7 +306,7 @@ addEventListener("online", () => {
 const documentoUsuario = (uid, coleccion, id) => doc(db, COL_USUARIOS, uid, coleccion, id);
 
 /**
- * @brief Espera a que la caché esté refrescada hoy y devuelve el uid. Lanza si no hay sesión.
+ * @brief Espera a que la caché esté refrescada y devuelve el uid. Lanza si no hay sesión.
  * @returns {Promise<string>} UID del usuario.
  * @throws {Error} Si no hay sesión iniciada.
  */
@@ -315,13 +330,16 @@ async function leerDeCache(coleccion, id) {
 
 /**
  * @brief Escribe en Firestore sin esperar a la nube (la caché se actualiza al instante).
+ *        Cuando el servidor confirma la escritura, se reinicia el contador de caché refrescada.
  * @param {string} coleccion Nombre de la colección.
  * @param {string} id ID del documento.
  * @param {Object} datos Datos a escribir.
  */
 async function escribir(coleccion, id, datos) {
 	const uid = await obtenerUid();
-	setDoc(documentoUsuario(uid, coleccion, id), datos).catch((e) => console.error("Error sincronizando escritura:", e));
+	setDoc(documentoUsuario(uid, coleccion, id), datos)
+		.then(() => { if (auth.currentUser?.uid === uid) marcarSincronizado(uid); })
+		.catch((e) => console.error("Error sincronizando escritura:", e));
 }
 
 /**
@@ -344,7 +362,7 @@ async function refrescarCache(uid) {
 
 /**
  * @brief Inicia sesión con el proveedor indicado (google o microsoft).
- *        Si ya hay sesión de Firebase, solo refresca la caché cuando toca (una vez al día).
+ *        Si ya hay sesión de Firebase, solo refresca la caché cuando toca (si ha pasado más de VALIDEZ_CACHE_MS).
  * @param {string} proveedor Nombre del proveedor ("google" o "microsoft").
  * @returns {Promise<Object|null>} Resumen del usuario, o null si se ha redirigido a la página de login.
  * @throws {Error} Si el proveedor no es válido o falla el inicio de sesión.
