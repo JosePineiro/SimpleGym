@@ -3,6 +3,17 @@ import { formatearNumero, obtenerParametrosURL } from "./utils.mjs";
 
 const IMAGEN_PLACEHOLDER = "images/placeholder.svg";
 
+/**
+ * @brief Limita un valor numérico al rango [minimo, maximo].
+ * @param {number} valor - Valor a limitar.
+ * @param {number} minimo - Cota inferior permitida.
+ * @param {number} maximo - Cota superior permitida.
+ * @returns {number} El valor acotado al rango indicado.
+ * @example
+ * limitar(150, 0, 100); // 100
+ * limitar(-5, 0, 100);  // 0
+ * limitar(42, 0, 100);  // 42
+ */
 const limitar = (valor, minimo, maximo) => Math.min(Math.max(valor, minimo), maximo);
 
 /* =========================================================
@@ -17,16 +28,48 @@ const limitar = (valor, minimo, maximo) => Math.min(Math.max(valor, minimo), max
 const PREFIJO_PROGRESO = "simplegym:progreso:";
 const VERSION_PROGRESO = 1;
 
+/**
+ * @brief Fecha local en formato ISO corto "YYYY-MM-DD".
+ *
+ * No se usa `toISOString()` porque devuelve la fecha en UTC y cerca de medianoche
+ * podría devolver el día equivocado.
+ *
+ * @returns {string} Fecha local en formato ISO corto (p. ej. "2025-01-15").
+ * @example
+ * fechaLocal(); // "2025-01-15"
+ */
 function fechaLocal() {
-	// No usamos toISOString(): devuelve la fecha en UTC y cerca de medianoche daría el día equivocado.
 	const ahora = new Date();
 	const mes = String(ahora.getMonth() + 1).padStart(2, "0");
 	const dia = String(ahora.getDate()).padStart(2, "0");
 	return `${ahora.getFullYear()}-${mes}-${dia}`;
 }
 
+/**
+ * @brief Construye la clave de localStorage para el progreso de un ejercicio hoy.
+ * @param {number|string} idEjercicio - Identificador del ejercicio.
+ * @returns {string} Clave con el formato `simplegym:progreso:<id>:<fecha>`.
+ * @example
+ * claveProgreso(3); // "simplegym:progreso:3:2025-01-15"
+ */
 const claveProgreso = (idEjercicio) => `${PREFIJO_PROGRESO}${idEjercicio}:${fechaLocal()}`;
 
+/**
+ * @brief Guarda el estado de progreso del ejercicio en localStorage.
+ *
+ * No lanza excepción si el almacenamiento falla (modo privado, cuota llena, bloqueo);
+ * en tal caso sólo se emite un warning y la app sigue funcionando sin persistencia.
+ *
+ * @param {number|string} idEjercicio - Identificador del ejercicio.
+ * @param {Object} estado - Estado actual del ejercicio.
+ * @param {number} estado.indiceSerie - Índice de la serie que toca ahora.
+ * @param {number} estado.inicioSerie - Timestamp del inicio de la serie actual.
+ * @param {number} estado.finDescanso - Timestamp del fin del descanso actual.
+ * @param {{peso:string, repeticiones:string}|null} estado.borrador - Borrador del formulario final.
+ * @returns {void}
+ * @example
+ * guardarProgreso(3, { indiceSerie: 2, inicioSerie: Date.now(), finDescanso: 0, borrador: null });
+ */
 function guardarProgreso(idEjercicio, estado) {
 	try {
 		localStorage.setItem(
@@ -45,7 +88,15 @@ function guardarProgreso(idEjercicio, estado) {
 	}
 }
 
-// Devuelve el progreso guardado hoy para este ejercicio o `null` si no hay (o está corrupto).
+/**
+ * @brief Lee el progreso guardado hoy para un ejercicio.
+ * @param {number|string} idEjercicio - Identificador del ejercicio.
+ * @returns {{indiceSerie:number, inicioSerie:number, finDescanso:number, borrador:{peso:string,repeticiones:string}|null}|null}
+ *   Objeto con el progreso validado, o `null` si no existe, está corrupto o la versión no coincide.
+ * @example
+ * const progreso = leerProgreso(3);
+ * if (progreso) console.log(progreso.indiceSerie);
+ */
 function leerProgreso(idEjercicio) {
 	try {
 		const datos = JSON.parse(localStorage.getItem(claveProgreso(idEjercicio)));
@@ -70,6 +121,13 @@ function leerProgreso(idEjercicio) {
 	}
 }
 
+/**
+ * @brief Elimina la entrada de progreso del ejercicio actual en localStorage.
+ * @param {number|string} idEjercicio - Identificador del ejercicio.
+ * @returns {void}
+ * @example
+ * borrarProgreso(3);
+ */
 function borrarProgreso(idEjercicio) {
 	try {
 		localStorage.removeItem(claveProgreso(idEjercicio));
@@ -78,7 +136,15 @@ function borrarProgreso(idEjercicio) {
 	}
 }
 
-// Elimina el progreso de cualquier ejercicio que no sea de hoy.
+/**
+ * @brief Elimina de localStorage el progreso de cualquier ejercicio que no sea de hoy.
+ *
+ * Se invoca al arrancar la pantalla para mantener limpio el almacenamiento local.
+ *
+ * @returns {void}
+ * @example
+ * limpiarProgresoAntiguo();
+ */
 function limpiarProgresoAntiguo() {
 	try {
 		const sufijoHoy = `:${fechaLocal()}`;
@@ -96,8 +162,20 @@ function limpiarProgresoAntiguo() {
 	}
 }
 
-// Vuelca el progreso guardado sobre `estado`, validándolo contra la sesión actual
-// (por si la rutina o el histórico han cambiado desde que se guardó).
+/**
+ * @brief Vuelca el progreso guardado sobre `estado`, validándolo contra la sesión actual.
+ *
+ * La validación evita incoherencias si la rutina o el histórico han cambiado desde
+ * que se guardó el progreso (por ejemplo, si hoy hay más o menos series).
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Object} ejercicio - Datos del ejercicio actual.
+ * @param {Object} estado - Estado mutable del ejercicio que se va a restaurar.
+ * @param {Object} sesion - Sesión calculada para hoy (con `sesion.series`).
+ * @returns {void}
+ * @example
+ * restaurarProgreso(elementosDom, ejercicio, estado, sesion);
+ */
 function restaurarProgreso(elementosDom, ejercicio, estado, sesion) {
 	const guardado = leerProgreso(ejercicio.id);
 	if (!guardado) return;
@@ -117,6 +195,22 @@ function restaurarProgreso(elementosDom, ejercicio, estado, sesion) {
    Series de aproximación
    ========================================================= */
 
+/**
+ * @brief Calcula las series de aproximación (calentamiento) previas al trabajo efectivo.
+ *
+ * Genera hasta dos series de aproximación:
+ *  - Primera: 50 % del peso objetivo, redondeado hacia abajo.
+ *  - Segunda: 70 % del peso objetivo, redondeada al múltiplo más cercano.
+ *
+ * Se omiten series de aproximación cuya carga sea mayor o igual al peso objetivo.
+ *
+ * @param {Object} ejercicio - Datos del ejercicio (incremento_peso, series_aproximacion, etc.).
+ * @param {number} pesoObjetivo - Peso objetivo de las series de trabajo.
+ * @returns {Array<{peso:number, repeticiones:number, descanso:number}>} Lista de series de aproximación.
+ * @example
+ * const aprox = calcularSeriesAproximacion({ series_aproximacion: 2, incremento_peso: 2.5, ... }, 100);
+ * // [{peso:50, repeticiones:11, descanso:60}, {peso:70, repeticiones:5, descanso:90}]
+ */
 function calcularSeriesAproximacion(ejercicio, pesoObjetivo) {
 	const numeroSeries = ejercicio.series_aproximacion;
 	const series = [];
@@ -164,6 +258,15 @@ function calcularSeriesAproximacion(ejercicio, pesoObjetivo) {
    Ejercicio
    ========================================================= */
 
+/**
+ * @brief Busca un ejercicio por su identificador en la lista cargada.
+ * @param {Array<Object>} ejercicios - Lista completa de ejercicios disponibles.
+ * @param {number} idEjercicio - Identificador del ejercicio buscado.
+ * @returns {Object} El ejercicio encontrado.
+ * @throws {Error} Si no existe ningún ejercicio con ese identificador.
+ * @example
+ * const ej = obtenerEjercicio(ejercicios, 7);
+ */
 function obtenerEjercicio(ejercicios, idEjercicio) {
 	const ejercicio = ejercicios.find((ejercicio) => Number(ejercicio.id) === idEjercicio);
 
@@ -174,6 +277,17 @@ function obtenerEjercicio(ejercicios, idEjercicio) {
 	return ejercicio;
 }
 
+/**
+ * @brief Rellena el DOM con la información visual del ejercicio (imagen, título y descripción).
+ *
+ * Aplica carga perezosa, decodificación asíncrona y una imagen de respaldo si falla la carga.
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Object} ejercicio - Datos del ejercicio a mostrar.
+ * @returns {void}
+ * @example
+ * mostrarEjercicio(elementosDom, ejercicio);
+ */
 function mostrarEjercicio(elementosDom, ejercicio) {
 	const { imagenEjercicio, descripcionEjercicio, titulo } = elementosDom;
 
@@ -194,6 +308,18 @@ function mostrarEjercicio(elementosDom, ejercicio) {
    Histórico y sesión del día
    ========================================================= */
 
+/**
+ * @brief Obtiene el último registro del histórico (no de descarga) para un ejercicio.
+ *
+ * El histórico se asume ordenado por fecha ascendente, por lo que el último registro
+ * coincidente es el más reciente.
+ *
+ * @param {Array<Object>} historial - Histórico completo de sesiones.
+ * @param {number|string} idEjercicio - Identificador del ejercicio.
+ * @returns {Object|null} Último registro válido o `null` si no hay registros previos.
+ * @example
+ * const ultimo = obtenerUltimoRegistro(historial, 3);
+ */
 function obtenerUltimoRegistro(historial, idEjercicio) {
 	// El histórico está ordenado por fecha ascendente, así que el último registro
 	// coincidente es el más reciente (aunque haya varios con la misma fecha, que es
@@ -202,8 +328,27 @@ function obtenerUltimoRegistro(historial, idEjercicio) {
 	return historial.findLast((r) => r.idEjercicio === idEjercicio && !r.esDescarga) ?? null;
 }
 
-// Devuelve la sesión del día como una lista plana de series a realizar.
-// Cada serie tiene: { peso, repeticiones, descanso, esAproximacion, numero }.
+/**
+ * @brief Calcula la sesión del día para un ejercicio: peso, repeticiones y descansos por serie.
+ *
+ * Aplica la progresión (subida de repeticiones o de peso) en base al último registro,
+ * y si es descarga reduce series, repeticiones objetivo y aumenta el RIR.
+ *
+ * @param {Object} ejercicio - Datos del ejercicio.
+ * @param {Object|null} ultimoRegistro - Último registro no-descarga del ejercicio, o `null`.
+ * @param {boolean} esDescarga - `true` si la sesión es de descarga.
+ * @returns {{
+ *   esDescarga: boolean,
+ *   numeroSeriesTrabajo: number,
+ *   rangoRepeticiones: string,
+ *   rir: number,
+ *   series: Array<{peso:number, repeticiones:number, descanso:number, esAproximacion:boolean, numero:number}>
+ * }} Sesión calculada.
+ * @throws {Error} Si `ejercicio` no contiene los campos requeridos.
+ * @example
+ * const sesion = calcularSesion(ejercicio, ultimo, false);
+ * console.log(sesion.series[0]);
+ */
 function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
 	let pesoObjetivo;
 	let repeticionesObjetivo;
@@ -275,14 +420,29 @@ function calcularSesion(ejercicio, ultimoRegistro, esDescarga) {
    Interfaz de la serie
    ========================================================= */
 
-// Muestra las repeticiones y el peso objetivo de la serie que toca a continuación.
+/**
+ * @brief Muestra en el DOM las repeticiones y el peso objetivo de la serie actual.
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {{descanso:number, repeticiones:number, peso:number}} serie - Serie a mostrar.
+ * @returns {void}
+ * @example
+ * mostrarObjetivoSerie(elementosDom, sesion.series[0]);
+ */
 function mostrarObjetivoSerie(elementosDom, serie) {
 	elementosDom.descanso.textContent = serie.descanso;
 	elementosDom.repeticionesObjetivo.textContent = serie.repeticiones;
 	elementosDom.pesoObjetivo.textContent = formatearNumero(serie.peso, 1);
 }
 
-// Restaura el texto del botón de la serie (al terminar el descanso).
+/**
+ * @brief Restaura el texto del botón de la serie (se usa al terminar el descanso).
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Array<Object>} series - Lista completa de series de la sesión.
+ * @param {number} actual - Índice de la serie actual.
+ * @returns {void}
+ * @example
+ * mostrarTextoBotonSerie(elementosDom, sesion.series, 0);
+ */
 function mostrarTextoBotonSerie(elementosDom, series, actual) {
 	if (series[actual].esAproximacion)
 		elementosDom.btnSerie.textContent = `Terminé la serie de aproximación ${series[actual].numero}`;
@@ -296,6 +456,16 @@ function mostrarTextoBotonSerie(elementosDom, series, actual) {
    Estado final
    ========================================================= */
 
+/**
+ * @brief Cambia la interfaz al estado "ejercicio completado".
+ *
+ * Oculta el botón de serie y muestra la tarjeta de finalización.
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @returns {void}
+ * @example
+ * mostrarEjercicioCompletado(elementosDom);
+ */
 function mostrarEjercicioCompletado(elementosDom) {
 	const { btnSerie, tarjetaFinalizar } = elementosDom;
 	btnSerie.disabled = true;
@@ -309,6 +479,16 @@ function mostrarEjercicioCompletado(elementosDom) {
 
 let audioContexto = null;
 
+/**
+ * @brief Reproduce tres pitidos cortos y (si está disponible) una vibración sincronizada.
+ *
+ * En iOS Safari `navigator.vibrate` no existe: en ese caso sólo se reproducen los pitidos.
+ * Cualquier fallo de audio se captura y no rompe el flujo de la app.
+ *
+ * @returns {void}
+ * @example
+ * reproducirPitido();
+ */
 function reproducirPitido() {
 	try {
 		// Creamos el contexto de audio sólo la primera vez (los navegadores
@@ -369,9 +549,23 @@ function reproducirPitido() {
 
 let intervaloDescanso = null;
 
-// El descanso termina en `estado.finDescanso` (timestamp). Al depender de una hora absoluta
-// y no de una cuenta atrás, sigue siendo correcto aunque el navegador pause los temporizadores
-// en segundo plano o la página se recargue.
+/**
+ * @brief Inicia la cuenta atrás del descanso mostrándola en el botón de serie.
+ *
+ * El descanso termina en `estado.finDescanso` (timestamp absoluto). Al depender de una
+ * hora absoluta y no de una cuenta atrás, la cuenta sigue siendo correcta aunque el
+ * navegador pause los temporizadores en segundo plano o la página se recargue.
+ *
+ * Al llegar a cero: se reactiva el botón, se restaura su texto, se reproduce el pitido
+ * y se detiene el intervalo.
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Object} estado - Estado mutable del ejercicio (contiene `finDescanso` e `indiceSerie`).
+ * @param {Object} sesion - Sesión calculada para hoy.
+ * @returns {void}
+ * @example
+ * iniciarDescanso(elementosDom, estado, sesion);
+ */
 function iniciarDescanso(elementosDom, estado, sesion) {
 	const { btnSerie } = elementosDom;
 
@@ -401,6 +595,20 @@ function iniciarDescanso(elementosDom, estado, sesion) {
    Finalizar serie
    ========================================================= */
 
+/**
+ * @brief Finaliza la serie actual: valida el tiempo mínimo, avanza el estado y guarda progreso.
+ *
+ * Si es la última serie, marca el ejercicio como completado. En caso contrario, muestra
+ * el objetivo de la siguiente serie y arranca el descanso correspondiente.
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Object} ejercicio - Datos del ejercicio actual.
+ * @param {Object} estado - Estado mutable del ejercicio (se modifica).
+ * @param {Object} sesion - Sesión calculada para hoy.
+ * @returns {void}
+ * @example
+ * finalizarSerie(elementosDom, ejercicio, estado, sesion);
+ */
 function finalizarSerie(elementosDom, ejercicio, estado, sesion) {
 	// Serie que acabamos de terminar.
 	const serieTerminada = sesion.series[estado.indiceSerie];
@@ -438,6 +646,29 @@ function finalizarSerie(elementosDom, ejercicio, estado, sesion) {
    Guardar registro de ejercicio
    ========================================================= */
 
+/**
+ * @brief Valida, guarda en el histórico y navega a la pantalla de sesión.
+ *
+ * El nuevo registro se añade al final de un array nuevo (no se muta `historial`), de modo
+ * que si `guardarHistorial` falla el estado en memoria queda intacto y no se duplica el
+ * registro al reintentar. Al guardar con éxito, se borra el progreso temporal y se
+ * redirige a `sesion.html`.
+ *
+ * @param {Object} elementosDom - Referencias a los elementos del DOM.
+ * @param {Array<Object>} historial - Histórico completo en memoria.
+ * @param {Object} ejercicio - Datos del ejercicio actual.
+ * @param {number} numeroSesion - Número de sesión actual.
+ * @param {number} totalEjerciciosSesion - Total de ejercicios en esta sesión.
+ * @param {Object} sesion - Sesión calculada para hoy.
+ * @returns {Promise<void>} Se resuelve cuando el guardado y la navegación han finalizado.
+ * @throws {Error} Si peso o repeticiones son inválidos, o si `guardarHistorial` falla.
+ * @example
+ * try {
+ *   await guardarResultado(elementosDom, historial, ejercicio, 12, 5, sesion);
+ * } catch (e) {
+ *   alert(e.message);
+ * }
+ */
 async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion, totalEjerciciosSesion, sesion) {
 	const pesoStr = elementosDom.pesoFinal.value.trim();
 	const repStr = elementosDom.repeticionesFinal.value.trim();
@@ -476,6 +707,13 @@ async function guardarResultado(elementosDom, historial, ejercicio, numeroSesion
    Inicialización
    ========================================================= */
 
+/**
+ * @brief Recoge todas las referencias a elementos del DOM utilizadas en esta pantalla.
+ * @returns {Object} Objeto con las referencias por nombre lógico.
+ * @example
+ * const elementosDom = obtenerElementosDom();
+ * elementosDom.btnSerie.click();
+ */
 function obtenerElementosDom() {
 	return {
 		titulo: document.getElementById("titulo"),
@@ -499,6 +737,19 @@ function obtenerElementosDom() {
 	};
 }
 
+/**
+ * @brief Punto de entrada de la pantalla de entrenamiento de un ejercicio.
+ *
+ * Lee los parámetros de la URL, carga ejercicios e histórico, calcula la sesión del día,
+ * restaura el progreso previo (si lo hubiera) y engancha los manejadores del botón de
+ * serie y del formulario final. Si algo falla, oculta el contenedor principal y muestra
+ * un mensaje de error.
+ *
+ * @returns {Promise<void>} Se resuelve cuando la inicialización ha finalizado.
+ * @throws {Error} Si fallan las cargas de datos o la lectura de parámetros de URL.
+ * @example
+ * inicializar();
+ */
 async function inicializar() {
 	const elementosDom = obtenerElementosDom();
 
@@ -585,7 +836,7 @@ async function inicializar() {
 	} catch (error) {
 		elementosDom.mainContainer.hidden = true;
 		elementosDom.titulo.textContent = "Error";
-		elementosDom.subtitulo.textContent = error.message || "No se pudo cargar el ejercicio.";
+		elementosDom.subtitulo.textContent = error.message || "No se pudo cargar este ejercicio.";
 		console.error(error);
 	}
 }
