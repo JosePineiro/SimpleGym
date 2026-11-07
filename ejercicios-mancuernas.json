@@ -212,7 +212,7 @@
 	{
 		"id": 15,
 		"orden": 15,
-		"imagen": "images/curl-martillo.avif",
+		"imagen": "images/curl-martillo.svg",
 		"nombre": "Curl Martillo",
 		"descripcion": "De pie o sentado, sujeta las mancuernas con agarre neutro. Flexiona los codos manteniendo las muñecas neutras y los codos pegados al torso. Baja de forma controlada hasta casi estirar los brazos.",
 		"incremento_peso": 1,
@@ -227,7 +227,7 @@
 	{
 		"id": 16,
 		"orden": 16,
-		"imagen": "images/extension-triceps-cabeza.avif",
+		"imagen": "images/extension-triceps-cabeza.svg",
 		"nombre": "Extensión de Tríceps Sobre la Cabeza",
 		"descripcion": "Sentado en una silla, sujeta una mancuerna con ambas manos por encima de la cabeza. Baja la mancuerna detrás de la cabeza flexionando los codos y extiende sin mover los hombros. Mantén la espalda apoyada.",
 		"incremento_peso": 1,
@@ -242,7 +242,7 @@
 	{
 		"id": 17,
 		"orden": 17,
-		"imagen": "images/patada-triceps.avif",
+		"imagen": "images/patada-triceps.svg",
 		"nombre": "Patada de Tríceps",
 		"descripcion": "Inclinado con la espalda recta, codo pegado al torso y mancuerna colgando. Extiende el codo hacia atrás sin mover el brazo y baja de forma controlada. Alterna los brazos.",
 		"incremento_peso": 1,
@@ -257,7 +257,7 @@
 	{
 		"id": 18,
 		"orden": 18,
-		"imagen": "images/crunch-ponderado.avif",
+		"imagen": "images/crunch-ponderado.svg",
 		"nombre": "Crunch Ponderado",
 		"descripcion": "Tumbado en el suelo con las rodillas flexionadas, sujeta una mancuerna contra el pecho. Eleva ligeramente el tronco contrayendo el abdomen sin tirar del cuello y baja de forma controlada.",
 		"incremento_peso": 1,
@@ -272,7 +272,7 @@
 	{
 		"id": 19,
 		"orden": 19,
-		"imagen": "images/russian-twist.avif",
+		"imagen": "images/russian-twist.svg",
 		"nombre": "Russian Twist",
 		"descripcion": "Sentado en el suelo con las rodillas flexionadas y los talones apoyados, sujeta una mancuerna con ambas manos. Rota el tronco hacia un lado y hacia el otro de forma controlada, sin balancear los brazos ni la espalda.",
 		"incremento_peso": 1,
@@ -287,7 +287,7 @@
 	{
 		"id": 20,
 		"orden": 20,
-		"imagen": "images/farmer-carry.avif",
+		"imagen": "images/farmer-carry.svg",
 		"nombre": "Farmer Carry",
 		"descripcion": "Camina con una mancuerna en cada mano, pegadas al cuerpo, con pasos cortos, espalda recta y hombros atrás y abajo. Evita inclinar el tronco hacia un lado y mantén la postura durante todo el recorrido.",
 		"incremento_peso": 1,
