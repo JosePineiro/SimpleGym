@@ -179,7 +179,7 @@
 					<li>
 						Importa tus ejercicios con el botón <strong>Importar</strong>. Consulta el apartado
 						<a href="#json">Ejercicios (JSON)</a>
-						para el formato y para descargar un JSON de ejemplo.
+						para el formato y para descargar dos JSON de ejemplo.
 					</li>
 					<li>
 						Abre el panel principal: la aplicación te indica qué sesión toca. Entra y sigue los objetivos de cada ejercicio (ver
@@ -205,27 +205,31 @@
 
 				<h2 id="rutina">La rutina: sesiones en rotación</h2>
 				<p>
-					El plan se organiza en varias sesiones que se van alternando. Cada ejercicio está asignado a una o varias sesiones. Al
-					abrir el panel principal, la aplicación te indica qué sesión toca; entra en ella y ve pasando por cada ejercicio. La
-					aplicación rota las sesiones de forma cíclica: <strong>1 → 2 → 3 → 4 → 1 → 2 …</strong>
+					El plan se organiza en varias sesiones que se van alternando. Cada sesion se compone de varios ejercicios. Al abrir el
+					panel principal, la aplicación te indica qué sesión toca; entra en ella y ve pasando por cada ejercicio. La aplicación
+					rota las sesiones de forma cíclica: <strong>1 → 2 → 3 → 4 → 1 → 2 …</strong>
 				</p>
 
 				<h2 id="como-entrenar">Cómo entrenar</h2>
 				<p>El sistema es siempre el mismo y muy sencillo:</p>
 				<ol>
-					<li>Selecciona el primer ejercicio de la sesión. Si la máquina está ocupada, puedes pasar al siguiente ejercicio.</li>
+					<li>
+						Selecciona el primer ejercicio de la sesión. Si la máquina está ocupada, puedes seleccionar al siguiente ejercicio.
+					</li>
 					<li>
 						Sigue el <strong>peso objetivo</strong> y las <strong>repeticiones objetivo</strong> que muestra la pantalla para
-						cada serie. En las series de aproximación no superes las repeticiones indicadas.
+						cada serie. Excepto en la última serie (el botón pone <strong>Terminé el ejercicio</strong>) no superes las
+						repeticiones indicadas.
 					</li>
 					<li>
 						Cuando termines las repeticiones de la serie, pulsa <strong>Terminé la serie de aproximación X</strong>
 						(si el ejercicio las incluye), <strong>Terminé la serie X</strong> o <strong>Terminé el ejercicio</strong>
-						(cuando sea la última serie). La pantalla te mostrará el nuevo <strong>Peso objetivo</strong> y las nuevas
-						<strong>Repeticiones objetivo</strong>.
+						(cuando sea la última serie).
 					</li>
 					<li>
 						El botón muestra una cuenta atrás con el tiempo de descanso. Al llegar a cero, el móvil vibrará y emitirá un pitido.
+						La pantalla te mostrará para la siguiente serie el nuevo <strong>Peso objetivo</strong> y las nuevas
+						<strong>Repeticiones objetivo</strong>.
 					</li>
 					<li>
 						Al terminar el descanso, realiza la nueva serie intentando alcanzar las repeticiones objetivo. Si es la última
@@ -368,20 +372,20 @@
 						descansos y transiciones. Usa únicamente ejercicios del JSON. A partir de estos datos, ajusta orden, sesiones,
 						series_aproximacion, series_trabajo, repeticiones_min, repeticiones_max, rir y descanso. Si un ejercicio resulta
 						redundante por patrón de movimiento, no es conveniente o no cabe en el tiempo disponible, deja "sesiones": [] y
-						conserva el resto de los campos. Prioriza los ejercicios compuestos y procura que cada sesión quepa en 50 minutos;
-						después equilibra la duración y el número de series efectivas entre sesiones, y evita desequilibrios evidentes entre
-						grupos musculares, sin exigir una igualdad exacta. Para calcular el tiempo, asume 4 segundos por cada repetición de
-						repeticiones_max, suma el descanso entre series y añade una transición de 60 segundos entre ejercicios. Devuelve un
-						array JSON válido, sin markdown ni explicaciones. Mantén exactamente el mismo formato, los mismos IDs y los mismos
-						campos.
+						conserva el resto de los campos. Prioriza los ejercicios compuestos; después equilibra la duración y el número de
+						series efectivas entre sesiones, y evita desequilibrios evidentes entre grupos musculares, sin exigir una igualdad
+						exacta. Para calcular el tiempo, asume 4 segundos por cada repetición de repeticiones_max, suma el descanso entre
+						series y añade una transición de 60 segundos entre ejercicios. Devuelve un array JSON válido, sin markdown ni
+						explicaciones. Mantén exactamente el mismo formato, los mismos IDs y los mismos campos.
 					</p>
 				</blockquote>
 				<button type="button" class="btn-copiar" id="copiar-prompt">Copiar texto</button>
 				<span id="copiar-prompt-estado" role="status" aria-live="polite" class="sr-only"></span>
 				<p>
-					La IA te devolverá un JSON que podrás cargar en la aplicación con el botón <strong>Importar</strong>. Al cabo de un par
-					de meses le subes el JSON actual, que puedes exportar de la aplicación, y le solicitas que lo modifique para tu nuevo
-					nivel de experiencia.
+					La IA te devolverá un JSON que podrás cargar en la aplicación con el botón <strong>Importar</strong>. Cada tres meses le
+					subes el JSON actual, que puedes exportar de la aplicación, y le solicitas que lo modifique para tu nuevo nivel de
+					experiencia y tus nuevos objetivos. Es importante mantener la misma rutina al menos tres meses para que la progresión
+					sea efectiva.
 				</p>
 
 				<h2 id="csv">Historial (CSV)</h2>
@@ -521,15 +525,16 @@
 					<li>
 						<strong>En la siguiente serie:</strong>
 						intenta hacer <strong>las mismas repeticiones</strong> que en la primera serie. Es normal perder alguna por la
-						fatiga; si bajas del mínimo del rango, reduce el peso en la siguiente serie. La idea es que todas las series sean de
-						calidad.
+						fatiga; si bajas del mínimo del rango, reduce el peso en la siguiente serie. Lo importante es que todas las series
+						sean de calidad.
 					</li>
 				</ul>
 
 				<h3>5. Descanso entre series</h3>
 				<p>
 					Respeta el descanso indicado en cada ejercicio. Si vas justo de tiempo, es mejor recortar ejercicios que recortar el
-					descanso: un descanso insuficiente reducirá tu rendimiento en la siguiente serie.
+					descanso: un descanso insuficiente reducirá tu rendimiento en la siguiente serie. Tampoco es conveniente ponerse a ver
+					vídeos y descansar el doble de lo indicado.
 				</p>
 
 				<h3>6. Sé honesto</h3>
@@ -538,6 +543,14 @@
 					fueron controladas (de calidad), no las cuentes. La aplicación ajustará el peso y las repeticiones de la próxima sesión
 					en función de lo que le hayas indicado.
 				</p>
+				<p>
+					Cuando haces la última serie y ves que puedes completar el tope de repeticiones, continua sumando las del RIR. Si no las
+					consigues no indique ha has hecho el tope. Por ejemplo, Un ejercicio tiene un rango de 8-12 y el RIR es 2. En la última
+					serie intentas hacer 14. Si consigues hacerlas con buena técnica, apuntas esas 14. Si al hacer la 14 te fallaron los
+					músculos y no la pudiste completar (solo pudiste hacer bien 13), deberias anotar 11, pues en las dos últimas no has
+					cumplido el RIR.
+				</p>
+
 				<p>
 					No cuentes repeticiones dudosas con la intención de ver un rápido progreso. Si anotas de más, la aplicación te propondrá
 					cargas que todavía no puedes manejar y tu progreso se estancará. Usar cargas demasiado altas aumenta el riesgo de
@@ -574,6 +587,10 @@
 				<p>
 					Es normal que algunos días rindas menos: por el sueño, el estrés o el cansancio acumulado. No te frustres ni fuerces el
 					peso para compensar. Anota lo que de verdad has hecho y sigue con el plan; un mal día no borra tu progreso.
+				</p>
+				<p>
+					No cambies frecuentemente las rutinas añadiendo o quitando ejercicios. El progreso se produce de que llevas un tiempo
+					haciendo el mismo ejercicio. Si cambias a menudo no progresarás.
 				</p>
 
 				<p class="volver"><a href="#top">↑ Volver arriba</a></p>
