@@ -21,6 +21,18 @@ Semana / ciclo
 
 // ---- Importar / Exportar historial en CSV ----
 
+/**
+ * @brief Convierte el contenido de un archivo CSV en registros de historial.
+ *
+ * @param {string} text Contenido completo del archivo CSV.
+ * @returns {Object} Objeto con `registros` (array de registros válidos) y `omitidos` (número de filas omitidas).
+ *
+ * @example
+ * const { registros, omitidos } = parseCSV(
+ *   "id_ejercicio;numero_sesion;total_ejercicios;fecha;numero_series;peso;repeticiones;es_descarga\n" +
+ *   "1;1;2;2024/01/15;3;10,5;8;0"
+ * );
+ */
 function parseCSV(text) {
 	const lineas = text
 		.replace(/^\uFEFF/, "")
@@ -85,6 +97,16 @@ function parseCSV(text) {
 	return { registros, omitidos };
 }
 
+/**
+ * @brief Importa registros de historial desde un archivo CSV seleccionado por el usuario.
+ *
+ * @param {Event} event Evento `change` del input de archivo.
+ * @returns {Promise<void>} Promesa que se resuelve cuando finaliza la importación.
+ *
+ * @example
+ * // Asociado a: <input id="btn-importar-CSV" type="file">
+ * document.getElementById("btn-importar-CSV").addEventListener("change", importarCSV);
+ */
 async function importarCSV(event) {
 	const file = event.target.files[0];
 	if (!file) return;
@@ -110,6 +132,15 @@ async function importarCSV(event) {
 	}
 }
 
+/**
+ * @brief Exporta el historial completo a un archivo CSV.
+ *
+ * @returns {Promise<void>} Promesa que se resuelve cuando se inicia la descarga.
+ * @throws {Error} Si falla la carga del historial desde el almacenamiento.
+ *
+ * @example
+ * await exportarCSV(); // Descarga Historial.csv si hay registros.
+ */
 async function exportarCSV() {
 	const registros = await cargarHistorial();
 
@@ -152,6 +183,16 @@ async function exportarCSV() {
 
 // ---- Importar / Exportar ejercicios en JSON ----
 
+/**
+ * @brief Importa ejercicios desde un archivo JSON seleccionado por el usuario.
+ *
+ * @param {Event} event Evento `change` del input de archivo.
+ * @returns {Promise<void>} Promesa que se resuelve cuando finaliza la importación.
+ *
+ * @example
+ * // Asociado a: <input id="btn-importar-JSON" type="file">
+ * document.getElementById("btn-importar-JSON").addEventListener("change", importarJSON);
+ */
 async function importarJSON(event) {
 	const file = event.target.files[0];
 	if (!file) return;
@@ -209,6 +250,14 @@ async function importarJSON(event) {
 	}
 }
 
+/**
+ * @brief Exporta los ejercicios actuales a un archivo JSON.
+ *
+ * @returns {Promise<void>} Promesa que se resuelve cuando se inicia la descarga.
+ *
+ * @example
+ * await exportarJSON(); // Descarga ejercicios.json
+ */
 async function exportarJSON() {
 	try {
 		const ejercicios = await cargarEjercicios();
@@ -229,6 +278,16 @@ async function exportarJSON() {
 
 // ---- Inicializar pantalla ----
 
+/**
+ * @brief Calcula el número de sesión que corresponde al día actual.
+ *
+ * @param {number} maxNumeroSesion Número máximo de sesión definido por los ejercicios.
+ * @param {Array<Object>} registros Registros del historial.
+ * @returns {number} Número de sesión actual.
+ *
+ * @example
+ * const sesion = getSesionActual(4, historial);
+ */
 function getSesionActual(maxNumeroSesion, registros) {
 	if (!registros.length || !maxNumeroSesion) {
 		return 1;
@@ -245,6 +304,17 @@ function getSesionActual(maxNumeroSesion, registros) {
 	return (ultimoRegistro.numeroSesion % maxNumeroSesion) + 1;
 }
 
+/**
+ * @brief Cuenta los ejercicios de una sesión que aún no se han registrado hoy.
+ *
+ * @param {Array<Object>} ejercicios Lista de ejercicios.
+ * @param {Array<Object>} registros Registros del historial.
+ * @param {number} numeroSesion Número de sesión a comprobar.
+ * @returns {number} Cantidad de ejercicios pendientes.
+ *
+ * @example
+ * const pendientes = getNumeroEjerciciosPendientes(ejercicios, historial, 1);
+ */
 function getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesion) {
 	const ejerciciosHechosHoy = new Set(
 		registros.filter((registro) => esMismoDia(registro.fecha, new Date())).map((registro) => registro.idEjercicio),
@@ -253,6 +323,14 @@ function getNumeroEjerciciosPendientes(ejercicios, registros, numeroSesion) {
 	return ejercicios.filter((ejercicio) => ejercicio.sesiones.includes(numeroSesion) && !ejerciciosHechosHoy.has(ejercicio.id)).length;
 }
 
+/**
+ * @brief Inicializa la pantalla principal con el estado de sesión y los ejercicios pendientes.
+ *
+ * @returns {Promise<void>} Promesa que se resuelve cuando finaliza la inicialización.
+ *
+ * @example
+ * await inicializar();
+ */
 async function inicializar() {
 	try {
 		const [ejercicios, historial] = await Promise.all([cargarEjercicios(), cargarHistorial()]);
@@ -279,6 +357,16 @@ async function inicializar() {
 }
 
 // ---- Sesión y pantalla principal ----
+
+/**
+ * @brief Actualiza la interfaz cuando cambia el estado de autenticación.
+ *
+ * @param {Object|null} usuario Usuario autenticado o `null` si no hay sesión.
+ * @returns {Promise<void>} Promesa que se resuelve cuando se actualiza la pantalla.
+ *
+ * @example
+ * await alCambiarEstadoSesion(null); // Muestra la pantalla de validación.
+ */
 async function alCambiarEstadoSesion(usuario) {
 	const validado = Boolean(usuario);
 

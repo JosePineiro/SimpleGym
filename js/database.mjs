@@ -488,6 +488,6 @@ export async function guardarEjercicios(ejercicios) {
  */
 export async function cargarEjercicios() {
 	const snap = await leerDeCache(COL_EJERCICIOS, ID_EJERCICIOS);
-	if (!snap?.exists()) throw new Error("No hay ejercicios importados. Usa 'Importar JSON' para cargarlos.");
+	if (!snap?.exists()) throw new Error("No hay ejercicios importados. Ve a la 'Ejercicios (JSON)' en la ayuda.");
 	return JSON.parse(snap.data().texto);
 }
